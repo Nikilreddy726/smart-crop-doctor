@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+:root {
+  /* Vibrant & Attractive Green Design System */
+  --primary: #22c55e;
+  /* Vibrant Green (Tailwind green-500) */
+  --primary-dark: #16a34a;
+  /* green-600 */
+  --primary-light: #4ade80;
+  /* green-400 */
+  --bg-slate: #f8fafc;
+  --text-slate: #1e293b;
+  --border-slate: #e2e8f0;
+}
+
+@theme {
+  --color-primary-dark: #16a34a;
+  --color-primary: #22c55e;
+  --color-primary-light: #86efac;
+
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+
+  --radius-4xl: 2rem;
+  --radius-5xl: 3rem;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-slate);
+  color: var(--text-slate);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Base Styles */
+h1,
+h2,
+h3,
+h4 {
+  color: #0f172a;
+  /* high contrast */
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.card-base {
+  background: white;
+  border: 1px solid var(--border-slate);
+  border-radius: 2rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 1rem;
+  font-weight: 700;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  border: 1px solid var(--border-slate);
+  background: white;
+  color: var(--text-slate);
+  padding: 0.75rem 1.5rem;
+  border-radius: 1rem;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  background-color: var(--bg-slate);
+  border-color: var(--primary);
+}
+
+/* Scrollbar Hiding Utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

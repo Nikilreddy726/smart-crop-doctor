@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+python-multipart
+pillow
+numpy
+
+# requests  # for potential weather api calls if needed from here

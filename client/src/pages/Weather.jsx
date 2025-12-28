@@ -31,25 +31,45 @@ const Weather = () => {
         }
     }, []);
 
-    const fetchWeather = async (lat, lon) => {
+    const fetchWeather = async (lat, lon, locationOverride = null) => {
         try {
             setLoading(true);
-            const data = await getWeather(lat, lon);
+            const data = await getWeather(parseFloat(lat), parseFloat(lon));
             setWeather(data);
-            setLocation({
-                city: data.name || 'Unknown',
-                region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || ''
-            });
+
+            if (locationOverride) {
+                setLocation(locationOverride);
+            } else {
+                setLocation({
+                    city: data.name || 'Unknown',
+                    region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || ''
+                });
+            }
         } catch (error) {
             console.error("Weather fetch error:", error);
-            // Set mock data
-            setWeather({
-                main: { temp: 28, humidity: 64, feels_like: 30 },
-                weather: [{ main: 'Cloudy', description: 'partly cloudy' }],
-                wind: { speed: 12 },
-                name: 'Guntur'
-            });
-            setLocation({ city: 'Guntur', region: 'Andhra Pradesh' });
+            if (locationOverride) {
+                // If this was a specific search that failed to get weather data
+                alert("Could not fetch weather data for this location. Please try again later.");
+                // We keep the previous weather or Mock it but do NOT reset location to Guntur
+                // Ideally we shouldn't show partial state, but showing last known good state is better than lying about location.
+                // However, for now let's set a mock data but with the SEARCHED location name to avoid confusion
+                setWeather({
+                    main: { temp: 28, humidity: 64, feels_like: 30 },
+                    weather: [{ main: 'Cloudy', description: 'Data Unavailable' }],
+                    wind: { speed: 12 },
+                    name: locationOverride.city
+                });
+                setLocation(locationOverride);
+            } else {
+                // Default fallback for initial load failure
+                setWeather({
+                    main: { temp: 28, humidity: 64, feels_like: 30 },
+                    weather: [{ main: 'Cloudy', description: 'partly cloudy' }],
+                    wind: { speed: 12 },
+                    name: 'Guntur'
+                });
+                setLocation({ city: 'Guntur', region: 'Andhra Pradesh' });
+            }
         } finally {
             setLoading(false);
         }
@@ -59,29 +79,46 @@ const Weather = () => {
         e.preventDefault();
         if (!searchCity.trim()) return;
 
-        // Use geocoding API or predefined cities
-        const cities = {
-            'delhi': { lat: 28.6139, lon: 77.2090 },
-            'mumbai': { lat: 19.0760, lon: 72.8777 },
-            'bangalore': { lat: 12.9716, lon: 77.5946 },
-            'bengaluru': { lat: 12.9716, lon: 77.5946 },
-            'hyderabad': { lat: 17.3850, lon: 78.4867 },
-            'chennai': { lat: 13.0827, lon: 80.2707 },
-            'kolkata': { lat: 22.5726, lon: 88.3639 },
-            'guntur': { lat: 16.3067, lon: 80.4365 },
-            'vijayawada': { lat: 16.5062, lon: 80.6480 },
-            'lucknow': { lat: 26.8467, lon: 80.9462 },
-            'jaipur': { lat: 26.9124, lon: 75.7873 },
-            'patna': { lat: 25.5941, lon: 85.1376 },
-        };
+        try {
+            setLoading(true);
+            // Geocoding via OpenStreetMap with address details
+            // 'addressdetails=1' ensures we get village, county, state breakdown
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&q=${encodeURIComponent(searchCity)}`);
+            const data = await response.json();
 
-        const cityKey = searchCity.toLowerCase().trim();
-        const coords = cities[cityKey];
+            if (data && data.length > 0) {
+                const result = data[0];
+                const { lat, lon, address, name } = result;
 
-        if (coords) {
-            await fetchWeather(coords.lat, coords.lon);
-        } else {
-            alert('City not found. Try: Delhi, Mumbai, Hyderabad, Guntur, etc.');
+                // 1. Extract the most specific local name (Village > Town > City > etc.)
+                const localName = address.village || address.town || address.city || address.hamlet || address.suburb || address.municipality || address.neighbourhood || address.residential || name;
+
+                // 2. Extract District / County
+                // In India, 'state_district' is often the district, or 'county'
+                const district = address.state_district || address.county || '';
+
+                // 3. Extract State
+                const state = address.state || '';
+
+                // Construct a detailed region string: "District, State"
+                // Only add district if it's different from the local name (e.g. don't show "Guntur, Guntur, AP")
+                let regionLabel = state;
+                if (district && !localName.includes(district)) {
+                    regionLabel = `${district}, ${state}`;
+                }
+
+                // Fallback if state is missing
+                if (!regionLabel && address.country) regionLabel = address.country;
+
+                await fetchWeather(lat, lon, { city: localName, region: regionLabel });
+            } else {
+                alert('Location not found. Please check the spelling and try format: Village, District, State');
+                setLoading(false);
+            }
+        } catch (err) {
+            console.error("Geocoding failed:", err);
+            alert('Unable to find location. Please try again.');
+            setLoading(false);
         }
     };
 
@@ -105,29 +142,37 @@ const Weather = () => {
             <header className="flex flex-col md:flex-row justify-between items-end gap-6">
                 <div className="space-y-2">
                     <div className="flex items-center gap-2 text-primary font-bold">
-                        <MapPin size={18} /> {location.city}, {location.region}
+                        <MapPin size={18} /> {location.city}{location.region ? `, ${location.region}` : ''}
                     </div>
                     <h1 className="text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
                     <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Farm-specific localized forecasting</p>
                 </div>
-                <form onSubmit={handleSearch} className="flex gap-3 w-full md:w-auto">
-                    <div className="relative flex-1 md:w-64">
+                <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-stretch md:items-center">
+                    <div className="relative flex-1 md:w-80 group">
                         <input
                             type="text"
-                            placeholder="Search city..."
+                            placeholder="Search Village, District, State..."
                             value={searchCity}
                             onChange={(e) => setSearchCity(e.target.value)}
-                            className="w-full bg-white border border-slate-200 rounded-2xl py-4 px-12 focus:ring-2 focus:ring-primary outline-none font-bold text-slate-900"
+                            className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-14 focus:ring-2 focus:ring-primary outline-none font-bold text-slate-900 shadow-sm transition-all"
                         />
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={20} />
+                        <button
+                            type="submit"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-colors"
+                            title="Search"
+                        >
+                            <Search size={18} />
+                        </button>
                     </div>
                     <button
                         type="button"
                         onClick={getCurrentLocation}
-                        className="p-4 bg-primary text-white rounded-2xl hover:bg-primary-dark transition-colors"
+                        className="p-4 bg-primary text-white rounded-2xl hover:bg-primary-dark transition-colors shadow-lg shadow-primary/25 flex items-center justify-center gap-2 font-bold whitespace-nowrap"
                         title="Use my location"
                     >
                         <Navigation size={20} />
+                        <span className="md:hidden">Use My Location</span>
                     </button>
                 </form>
             </header>
@@ -168,7 +213,9 @@ const Weather = () => {
                                 </div>
                                 <div>
                                     <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Location</p>
-                                    <div className="flex items-center gap-2 text-lg font-bold">{location.city}</div>
+                                    <div className="flex items-center gap-2 text-lg font-bold leading-tight">
+                                        {location.city}{location.region ? `, ${location.region}` : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>

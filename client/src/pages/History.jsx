@@ -1,8 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { History as HistoryIcon, Download, Search, Filter, ArrowRight, ExternalLink, Loader2, Trash2 } from 'lucide-react';
+import { History as HistoryIcon, Download, Search, Filter, ArrowRight, ExternalLink, Loader2, Trash2, X } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
 import { getHistory, deletePrediction } from '../services/api';
+
+const ImageWithFallback = ({ src, alt, crop, disease, severity, onClick }) => {
+    const [error, setError] = useState(false);
+
+    if (error || !src || src.includes('image-not-stored')) {
+        return (
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg ${severity === 'None' || disease === 'Healthy' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                {disease === 'Healthy' ? '🌿' : '🍂'}
+            </div>
+        );
+    }
+
+    return (
+        <div onClick={onClick} className="cursor-pointer group/img relative">
+            <img
+                src={src}
+                alt={alt}
+                onError={() => setError(true)}
+                className="w-12 h-12 rounded-xl object-cover shadow-sm border border-slate-200 group-hover/img:scale-105 transition-transform"
+            />
+            <div className="absolute inset-0 bg-black/10 rounded-xl opacity-0 group-hover/img:opacity-100 transition-opacity"></div>
+        </div>
+    );
+};
 
 const History = () => {
     const { t } = useLanguage();
@@ -10,6 +34,7 @@ const History = () => {
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('All');
     const [search, setSearch] = useState('');
+    const [selectedImage, setSelectedImage] = useState(null);
 
     useEffect(() => {
         fetchHistory();
@@ -27,44 +52,33 @@ const History = () => {
     };
 
     const handleDelete = async (id) => {
-        // Debugging: confirm the click is registered
-        alert(`${t('attemptDelete')} ${id}`);
-
         try {
             await deletePrediction(id);
             setHistoryItems(prev => prev.filter(item => item.id !== id));
             alert(t('deleteSuccess'));
         } catch (err) {
             console.error("Delete failed:", err);
-            // Show the exact error message to help debugging
             const msg = err.response?.data?.error || err.message || "Unknown Error";
             alert(`${t('deleteFail')} ${msg}`);
         }
     };
 
     const handleViewImage = (e, imageUrl) => {
+        e.preventDefault();
         if (!imageUrl || imageUrl.includes('image-not-stored')) {
-            e.preventDefault();
             alert("Original image was not saved properly due to a previous configuration error.");
             return;
         }
-        // Patch the URL if it uses the wrong bucket domain (fix for older but successful uploads)
-        if (imageUrl.includes('firebasestorage.app')) {
-            e.preventDefault();
-            const fixedUrl = imageUrl.replace('firebasestorage.app', 'appspot.com');
-            window.open(fixedUrl, '_blank');
-        }
+        setSelectedImage(imageUrl);
     };
 
     const formatDate = (timestamp) => {
         if (!timestamp) return 'Just now';
         try {
-            // Handle Firestore Timestamp objects (seconds / _seconds)
             const seconds = timestamp.seconds || timestamp._seconds;
             if (seconds) {
                 return new Date(seconds * 1000).toLocaleDateString();
             }
-            // Handle ISO Strings or Date objects
             const date = new Date(timestamp);
             if (isNaN(date.getTime())) return 'Invalid Date';
             return date.toLocaleDateString();
@@ -182,15 +196,20 @@ const History = () => {
                                         >
                                             <td className="px-8 py-6">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${item.severity === 'None' || item.disease === 'Healthy' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                                                        {item.disease === 'Healthy' ? '🌿' : '🍂'}
-                                                    </div>
+                                                    <ImageWithFallback
+                                                        src={item.imageUrl}
+                                                        alt={t(item.crop) || item.crop || 'Crop Image'}
+                                                        crop={item.crop}
+                                                        disease={item.disease}
+                                                        severity={item.severity}
+                                                        onClick={(e) => handleViewImage(e, item.imageUrl)}
+                                                    />
                                                     <div className="flex flex-col">
                                                         {item.crop && (
-                                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wide mb-0.5">{item.crop}</span>
+                                                            <span className="text-[10px] font-black text-blue-500 uppercase tracking-wide mb-0.5">{t(item.crop) || item.crop}</span>
                                                         )}
-                                                        <span className="font-black text-slate-900">{item.disease}</span>
-                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">Confidence: {(item.confidence * 100).toFixed(1)}%</span>
+                                                        <span className="font-black text-slate-900">{t(item.disease) || item.disease}</span>
+                                                        <span className="text-[10px] font-bold text-slate-400 uppercase">{t('confidence')}: {(item.confidence * 100).toFixed(1)}%</span>
                                                     </div>
                                                 </div>
                                             </td>
@@ -203,20 +222,34 @@ const History = () => {
                                                 <span className={`px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest ${item.severity === 'High' ? 'bg-red-50 text-red-700' :
                                                     item.severity === 'None' || item.disease === 'Healthy' ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'
                                                     }`}>
-                                                    {item.severity || 'Unknown'}
+                                                    {t(item.severity) || item.severity || t('unknown')}
                                                 </span>
                                             </td>
                                             <td className="px-8 py-6">
                                                 <div className="flex items-center gap-2 text-xs font-bold text-slate-400">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-green-400"></div>
-                                                    Cloud Synced
+                                                    {t('cloudSynced')}
                                                 </div>
                                             </td>
                                             <td className="px-8 py-6 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <a href={item.imageUrl} onClick={(e) => handleViewImage(e, item.imageUrl)} target="_blank" rel="noreferrer" className="inline-block text-slate-400 hover:text-primary transition-all p-2 rounded-lg bg-white border border-slate-100 hover:border-primary/20" title="View Image">
-                                                        <ExternalLink size={18} />
-                                                    </a>
+                                                    {(item.imageUrl && !item.imageUrl.includes('image-not-stored')) ? (
+                                                        <button
+                                                            onClick={(e) => handleViewImage(e, item.imageUrl)}
+                                                            className="inline-block text-slate-400 hover:text-primary transition-all p-2 rounded-lg bg-white border border-slate-100 hover:border-primary/20"
+                                                            title="View Image"
+                                                        >
+                                                            <ExternalLink size={18} />
+                                                        </button>
+                                                    ) : (
+                                                        <button
+                                                            disabled
+                                                            className="text-slate-200 cursor-not-allowed p-2 rounded-lg bg-slate-50 border border-slate-100"
+                                                            title="Image not available (File Missing)"
+                                                        >
+                                                            <ExternalLink size={18} />
+                                                        </button>
+                                                    )}
                                                     <button
                                                         onClick={() => handleDelete(item.id)}
                                                         className="text-slate-400 hover:text-red-500 transition-all p-2 px-3 rounded-lg bg-white border border-slate-100 hover:border-red-100 hover:bg-red-50 flex items-center gap-2"
@@ -246,6 +279,33 @@ const History = () => {
                     Load More History <ArrowRight size={14} />
                 </button>
             </div>
+
+            {/* Image Modal */}
+            <AnimatePresence>
+                {selectedImage && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm" onClick={() => setSelectedImage(null)}>
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            className="relative max-w-4xl w-full max-h-[90vh] flex items-center justify-center"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => setSelectedImage(null)}
+                                className="absolute -top-12 right-0 text-white/50 hover:text-white transition-colors"
+                            >
+                                <X size={24} />
+                            </button>
+                            <img
+                                src={selectedImage}
+                                alt="Original Crop"
+                                className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+                            />
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

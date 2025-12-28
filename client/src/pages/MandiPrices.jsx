@@ -8,7 +8,13 @@ const MandiPrices = () => {
     const { t } = useLanguage();
     const [prices, setPrices] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleTimeString());
+    const [lastUpdated, setLastUpdated] = useState(new Date().toLocaleString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }));
     const [search, setSearch] = useState('');
     const [selectedState, setSelectedState] = useState('All');
 
@@ -17,7 +23,13 @@ const MandiPrices = () => {
         try {
             const response = await getMandiPrices();
             setPrices(response.data || []);
-            setLastUpdated(new Date().toLocaleTimeString());
+            setLastUpdated(new Date().toLocaleString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }));
         } catch (err) {
             console.error(err);
         } finally {
@@ -126,10 +138,10 @@ const MandiPrices = () => {
                         <button
                             onClick={fetchPrices}
                             disabled={loading}
-                            className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-[2rem] shadow-lg shadow-green-200 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center min-w-[3.5rem]"
+                            className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-[2rem] shadow-lg shadow-green-200 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center min-w-[3.5rem] group"
                             aria-label="Refresh Prices"
                         >
-                            <RefreshCw size={24} className={loading ? "animate-spin" : ""} />
+                            <RefreshCw size={24} className={loading ? "animate-spin" : "group-hover:animate-spin"} />
                         </button>
                     </div>
 

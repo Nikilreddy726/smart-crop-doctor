@@ -42,6 +42,14 @@ const Dashboard = () => {
         diseasedCount: 0,
         healthPercentage: 0
     });
+    const [currentTime, setCurrentTime] = useState(new Date());
+
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentTime(new Date());
+        }, 1000);
+        return () => clearInterval(timer);
+    }, []);
 
     useEffect(() => {
         const hour = new Date().getHours();
@@ -141,7 +149,10 @@ const Dashboard = () => {
                     <p className="text-slate-500 font-medium mt-1">{t('dashboardSubtitle')}</p>
                 </motion.div>
                 <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 font-bold text-primary">
-                    <Calendar size={20} /> {new Date().toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
+                    <Calendar size={20} />
+                    <span>{currentTime.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    <span className="text-slate-300">|</span>
+                    <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
             </header>
 

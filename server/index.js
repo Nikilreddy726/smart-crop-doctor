@@ -107,6 +107,13 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                 blobStream.end(req.file.buffer);
             });
 
+            // Make the file public so it can be viewed by the frontend
+            try {
+                await blob.makePublic();
+            } catch (publicError) {
+                console.log("Warning: Could not make file public automatically:", publicError.message);
+            }
+
             imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
             console.log("Uploaded to Firebase:", imageUrl);
         } catch (storageError) {
@@ -156,12 +163,13 @@ app.get('/api/weather', async (req, res) => {
     // Fallback: Open-Meteo (Free, No Key)
     try {
         console.log(`Fetching weather for ${lat}, ${lon} from Open-Meteo`);
-        const response = await axios.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
+        // Added apparent_temperature for 'Feels Like'
+        const response = await axios.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,apparent_temperature&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
 
         const data = response.data;
         const current = data.current;
 
-        // WMO Weather Code Mapping
+        // WMO Weather Code Mapping (Simplified for brevity, same as before)
         const weatherCodes = {
             0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
             45: "Fog", 48: "Depositing rime fog",
@@ -172,8 +180,7 @@ app.get('/api/weather', async (req, res) => {
         };
         const weatherDesc = weatherCodes[current.weather_code] || "Variable";
 
-        // Reverse Geocoding for City Name (Free API: BigDataCloud or OpenStreetMap Nominatim)
-        // We'll use a simple fallback or just generic coordinates if this fails, but let's try Nominatim
+        // Reverse Geocoding for City Name
         let locationName = "Your Location";
         try {
             const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`, {
@@ -192,6 +199,7 @@ app.get('/api/weather', async (req, res) => {
             main: {
                 temp: current.temperature_2m,
                 humidity: current.relative_humidity_2m,
+                feels_like: current.apparent_temperature, // Added Feels Like
                 temp_min: data.daily.temperature_2m_min[0],
                 temp_max: data.daily.temperature_2m_max[0]
             },
@@ -259,10 +267,13 @@ app.post('/api/community', async (req, res) => {
 });
 
 app.delete('/api/community/:id', async (req, res) => {
+    console.log(`[DELETE] Request for post ID: ${req.params.id}`);
     try {
         await db.collection('posts').doc(req.params.id).delete();
+        console.log(`[DELETE] Success for ID: ${req.params.id}`);
         res.json({ success: true });
     } catch (error) {
+        console.error(`[DELETE] Error for ID: ${req.params.id}`, error);
         res.status(500).json({ error: error.message });
     }
 });

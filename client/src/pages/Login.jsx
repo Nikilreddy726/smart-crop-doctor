@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, LogIn, UserPlus, ShieldCheck, Sparkles, Chrome, ChevronRight } from 'lucide-react';
+import { Mail, Lock, LogIn, UserPlus, ShieldCheck, Sparkles, Chrome, ChevronRight, User } from 'lucide-react';
 import { loginUser, registerUser, signInWithGoogle } from '../services/firebase';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../services/LanguageContext';
@@ -19,10 +19,35 @@ const Login = () => {
     }, [user, navigate]);
 
     const [isLogin, setIsLogin] = useState(true);
+    const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    const getFriendlyErrorMessage = (error) => {
+        const msg = error.message || error.toString();
+        if (msg.includes('auth/invalid-credential') || error.code === 'auth/invalid-credential') {
+            return "Incorrect email or password. Please check your details or create a new account.";
+        }
+        if (msg.includes('auth/user-not-found') || error.code === 'auth/user-not-found') {
+            return "No account found with this email. Please register first.";
+        }
+        if (msg.includes('auth/wrong-password') || error.code === 'auth/wrong-password') {
+            return "Incorrect password. Please try again.";
+        }
+        if (msg.includes('auth/email-already-in-use') || error.code === 'auth/email-already-in-use') {
+            return "This email is already registered. Please login instead.";
+        }
+        if (msg.includes('auth/weak-password') || error.code === 'auth/weak-password') {
+            return "Password should be at least 6 characters.";
+        }
+        if (msg.includes('auth/invalid-email') || error.code === 'auth/invalid-email') {
+            return "Please enter a valid email address.";
+        }
+        return "An error occurred. Please try again.";
+    };
 
     const handleAuth = async (e) => {
         e.preventDefault();
@@ -32,11 +57,15 @@ const Login = () => {
             if (isLogin) {
                 await loginUser(email, password);
             } else {
-                await registerUser(email, password);
+                if (password !== confirmPassword) {
+                    throw new Error("Passwords do not match.");
+                }
+                await registerUser(email, password, name);
             }
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message);
+            console.error(err);
+            setError(getFriendlyErrorMessage(err));
         } finally {
             setLoading(false);
         }
@@ -47,7 +76,8 @@ const Login = () => {
             await signInWithGoogle();
             navigate('/dashboard');
         } catch (err) {
-            setError(err.message);
+            console.error(err);
+            setError(getFriendlyErrorMessage(err));
         }
     };
 
@@ -88,8 +118,25 @@ const Login = () => {
                         </div>
 
                         <form onSubmit={handleAuth} className="space-y-4">
+                            {!isLogin && (
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Full Name</label>
+                                    <div className="relative">
+                                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            type="text"
+                                            required
+                                            placeholder="Your Name"
+                                            value={name}
+                                            onChange={(e) => setName(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-100 focus:border-primary/20 focus:bg-white rounded-xl py-3 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{t('email')}</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{isLogin ? "Email" : "Email / Phone Number"}</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
@@ -117,6 +164,23 @@ const Login = () => {
                                     />
                                 </div>
                             </div>
+
+                            {!isLogin && (
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Confirm Password</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                        <input
+                                            type="password"
+                                            required
+                                            placeholder="••••••••"
+                                            value={confirmPassword}
+                                            onChange={(e) => setConfirmPassword(e.target.value)}
+                                            className="w-full bg-slate-50 border border-slate-100 focus:border-primary/20 focus:bg-white rounded-xl py-3 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-xs"
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             <AnimatePresence>
                                 {error && (

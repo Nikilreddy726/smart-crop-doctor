@@ -4,7 +4,8 @@ import {
     GoogleAuthProvider,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    signInWithPopup
+    signInWithPopup,
+    updateProfile
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -27,7 +28,13 @@ export const storage = getStorage(app);
 
 // Auth Helpers
 export const loginUser = (email, password) => signInWithEmailAndPassword(auth, email, password);
-export const registerUser = (email, password) => createUserWithEmailAndPassword(auth, email, password);
+export const registerUser = async (email, password, name) => {
+    const res = await createUserWithEmailAndPassword(auth, email, password);
+    if (name) {
+        await updateProfile(res.user, { displayName: name });
+    }
+    return res;
+};
 export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
 
 export default app;

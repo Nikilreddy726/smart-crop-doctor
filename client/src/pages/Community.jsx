@@ -35,13 +35,17 @@ const Community = () => {
         fetchPosts();
     }, []);
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (e, id) => {
+        e.stopPropagation(); // Prevent clicking the card background if it has handlers
+        console.log("Attempting to delete post:", id);
         if (window.confirm(translations?.confirmDelete || 'Are you sure you want to delete this post?')) {
             try {
                 await deletePost(id);
+                console.log("Delete success");
                 setPosts(posts.filter(post => post.id !== id));
             } catch (err) {
-                alert("Failed to delete post.");
+                console.error("Delete failed", err);
+                alert("Failed to delete post. Check console for details.");
             }
         }
     };
@@ -221,7 +225,7 @@ const Community = () => {
                                     </div>
                                     <div className="flex gap-2">
                                         <button
-                                            onClick={() => handleDelete(post.id)}
+                                            onClick={(e) => handleDelete(e, post.id)}
                                             className="p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                                             title={t('delete')}
                                         >

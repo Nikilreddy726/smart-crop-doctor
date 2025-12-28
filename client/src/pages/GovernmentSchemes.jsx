@@ -8,7 +8,8 @@ const GovernmentSchemes = () => {
     const [selectedScheme, setSelectedScheme] = React.useState(null);
 
     // Get schemes from translation file based on current language
-    const schemes = translations[lang]?.schemesData || translations['en']?.schemesData || [];
+    // Get schemes directly from the provided translation object
+    const schemes = translations?.schemesData || [];
 
     return (
         <div className="max-w-6xl mx-auto space-y-12 pb-24">

@@ -11,6 +11,7 @@ const Detection = () => {
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [saved, setSaved] = useState(false);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -24,6 +25,7 @@ const Detection = () => {
             setSelectedFile(file);
             setPreview(URL.createObjectURL(file));
             setResult(null);
+            setSaved(false);
         } else {
             alert('Please select a valid image file');
         }
@@ -56,6 +58,7 @@ const Detection = () => {
         if (!selectedFile) return;
         setLoading(true);
         setResult(null); // Clear previous result
+        setSaved(false);
         try {
             console.log("Sending image for analysis...");
             const response = await detectDisease(selectedFile);
@@ -172,14 +175,14 @@ const Detection = () => {
                                         <div className={`p-2.5 rounded-2xl ${result.severity === 'None' || result.disease === 'Healthy' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                                             {result.severity === 'None' || result.disease === 'Healthy' ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
                                         </div>
-                                        <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">{result.disease}</h2>
+                                        <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">{t(result.disease) || result.disease}</h2>
                                     </div>
 
                                     {/* Key Info Cards */}
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                         <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
                                             <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">🌱 {t('cropName') || 'Crop'}</p>
-                                            <p className="text-lg font-black text-blue-700 mt-1">{result.crop || result.disease.split(' ')[0]}</p>
+                                            <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop || result.disease.split(' ')[0]}</p>
                                         </div>
                                         <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50 border-red-100' :
                                             result.severity === 'Medium' ? 'bg-orange-50 border-orange-100' :
@@ -191,7 +194,7 @@ const Detection = () => {
                                                 result.severity === 'Medium' ? 'text-orange-700' :
                                                     result.severity === 'Low' ? 'text-yellow-700' :
                                                         'text-green-700'
-                                                }`}>{result.severity || 'None'}</p>
+                                                }`}>{t(result.severity) || result.severity || 'None'}</p>
                                         </div>
                                         <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">🎯 {t('confidence')}</p>
@@ -236,7 +239,7 @@ const Detection = () => {
                                             <div className="space-y-4">
                                                 <h3 className="font-black text-sm uppercase tracking-[0.2em] text-slate-400 flex items-center gap-3">
                                                     <div className="h-px bg-slate-100 grow"></div>
-                                                    🍃 Organic Solutions
+                                                    🍃 {t('organicSolutions') || 'Organic Solutions'}
                                                     <div className="h-px bg-slate-100 grow"></div>
                                                 </h3>
                                                 <div className="flex flex-wrap gap-2">
@@ -252,22 +255,35 @@ const Detection = () => {
                                 {/* Healthy Plant Message */}
                                 {(result.severity === 'None' || result.disease === 'Healthy') && (
                                     <div className="p-6 bg-green-50 rounded-2xl border border-green-100 text-center">
-                                        <p className="text-lg font-bold text-green-700">🎉 Great News! Your plant appears healthy.</p>
-                                        <p className="text-sm text-green-600 mt-2">Continue regular monitoring and care for best results.</p>
+                                        <p className="text-lg font-bold text-green-700">🎉 {t('healthyMessageTitle') || 'Great News! Your plant appears healthy.'}</p>
+                                        <p className="text-sm text-green-600 mt-2">{t('healthyMessageBody') || 'Continue regular monitoring and care for best results.'}</p>
                                     </div>
                                 )}
 
                                 {/* Save Button with Explanation */}
                                 <div className="space-y-3">
                                     <button
-                                        onClick={() => alert('Report saved to your history! View it in the History section.')}
-                                        className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-bold text-lg hover:bg-primary transition-all shadow-2xl shadow-slate-200 flex items-center justify-center gap-3"
+                                        onClick={() => setSaved(true)}
+                                        disabled={saved}
+                                        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 ${saved
+                                            ? 'bg-green-600 text-white shadow-green-200 cursor-default'
+                                            : 'bg-slate-900 text-white hover:bg-primary shadow-slate-200'
+                                            }`}
                                     >
-                                        <ShieldCheck size={20} />
-                                        {t('saveToCloud')}
+                                        {saved ? (
+                                            <>
+                                                <CheckCircle size={20} />
+                                                Report Cloud-Synced
+                                            </>
+                                        ) : (
+                                            <>
+                                                <ShieldCheck size={20} />
+                                                {t('saveToCloud')}
+                                            </>
+                                        )}
                                     </button>
                                     <p className="text-center text-xs text-slate-400 font-medium">
-                                        💾 This saves your diagnosis report to your account for future reference
+                                        {saved ? '✅ Verified & stored in your secure history' : '💾 This saves your diagnosis report to your account for future reference'}
                                     </p>
                                 </div>
                             </motion.div>

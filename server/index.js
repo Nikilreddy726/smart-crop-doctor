@@ -197,11 +197,17 @@ app.get('/api/weather', async (req, res) => {
         // Reverse Geocoding for City Name
         let locationName = "Your Location";
         try {
+            // Nominatim requires a valid User-Agent with contact info
             const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`, {
-                headers: { 'User-Agent': 'SmartCropDoctor/1.0' }
+                headers: {
+                    'User-Agent': 'SmartCropDoctor/1.0 (nikilreddy726@gmail.com)',
+                    'Referer': 'https://smart-crop-doctor.web.app/'
+                }
             });
+
             if (geoResponse.data && geoResponse.data.address) {
-                locationName = geoResponse.data.address.city || geoResponse.data.address.town || geoResponse.data.address.village || geoResponse.data.name;
+                const a = geoResponse.data.address;
+                locationName = a.city || a.town || a.village || a.suburb || a.county || a.state_district || a.municipality || locationName;
             }
         } catch (e) {
             console.log("Reverse geo failed:", e.message);

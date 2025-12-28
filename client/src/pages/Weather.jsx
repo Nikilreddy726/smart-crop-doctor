@@ -270,12 +270,12 @@ const Weather = () => {
                             const wind = weather.wind?.speed || 0;
                             const condition = weather.weather?.[0]?.main?.toLowerCase() || '';
 
-                            if (condition.includes('rain') || condition.includes('drizzle')) return t('rainRisk');
-                            if (wind > 20) return t('windRisk');
-                            if (temp > 35) return t('highTempRisk');
-                            if (temp < 10) return t('lowTempRisk');
-                            if (humidity > 80) return t('highHumRisk');
-                            return t('goodConditions');
+                            if (condition.includes('Rain') || condition.includes('Drizzle')) return t('RainRisk');
+                            if (wind > 20) return t('WindRisk');
+                            if (temp > 35) return t('HighTempRisk');
+                            if (temp < 10) return t('LowTempRisk');
+                            if (humidity > 80) return t('HighHumRisk');
+                            return t('GoodConditions');
                         })()}
                     </p>
                 </div>

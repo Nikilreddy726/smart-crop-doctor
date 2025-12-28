@@ -44,7 +44,7 @@ const Login = () => {
             return "Password should be at least 6 characters.";
         }
         if (msg.includes('auth/invalid-email') || error.code === 'auth/invalid-email') {
-            return "Please enter a valid email address.";
+            return "Please enter a valid email or phone number.";
         }
         return "An error occurred. Please try again.";
     };
@@ -54,13 +54,25 @@ const Login = () => {
         setLoading(true);
         setError('');
         try {
+            // Determine if input is Email or Phone
+            let authIdentifier = email;
+            const phoneRegex = /^[0-9]{10}$/;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (phoneRegex.test(email.trim())) {
+                // It's a phone number -> Convert to shadow email
+                authIdentifier = `${email.trim()}@farmer.com`;
+            } else if (!emailRegex.test(email.trim())) {
+                throw new Error("Please enter a valid Email Address or a 10-digit Phone Number.");
+            }
+
             if (isLogin) {
-                await loginUser(email, password);
+                await loginUser(authIdentifier, password);
             } else {
                 if (password !== confirmPassword) {
                     throw new Error("Passwords do not match.");
                 }
-                await registerUser(email, password, name);
+                await registerUser(authIdentifier, password, name);
             }
             navigate('/dashboard');
         } catch (err) {
@@ -136,13 +148,13 @@ const Login = () => {
                             )}
 
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{isLogin ? "Email" : "Email / Phone Number"}</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{isLogin ? "Email / Phone" : "Email / Phone Number"}</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
-                                        type="email"
+                                        type="text"
                                         required
-                                        placeholder="farmer@example.com"
+                                        placeholder="Email or Phone (e.g. 9876543210)"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         className="w-full bg-slate-50 border border-slate-100 focus:border-primary/20 focus:bg-white rounded-xl py-3 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-xs"

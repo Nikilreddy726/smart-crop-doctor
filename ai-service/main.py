@@ -262,7 +262,8 @@ def determine_disease(analysis):
     # 1. Strong Healthy Check (Green Dominance)
     # Healthy leaves have distinct Green > Red dominance.
     # Sunlight increases total brightness (Yellow indicator) but shouldn't destroy the G/R ratio.
-    if green > red * 1.35 and brown < 80:
+    # Relaxed to 1.15 to account for warm sunlight.
+    if green > red * 1.15 and brown < 80:
          return "healthy", 0.92
 
     # 2. Relaxed Healthy Check
@@ -283,7 +284,7 @@ def determine_disease(analysis):
     # Bright healthy leaves can have high yellow_indicator, but they act like Green > Red.
     # Chlorosis implies Green is fading to match Red.
     if yellow > 150 and brown < 100:
-        if green < red * 1.15: # Only if green dominance is lost
+        if green < red * 1.02: # Strict: Only if green dominance is effectively gone
             return "viral_infection", 0.70 + (yellow / 500)
         else:
             # High yellow but still green-dominant? It's just a bright healthy plant.

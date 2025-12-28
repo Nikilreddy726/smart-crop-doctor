@@ -10,17 +10,8 @@
     <!-- Background Rounded Square -->
     <rect x="64" y="64" width="384" height="384" rx="110" fill="url(#grad)" />
     
-    <!-- Rotating Leaf Group -->
-    <g transform-origin="256 256">
-      <animateTransform 
-        attributeName="transform" 
-        type="rotate" 
-        from="0 256 256" 
-        to="360 256 256" 
-        dur="10s" 
-        repeatCount="indefinite"
-      />
-      
+    <!-- Leaf Icon (Centered) -->
+    <g>
       <!-- Leaf Outline -->
       <path d="M170 342 C170 342 170 170 340 170 C340 170 380 280 340 340 C300 400 170 342 170 342 Z" 
             fill="none" 

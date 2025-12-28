@@ -234,45 +234,62 @@ def determine_disease(analysis):
     """
     
     green = analysis["green_ratio"]
+    red = analysis["red_ratio"]
     yellow = analysis["yellow_indicator"]
     brown = analysis["brown_indicator"]
     white = analysis["white_indicator"]
     variance = analysis["variance"]
     
-    # 1. Healthy Check: High Green Dominance, low spot texturing
-    if green > 0.40 and brown < 50 and yellow < 100:
+    # 1. Strong Healthy Check (Green Dominance)
+    # Healthy leaves have distinct Green > Red dominance.
+    # Sunlight increases total brightness (Yellow indicator) but shouldn't destroy the G/R ratio.
+    if green > red * 1.35 and brown < 80:
+         return "healthy", 0.92
+
+    # 2. Relaxed Healthy Check
+    # Allow higher yellow/brown if green matches red well (sunlight effects)
+    if green > 0.38 and brown < 60 and yellow < 130:
         return "healthy", 0.85 + (green * 0.2)
         
-    # 2. Powdery Mildew Check: High brightness, whitish color
+    # 3. Powdery Mildew Check: High brightness, whitish color
     if white > 150:
         return "powdery_mildew", 0.80 + (white / 500)
 
-    # 3. Bacterial Blight Check: Brown lesions + Yellow halos (High brown + High yellow)
+    # 4. Bacterial Blight Check: Brown lesions + Yellow halos (High brown + High yellow)
     if brown > 80 and yellow > 100:
         return "bacterial_blight", 0.75 + (brown / 400)
 
-    # 4. Viral/Chlorosis Check: High Yellowing, low necrosis
+    # 5. Viral/Chlorosis Check: High Yellowing, low necrosis
+    # CRITICAL FIX: Only classify as Viral if Green is NOT dominant.
+    # Bright healthy leaves can have high yellow_indicator, but they act like Green > Red.
+    # Chlorosis implies Green is fading to match Red.
     if yellow > 150 and brown < 100:
-        return "viral_infection", 0.70 + (yellow / 500)
+        if green < red * 1.15: # Only if green dominance is lost
+            return "viral_infection", 0.70 + (yellow / 500)
+        else:
+            # High yellow but still green-dominant? It's just a bright healthy plant.
+            return "healthy", 0.88
 
-    # 5. Rust Checks: Reddish-brown dominance
+    # 6. Rust Checks: Reddish-brown dominance
     if brown > 60 and analysis["variance"] > 40:
         # Check specific color shift for rust
         return "leaf_rust", 0.75 + (brown / 300)
 
-    # 6. Spot diseases (Anthracnose/Septoria): High texture variance (spots)
+    # 7. Spot diseases (Anthracnose/Septoria): High texture variance (spots)
     if variance > 50:
         if brown > 40:
             return "anthracnose", 0.70 + (variance / 200)
         return "septoria_leaf_spot", 0.65 + (variance / 200)
         
-    # 7. Wilt Check: General brownish cast without distinct spots
+    # 8. Wilt Check: General brownish cast without distinct spots
     if brown > 100:
         return "verticillium_wilt", 0.60 + (brown / 300)
         
     # Default fallback primarily based on what trait is strongest
-    if yellow > brown:
+    if yellow > brown and green < red:
         return "viral_infection", 0.55
+    elif green > red:
+        return "healthy", 0.60
     else:
         return "tomato_leaf_mold", 0.55
 

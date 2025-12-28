@@ -260,7 +260,7 @@ const Weather = () => {
                 </div>
                 <div className="space-y-3 z-10 flex-1">
                     <h4 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                        {t('cropAdvisory')} <span className="text-sm font-bold bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full uppercase tracking-wider">Live AI</span>
+                        {t('CropAdvisory')} <span className="text-sm font-bold bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full uppercase tracking-wider">Live AI</span>
                     </h4>
                     <p className="text-lg text-slate-700 font-medium leading-relaxed">
                         {(() => {

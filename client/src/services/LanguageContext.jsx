@@ -167,9 +167,9 @@ const en = {
     "Wheat": "Wheat",
     "Cotton": "Cotton",
     "Maize": "Maize",
-    "Tomato": "Tomato",
+
     "Onion": "Onion",
-    "Potato": "Potato",
+
     "Chilli": "Chilli",
     "Turmeric": "Turmeric",
     "Groundnut": "Groundnut",
@@ -291,7 +291,7 @@ const hi = {
     naturalLightDesc: "सर्वोत्तम परिणामों के लिए अच्छी रोशनी का प्रयोग करें।",
     highContext: "उच्च संदर्भ",
     highContextDesc: "आसपास के पर्याप्त विवरण कैप्चर करें।",
-    applyWebsite: "आधिकारिक वेबसाइट पर आवेदन करें",
+
 
     // Result Translations (Hindi)
     "Healthy": "स्वस्थ",
@@ -1007,17 +1007,6 @@ const ml = {
     "Potato": "ഉരുളക്കിഴങ്ങ്",
     "CropAdvisory": "വിള ഉപദേശം",
     "organicSolutions": "ജൈവ പരിഹാരങ്ങൾ",
-    "healthyMessageTitle": "നല്ല വാർത്ത! നിങ്ങളുടെ ചെടി ആരോഗ്യകരമാണ്.",
-    "healthyMessageBody": "മികച്ച ഫലങ്ങൾക്കായി പതിവായി നിരീക്ഷിക്കുക.",
-    "Powdery Mildew": "പൂപ്പൽ രോഗം",
-    "Bacterial Blight": "ബാക്ടീരിയൽ വാട്ടം",
-    "Verticillium Wilt": "വാട്ടം",
-    "Leaf Rust": "ഇല തുരുമ്പ്",
-    "Viral Mosaic / Chlorosis": "വൈറൽ മൊസൈക്",
-    "Septoria Leaf Spot": "ഇലപ്പുള്ളി രോഗം",
-    "Anthracnose (Bird's Eye Spot)": "ആന്ത്രാക്നോസ്",
-    "Tomato Leaf Mold": "തക്കാളി ഇല പൂപ്പൽ",
-    "Potato Late Blight": "ഉരുളക്കിഴങ്ങ് അഴുകൽ രോഗം",
     "healthyMessageTitle": "നല്ല വാർത്ത! നിങ്ങളുടെ ചെടി ആരോഗ്യകരമാണ്.",
     "healthyMessageBody": "മികച്ച ഫലങ്ങൾക്കായി പതിവായി നിരീക്ഷിക്കുക.",
     "Powdery Mildew": "പൂപ്പൽ രോഗം",

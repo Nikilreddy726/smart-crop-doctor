@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Login from './pages/Login';
@@ -19,27 +19,33 @@ function App() {
     <AuthProvider>
       <LanguageProvider>
         <Router>
-          <div className="min-h-screen bg-slate-50">
-            <Navbar />
-            <main className="container mx-auto px-4 py-8 mt-24">
-              <Routes>
-                {/* Public Route */}
-                <Route path="/login" element={<Login />} />
+          <Routes>
+            {/* Public Route */}
+            <Route path="/login" element={<Login />} />
 
-                {/* Protected Routes */}
-                <Route element={<PrivateRoute />}>
-                  <Route path="/" element={<Home />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/detect" element={<Detection />} />
-                  <Route path="/weather" element={<Weather />} />
-                  <Route path="/history" element={<History />} />
-                  <Route path="/mandi" element={<MandiPrices />} />
-                  <Route path="/schemes" element={<GovernmentSchemes />} />
-                  <Route path="/community" element={<Community />} />
-                </Route>
-              </Routes>
-            </main>
-          </div>
+            {/* Protected Routes */}
+            <Route element={<PrivateRoute />}>
+              <Route
+                element={
+                  <div className="min-h-screen bg-slate-50">
+                    <Navbar />
+                    <main className="container mx-auto px-4 py-8 mt-24">
+                      <Outlet />
+                    </main>
+                  </div>
+                }
+              >
+                <Route path="/" element={<Home />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/detect" element={<Detection />} />
+                <Route path="/weather" element={<Weather />} />
+                <Route path="/history" element={<History />} />
+                <Route path="/mandi" element={<MandiPrices />} />
+                <Route path="/schemes" element={<GovernmentSchemes />} />
+                <Route path="/community" element={<Community />} />
+              </Route>
+            </Route>
+          </Routes>
         </Router>
       </LanguageProvider>
     </AuthProvider>

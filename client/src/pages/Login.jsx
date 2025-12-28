@@ -94,7 +94,7 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-[calc(100vh-10rem)] flex items-center justify-center bg-slate-50 overflow-y-auto">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 overflow-y-auto">
             <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}

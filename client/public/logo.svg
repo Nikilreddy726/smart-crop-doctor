@@ -1,23 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#16a34a;stop-opacity:1" />
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4ade80;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:1" />
     </linearGradient>
-    <filter id="f1" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.3"/>
-    </filter>
   </defs>
   
-  <rect x="32" y="32" width="448" height="448" rx="128" fill="url(#grad1)" filter="url(#f1)" />
-  
-  <!-- Stylized Leaf -->
-  <path d="M256 96 
-           C256 96 416 256 416 256 
-           C416 344 344 416 256 416 
-           C168 416 96 344 96 256 
-           C96 256 256 96 256 96 Z" 
-        fill="white"/>
-        
-  <path d="M256 96 L256 416" stroke="#16a34a" stroke-width="16" stroke-linecap="round"/>
+  <g>
+    <!-- Background Rounded Square -->
+    <rect x="64" y="64" width="384" height="384" rx="110" fill="url(#grad)" />
+    
+    <!-- Rotating Leaf Group -->
+    <g transform-origin="256 256">
+      <animateTransform 
+        attributeName="transform" 
+        type="rotate" 
+        from="0 256 256" 
+        to="360 256 256" 
+        dur="10s" 
+        repeatCount="indefinite"
+      />
+      
+      <!-- Leaf Outline -->
+      <path d="M170 342 C170 342 170 170 340 170 C340 170 380 280 340 340 C300 400 170 342 170 342 Z" 
+            fill="none" 
+            stroke="white" 
+            stroke-width="24" 
+            stroke-linecap="round" 
+            stroke-linejoin="round"/>
+            
+      <!-- Central Vein -->
+      <path d="M170 342 C220 290 290 220 340 170" 
+            stroke="white" 
+            stroke-width="24" 
+            stroke-linecap="round" 
+            stroke-linejoin="round"/>
+            
+      <!-- Stem -->
+      <path d="M170 342 C150 362 130 380 130 380" 
+            stroke="white" 
+            stroke-width="24" 
+            stroke-linecap="round" 
+            stroke-linejoin="round"/>
+    </g>
+  </g>
 </svg>

@@ -159,6 +159,8 @@ def analyze_image_colors(img_array):
 
     return {
         "green_ratio": green_ratio,
+        "red_ratio": red_ratio,
+        "blue_ratio": blue_ratio,
         "yellow_indicator": yellow_indicator,
         "brown_indicator": brown_indicator,
         "white_indicator": white_indicator,
@@ -170,29 +172,38 @@ def analyze_image_colors(img_array):
 def validate_is_crop(analysis, filename=""):
     """
     Heuristic check to see if the image looks like a plant at all.
-    Plants are typically Green, Yellow (dying), or Brown (dead).
-    If an image lacks these significantly, it might be an arbitrary object.
-    
-    Allow skip if filename has explicit keywords for demo.
+    Stricter Check:
+    - Rejects if Blue is the dominant color (Sky, Jeans, backgrounds).
+    - Rejects if Red is significantly higher than Green (Skin tones, wood, ground).
     """
     demo_keywords = ["healthy", "powdery", "mildew", "blight", "wilt", "rust", "virus", "mosaic", "septoria", "anthracnose", "mold"]
     if any(k in filename.lower() for k in demo_keywords):
         return True
 
     g = analysis["green_ratio"]
-    y = analysis["yellow_indicator"]
-    b_ind = analysis["brown_indicator"]
+    r = analysis["red_ratio"]
+    b = analysis["blue_ratio"]
 
-    # If it has decent green, it's likely a plant
-    if g > 0.25: 
-        return True
-    
-    # If it's very yellow or brown (sick plant), allow it
-    if y > 100 or b_ind > 80:
-        return True
+    # Rule 1: Blue Dominance Check (Sky, Jeans, dark objects)
+    # Plants are almost never blue-dominant.
+    if b > g:
+        return False
         
-    # If none of the above, reject
-    return False
+    # Rule 2: Red Dominance Check (Skin, Wood, Ground)
+    # Healthy plants: G >> R
+    # Sick plants: G ~= R (Yellow/Brown)
+    # Non-plants (Skin/Wood): R > G significantly
+    if r > g * 1.2:
+        return False
+
+    # Rule 3: Minimum Green Threshold
+    # Even sick plants usually retain some green-ness ratio unless completely dead.
+    if g < 0.20:
+         # Exception: If it's not red-dominant (e.g. specialized chlorosis), we might allow.
+         # But usually g < 0.20 means it's just dark or grey.
+         return False
+    
+    return True
 
 def determine_disease(analysis):
     """

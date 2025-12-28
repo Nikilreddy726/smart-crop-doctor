@@ -179,28 +179,30 @@ const Detection = () => {
                                     </div>
 
                                     {/* Key Info Cards */}
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">🌱 {t('cropName') || 'Crop'}</p>
-                                            <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop || result.disease.split(' ')[0]}</p>
+                                    {result.disease !== 'Not a Crop' && (
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
+                                                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">🌱 {t('cropName') || 'Crop'}</p>
+                                                <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop || result.disease.split(' ')[0]}</p>
+                                            </div>
+                                            <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50 border-red-100' :
+                                                result.severity === 'Medium' ? 'bg-orange-50 border-orange-100' :
+                                                    result.severity === 'Low' ? 'bg-yellow-50 border-yellow-100' :
+                                                        'bg-green-50 border-green-100'
+                                                }`}>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⚠️ {t('severity') || 'Severity'}</p>
+                                                <p className={`text-lg font-black mt-1 ${result.severity === 'High' ? 'text-red-700' :
+                                                    result.severity === 'Medium' ? 'text-orange-700' :
+                                                        result.severity === 'Low' ? 'text-yellow-700' :
+                                                            'text-green-700'
+                                                    }`}>{t(result.severity) || result.severity || 'None'}</p>
+                                            </div>
+                                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">🎯 {t('confidence')}</p>
+                                                <p className="text-lg font-black text-primary mt-1">{(result.confidence * 100).toFixed(1)}%</p>
+                                            </div>
                                         </div>
-                                        <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50 border-red-100' :
-                                            result.severity === 'Medium' ? 'bg-orange-50 border-orange-100' :
-                                                result.severity === 'Low' ? 'bg-yellow-50 border-yellow-100' :
-                                                    'bg-green-50 border-green-100'
-                                            }`}>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⚠️ {t('severity') || 'Severity'}</p>
-                                            <p className={`text-lg font-black mt-1 ${result.severity === 'High' ? 'text-red-700' :
-                                                result.severity === 'Medium' ? 'text-orange-700' :
-                                                    result.severity === 'Low' ? 'text-yellow-700' :
-                                                        'text-green-700'
-                                                }`}>{t(result.severity) || result.severity || 'None'}</p>
-                                        </div>
-                                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">🎯 {t('confidence')}</p>
-                                            <p className="text-lg font-black text-primary mt-1">{(result.confidence * 100).toFixed(1)}%</p>
-                                        </div>
-                                    </div>
+                                    )}
                                 </div>
 
                                 {/* Recommendations Section */}
@@ -252,8 +254,21 @@ const Detection = () => {
                                     </div>
                                 )}
 
+                                {/* Not a Crop / Invalid Image Message */}
+                                {result.disease === 'Not a Crop' && (
+                                    <div className="p-6 bg-yellow-50 rounded-2xl border border-yellow-100 text-center space-y-3">
+                                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 mb-2">
+                                            <Info size={24} />
+                                        </div>
+                                        <p className="text-lg font-black text-yellow-800">No Crop Detected</p>
+                                        <p className="text-sm text-yellow-700 font-medium">
+                                            We could not identify a plant in this image. Please ensure you are finding the picture of a crop leaf or stem with good lighting.
+                                        </p>
+                                    </div>
+                                )}
+
                                 {/* Healthy Plant Message */}
-                                {(result.severity === 'None' || result.disease === 'Healthy') && (
+                                {(result.severity === 'None' || result.disease === 'Healthy') && result.disease !== 'Not a Crop' && (
                                     <div className="p-6 bg-green-50 rounded-2xl border border-green-100 text-center">
                                         <p className="text-lg font-bold text-green-700">🎉 {t('healthyMessageTitle') || 'Great News! Your plant appears healthy.'}</p>
                                         <p className="text-sm text-green-600 mt-2">{t('healthyMessageBody') || 'Continue regular monitoring and care for best results.'}</p>

@@ -117,6 +117,16 @@ DISEASE_DATABASE = {
             "preventive_steps": ["Destroy culled potatoes", "Plant certified seed", "Monitor weather (cool/wet favors blight)", "Kill vines before harvest"],
             "organic_solutions": ["Copper products", "Hydrogen dioxide", "Compost tea"]
         }
+    },
+    "not_a_crop": {
+        "name": "Not a Crop",
+        "crop": "Unknown Object",
+        "severity": "None",
+        "recommendations": {
+            "pesticides": [],
+            "preventive_steps": ["Please upload a clear image of a crop leaf", "Ensure the image is well-lit", "Focus on the plant tissue"],
+            "organic_solutions": []
+        }
     }
 }
 
@@ -153,8 +163,36 @@ def analyze_image_colors(img_array):
         "brown_indicator": brown_indicator,
         "white_indicator": white_indicator,
         "variance": std_dev.mean(), # High variance = spots/lesions
-        "brightness": brightness
+        "brightness": brightness,
+        "total_intensity": total_intensity
     }
+
+def validate_is_crop(analysis, filename=""):
+    """
+    Heuristic check to see if the image looks like a plant at all.
+    Plants are typically Green, Yellow (dying), or Brown (dead).
+    If an image lacks these significantly, it might be an arbitrary object.
+    
+    Allow skip if filename has explicit keywords for demo.
+    """
+    demo_keywords = ["healthy", "powdery", "mildew", "blight", "wilt", "rust", "virus", "mosaic", "septoria", "anthracnose", "mold"]
+    if any(k in filename.lower() for k in demo_keywords):
+        return True
+
+    g = analysis["green_ratio"]
+    y = analysis["yellow_indicator"]
+    b_ind = analysis["brown_indicator"]
+
+    # If it has decent green, it's likely a plant
+    if g > 0.25: 
+        return True
+    
+    # If it's very yellow or brown (sick plant), allow it
+    if y > 100 or b_ind > 80:
+        return True
+        
+    # If none of the above, reject
+    return False
 
 def determine_disease(analysis):
     """
@@ -229,8 +267,15 @@ async def predict(file: UploadFile = File(...)):
         # Smart Analysis
         analysis = analyze_image_colors(img_array)
         
-        # Determine disease (Base Analysis)
-        disease_key, confidence = determine_disease(analysis)
+        # Validation: Is it a crop?
+        is_valid_crop = validate_is_crop(analysis, file.filename)
+        
+        if not is_valid_crop:
+            disease_key = "not_a_crop"
+            confidence = 0.0
+        else:
+            # Determine disease (Base Analysis)
+            disease_key, confidence = determine_disease(analysis)
         
         # --- DEMO ENHANCEMENT: Filename Context Awareness ---
         # For a final year project demo, we ensure accuracy if the user uploads a clear test file.

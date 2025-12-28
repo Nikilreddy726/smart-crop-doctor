@@ -184,6 +184,8 @@ def validate_is_crop(analysis, filename=""):
     r = analysis["red_ratio"]
     b = analysis["blue_ratio"]
 
+    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}")
+
     # Rule 1: Blue Dominance Check (Sky, Jeans, dark objects)
     # Plants are almost never blue-dominant.
     if b > g:
@@ -199,10 +201,17 @@ def validate_is_crop(analysis, filename=""):
     # Rule 3: Minimum Green Threshold
     # Even sick plants usually retain some green-ness ratio unless completely dead.
     if g < 0.20:
-         # Exception: If it's not red-dominant (e.g. specialized chlorosis), we might allow.
-         # But usually g < 0.20 means it's just dark or grey.
          return False
-    
+         
+    # Rule 4: Strict Red/Green Balance
+    # Skin acts as "Yellow" (R+G), but R > G. 
+    # Chlorosis (Yellow Leaf) has G >= R usually.
+    if r > g * 1.05:
+        # Strict check: If it's mostly red, it's not a leaf unless it's autumn/dead.
+        # But if it's dead, it should be very brown (low brightness).
+        # Skin has high brightness.
+        return False
+        
     return True
 
 def determine_disease(analysis):

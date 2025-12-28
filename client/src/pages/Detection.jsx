@@ -278,29 +278,34 @@ const Detection = () => {
                                 {/* Save Button with Explanation */}
                                 {result.disease !== 'Not a Crop' && (
                                     <div className="space-y-3">
-                                        <button
-                                            onClick={() => setSaved(true)}
-                                            disabled={saved}
-                                            className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 ${saved
-                                                ? 'bg-green-600 text-white shadow-green-200 cursor-default'
-                                                : 'bg-slate-900 text-white hover:bg-primary shadow-slate-200'
-                                                }`}
-                                        >
-                                            {saved ? (
-                                                <>
-                                                    <CheckCircle size={20} />
-                                                    Report Cloud-Synced
-                                                </>
-                                            ) : (
-                                                <>
+                                        {!saved ? (
+                                            <>
+                                                <button
+                                                    onClick={() => setSaved(true)}
+                                                    className="w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 bg-slate-900 text-white hover:bg-primary shadow-slate-200"
+                                                >
                                                     <ShieldCheck size={20} />
                                                     {t('saveToCloud')}
-                                                </>
-                                            )}
-                                        </button>
-                                        <p className="text-center text-xs text-slate-400 font-medium">
-                                            {saved ? '✅ Verified & stored in your secure history' : '💾 This saves your diagnosis report to your account for future reference'}
-                                        </p>
+                                                </button>
+                                                <p className="text-center text-xs text-slate-400 font-medium">
+                                                    💾 This saves your diagnosis report to your account for future reference
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                <div className="w-full py-5 rounded-[2rem] font-bold text-lg flex items-center justify-center gap-3 bg-green-600 text-white shadow-xl shadow-green-100 cursor-default">
+                                                    <CheckCircle size={20} />
+                                                    Report Cloud-Synced
+                                                </div>
+                                                <button
+                                                    onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); setSaved(false); }}
+                                                    className="w-full py-4 rounded-[2rem] font-bold text-lg transition-all border-2 border-slate-100 text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 flex items-center justify-center gap-3"
+                                                >
+                                                    <Camera size={20} />
+                                                    Scan Another Crop
+                                                </button>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </motion.div>

@@ -55,7 +55,6 @@ const History = () => {
         try {
             await deletePrediction(id);
             setHistoryItems(prev => prev.filter(item => item.id !== id));
-            alert(t('deleteSuccess'));
         } catch (err) {
             console.error("Delete failed:", err);
             const msg = err.response?.data?.error || err.message || "Unknown Error";

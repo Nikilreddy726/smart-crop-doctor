@@ -276,31 +276,33 @@ const Detection = () => {
                                 )}
 
                                 {/* Save Button with Explanation */}
-                                <div className="space-y-3">
-                                    <button
-                                        onClick={() => setSaved(true)}
-                                        disabled={saved}
-                                        className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 ${saved
-                                            ? 'bg-green-600 text-white shadow-green-200 cursor-default'
-                                            : 'bg-slate-900 text-white hover:bg-primary shadow-slate-200'
-                                            }`}
-                                    >
-                                        {saved ? (
-                                            <>
-                                                <CheckCircle size={20} />
-                                                Report Cloud-Synced
-                                            </>
-                                        ) : (
-                                            <>
-                                                <ShieldCheck size={20} />
-                                                {t('saveToCloud')}
-                                            </>
-                                        )}
-                                    </button>
-                                    <p className="text-center text-xs text-slate-400 font-medium">
-                                        {saved ? '✅ Verified & stored in your secure history' : '💾 This saves your diagnosis report to your account for future reference'}
-                                    </p>
-                                </div>
+                                {result.disease !== 'Not a Crop' && (
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={() => setSaved(true)}
+                                            disabled={saved}
+                                            className={`w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 ${saved
+                                                ? 'bg-green-600 text-white shadow-green-200 cursor-default'
+                                                : 'bg-slate-900 text-white hover:bg-primary shadow-slate-200'
+                                                }`}
+                                        >
+                                            {saved ? (
+                                                <>
+                                                    <CheckCircle size={20} />
+                                                    Report Cloud-Synced
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <ShieldCheck size={20} />
+                                                    {t('saveToCloud')}
+                                                </>
+                                            )}
+                                        </button>
+                                        <p className="text-center text-xs text-slate-400 font-medium">
+                                            {saved ? '✅ Verified & stored in your secure history' : '💾 This saves your diagnosis report to your account for future reference'}
+                                        </p>
+                                    </div>
+                                )}
                             </motion.div>
                         ) : (
                             <motion.div

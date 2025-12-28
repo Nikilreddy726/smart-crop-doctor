@@ -261,7 +261,14 @@ const Dashboard = () => {
                                 </div>
                                 <h4 className="font-black text-xl text-slate-900">{p.disease}</h4>
                                 <p className="text-sm font-bold text-slate-400 mt-2">
-                                    {p.timestamp ? new Date(p.timestamp.seconds * 1000).toLocaleDateString() : 'Just now'}
+                                    {(() => {
+                                        const t = p.timestamp;
+                                        if (!t) return 'Just now';
+                                        if (t.seconds) return new Date(t.seconds * 1000).toLocaleDateString();
+                                        if (t._seconds) return new Date(t._seconds * 1000).toLocaleDateString();
+                                        const d = new Date(t);
+                                        return !isNaN(d.getTime()) ? d.toLocaleDateString() : 'Just now';
+                                    })()}
                                 </p>
                                 <p className="text-xs font-bold text-primary mt-1">
                                     {(p.confidence * 100).toFixed(1)}% confidence

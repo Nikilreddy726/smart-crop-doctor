@@ -187,6 +187,15 @@ def analyze_image_colors(img_array):
     unique_colors_count = len(unique_colors)
     unique_colors_ratio = unique_colors_count / total_pixels
     
+    # --- QUANTIZED COLOR CHECK (Smarter Digital Detector) ---
+    # We reduce color depth (divide by 10).
+    # Natural texture has noise that spans even reduced buckets.
+    # Digital gradients (like the weather widget) collapse into very few buckets.
+    quantized_img = img_array // 10
+    quantized_flat = quantized_img.reshape(-1, 3)
+    unique_quantized_count = len(np.unique(quantized_flat, axis=0))
+    quantized_unique_ratio = unique_quantized_count / total_pixels
+
     # --- FLAT BACKGROUND CHECK (Digital Image Detector) ---
     # In a digital screenshot (like the weather widget), a large background area is EXACTLY the same color.
     # In a real photo, sensor noise implies no two large areas are mathematically identical.
@@ -211,7 +220,8 @@ def analyze_image_colors(img_array):
         "white_bg_ratio": white_bg_ratio,
         "grey_ratio": grey_ratio,
         "unique_colors_ratio": unique_colors_ratio,
-        "max_single_color_ratio": max_single_color_ratio
+        "max_single_color_ratio": max_single_color_ratio,
+        "quantized_unique_ratio": quantized_unique_ratio
     }
 
 def validate_is_crop(analysis, filename=""):
@@ -229,8 +239,9 @@ def validate_is_crop(analysis, filename=""):
     grey = analysis["grey_ratio"]
     unique = analysis["unique_colors_ratio"]
     flat_ratio = analysis["max_single_color_ratio"]
+    quantized_unique = analysis["quantized_unique_ratio"]
 
-    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}, Unique={unique:.3f}, Flat={flat_ratio:.3f}")
+    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}, Unique={unique:.3f}, Flat={flat_ratio:.3f}, Quantized={quantized_unique:.3f}")
 
     # Rule 0: Digital/Flat Art Check (Screenshots, UI, Diagrams)
     # If any SINGLE color makes up > 15% of the image, it's digital.
@@ -238,7 +249,14 @@ def validate_is_crop(analysis, filename=""):
     if flat_ratio > 0.15:
         return False
 
-    # Rule 0.5: Diagram/Vector Art Check
+    # Rule 0.5: Quantized Color Check (The new "Smart" check)
+    # Natural images have high entropy even when colors are rounded.
+    # Digital images collapse heavily.
+    # Threshold: < 1% unique colors after quantization -> Digital.
+    if quantized_unique < 0.01:
+        return False
+
+    # Rule 0.6: Diagram/Vector Art Check (Original)
     if unique < 0.02:
         return False
         

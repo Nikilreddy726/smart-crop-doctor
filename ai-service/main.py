@@ -181,8 +181,20 @@ def analyze_image_colors(img_array):
     # We use a simplified check by sampling or just calculating unique rows if efficient.
     # For a 224x224 image (50k pixels), a photo usually has >5000 unique colors (10%).
     # A diagram like the one provided will have < 500 unique colors (1%).
-    unique_colors_count = len(np.unique(img_array.reshape(-1, img_array.shape[2]), axis=0))
+    flattened_img = img_array.reshape(-1, img_array.shape[2])
+    unique_colors, counts = np.unique(flattened_img, axis=0, return_counts=True)
+    
+    unique_colors_count = len(unique_colors)
     unique_colors_ratio = unique_colors_count / total_pixels
+    
+    # --- FLAT BACKGROUND CHECK (Digital Image Detector) ---
+    # In a digital screenshot (like the weather widget), a large background area is EXACTLY the same color.
+    # In a real photo, sensor noise implies no two large areas are mathematically identical.
+    # We check the frequency of the most common color.
+    if len(counts) > 0:
+        max_single_color_ratio = counts.max() / total_pixels
+    else:
+        max_single_color_ratio = 0.0
 
     return {
         "green_ratio": green_ratio,
@@ -198,7 +210,8 @@ def analyze_image_colors(img_array):
         "total_intensity": total_intensity,
         "white_bg_ratio": white_bg_ratio,
         "grey_ratio": grey_ratio,
-        "unique_colors_ratio": unique_colors_ratio
+        "unique_colors_ratio": unique_colors_ratio,
+        "max_single_color_ratio": max_single_color_ratio
     }
 
 def validate_is_crop(analysis, filename=""):
@@ -215,19 +228,22 @@ def validate_is_crop(analysis, filename=""):
     w_bg = analysis["white_bg_ratio"]
     grey = analysis["grey_ratio"]
     unique = analysis["unique_colors_ratio"]
+    flat_ratio = analysis["max_single_color_ratio"]
 
-    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}, Unique={unique:.3f}")
+    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}, Unique={unique:.3f}, Flat={flat_ratio:.3f}")
 
-    # Rule 0: Diagram/Vector Art Check (The Strongest Check)
-    # Real photos have noise -> High unique color count.
-    # Diagrams have flat colors -> Low unique color count.
-    # Threshold: < 2% unique colors is definitely not a natural photo.
+    # Rule 0: Digital/Flat Art Check (Screenshots, UI, Diagrams)
+    # If any SINGLE color makes up > 15% of the image, it's digital.
+    # Real photos, even of a blank wall, have noise (0.1% max frequency for a single value).
+    if flat_ratio > 0.15:
+        return False
+
+    # Rule 0.5: Diagram/Vector Art Check
     if unique < 0.02:
         return False
         
     # Rule 1: Artificial Background Check (Diagrams, Screenshots, Docs)
     # Real crop photos rarely have >30% pure white pixels.
-    # Lowered slightly to 25% to catch more screenshots.
     if w_bg > 0.25: 
         return False
         

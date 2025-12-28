@@ -1,8 +1,7 @@
 # 🌾 Smart Crop Doctor - AI-Powered Agriculture Assistant
 ### *Protecting Crops, Empowering Farmers.*
 
-![Banner](screenshots/banner.png)
-*(Replace `screenshots/banner.png` with an impressive banner image of your app home screen)*
+
 
 ## 🚀 Overview
 **Smart Crop Doctor** is a comprehensive, full-stack web application designed to revolutionize how farmers diagnose and treat plant diseases. Leveraging advanced **Deep Learning (AI)**, it allows users to simply upload a photo of a crop leaf and instantly receive a diagnosis (Healthy/Diseased), severity score, and detailed treatment recommendations (Chemical, Organic, and Preventive).
@@ -42,21 +41,7 @@ Beyond detection, it serves as a complete ecosystem for farmers, offering real-t
 
 ---
 
-## 📸 Screenshots
 
-| **Home Dashboard** | **AI Detection Result** |
-|:---:|:---:|
-| ![Home](screenshots/home.png) | ![Detection](screenshots/detection.png) |
-| *Intuitive Landing Page* | *Detailed Disease Analysis* |
-
-| **Multilingual UI** | **History & Stats** |
-|:---:|:---:|
-| ![Language](screenshots/language.png) | ![History](screenshots/history.png) |
-| *Supports 6 Languages* | *Track Past Scans* |
-
-*(Add screenshots to the `screenshots/` folder named `home.png`, `detection.png`, `language.png`, and `history.png`)*
-
----
 
 ## 🛠️ Technology Stack
 

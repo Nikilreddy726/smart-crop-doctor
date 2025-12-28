@@ -157,6 +157,18 @@ def analyze_image_colors(img_array):
     # White (Mildew) = High brightness, low saturation
     white_indicator = brightness if (std_dev.mean() < 30 and brightness > 180) else 0
 
+    # --- NEW: Artificial Background Detection ---
+    # Count pixels that are very bright (near white) -> typical of screenshots/diagrams
+    # Threshold: R>210, G>210, B>210
+    white_pixels = np.sum((img_array[:,:,0] > 210) & (img_array[:,:,1] > 210) & (img_array[:,:,2] > 210))
+    total_pixels = img_array.shape[0] * img_array.shape[1]
+    white_bg_ratio = white_pixels / total_pixels
+
+    # Grey/Monochrome Detection (Low Saturation)
+    # Check pixels where |R-G| < 15 and |G-B| < 15
+    grey_pixels = np.sum((np.abs(img_array[:,:,0] - img_array[:,:,1]) < 15) & (np.abs(img_array[:,:,1] - img_array[:,:,2]) < 15))
+    grey_ratio = grey_pixels / total_pixels
+
     return {
         "green_ratio": green_ratio,
         "red_ratio": red_ratio,
@@ -166,15 +178,14 @@ def analyze_image_colors(img_array):
         "white_indicator": white_indicator,
         "variance": std_dev.mean(), # High variance = spots/lesions
         "brightness": brightness,
-        "total_intensity": total_intensity
+        "total_intensity": total_intensity,
+        "white_bg_ratio": white_bg_ratio,
+        "grey_ratio": grey_ratio
     }
 
 def validate_is_crop(analysis, filename=""):
     """
-    Heuristic check to see if the image looks like a plant at all.
-    Stricter Check:
-    - Rejects if Blue is the dominant color (Sky, Jeans, backgrounds).
-    - Rejects if Red is significantly higher than Green (Skin tones, wood, ground).
+    Robust Heuristic Check to reject non-crops, screenshots, and diagrams.
     """
     demo_keywords = ["healthy", "powdery", "mildew", "blight", "wilt", "rust", "virus", "mosaic", "septoria", "anthracnose", "mold"]
     if any(k in filename.lower() for k in demo_keywords):
@@ -183,36 +194,35 @@ def validate_is_crop(analysis, filename=""):
     g = analysis["green_ratio"]
     r = analysis["red_ratio"]
     b = analysis["blue_ratio"]
+    w_bg = analysis["white_bg_ratio"]
+    grey = analysis["grey_ratio"]
 
-    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}")
+    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}")
 
-    # Rule 1: Blue Dominance Check (Sky, Jeans, dark objects)
-    # Plants are almost never blue-dominant.
+    # Rule 1: Artificial Background Check (Diagrams, Screenshots, Docs)
+    # Real crop photos rarely have >30% pure white pixels.
+    if w_bg > 0.30: 
+        return False
+        
+    # Rule 2: Monochrome/Grey Check (Scanning documents, concrete, roads)
+    if grey > 0.60:
+        return False
+
+    # Rule 3: Blue Dominance Check
     if b > g:
         return False
         
-    # Rule 2: Red Dominance Check (Skin, Wood, Ground)
-    # Healthy plants: G >> R
-    # Sick plants: G ~= R (Yellow/Brown)
-    # Non-plants (Skin/Wood): R > G significantly
-    if r > g * 1.2:
-        return False
-
-    # Rule 3: Minimum Green Threshold
-    # Even sick plants usually retain some green-ness ratio unless completely dead.
-    if g < 0.20:
-         return False
-         
-    # Rule 4: Strict Red/Green Balance
-    # Skin acts as "Yellow" (R+G), but R > G. 
-    # Chlorosis (Yellow Leaf) has G >= R usually.
-    if r > g * 1.05:
-        # Strict check: If it's mostly red, it's not a leaf unless it's autumn/dead.
-        # But if it's dead, it should be very brown (low brightness).
-        # Skin has high brightness.
+    # Rule 4: Red Dominance Check
+    if r > g * 1.15:
         return False
         
+    # Rule 5: Minimum Green Threshold
+    if g < 0.15:
+         return False
+    
     return True
+
+
 
 def determine_disease(analysis):
     """

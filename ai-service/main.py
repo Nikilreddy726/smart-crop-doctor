@@ -169,6 +169,15 @@ def analyze_image_colors(img_array):
     grey_pixels = np.sum((np.abs(img_array[:,:,0] - img_array[:,:,1]) < 15) & (np.abs(img_array[:,:,1] - img_array[:,:,2]) < 15))
     grey_ratio = grey_pixels / total_pixels
 
+    # --- UNIQUE COLOR CHECK (The Ultimate Diagram Detector) ---
+    # Real photos have THOUSANDS of unique colors due to sensor noise/lighting.
+    # Diagrams/Vectors have very few (< 1% of total pixels).
+    # We use a simplified check by sampling or just calculating unique rows if efficient.
+    # For a 224x224 image (50k pixels), a photo usually has >5000 unique colors (10%).
+    # A diagram like the one provided will have < 500 unique colors (1%).
+    unique_colors_count = len(np.unique(img_array.reshape(-1, img_array.shape[2]), axis=0))
+    unique_colors_ratio = unique_colors_count / total_pixels
+
     return {
         "green_ratio": green_ratio,
         "red_ratio": red_ratio,
@@ -180,7 +189,8 @@ def analyze_image_colors(img_array):
         "brightness": brightness,
         "total_intensity": total_intensity,
         "white_bg_ratio": white_bg_ratio,
-        "grey_ratio": grey_ratio
+        "grey_ratio": grey_ratio,
+        "unique_colors_ratio": unique_colors_ratio
     }
 
 def validate_is_crop(analysis, filename=""):
@@ -196,12 +206,21 @@ def validate_is_crop(analysis, filename=""):
     b = analysis["blue_ratio"]
     w_bg = analysis["white_bg_ratio"]
     grey = analysis["grey_ratio"]
+    unique = analysis["unique_colors_ratio"]
 
-    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}")
+    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}, Unique={unique:.3f}")
 
+    # Rule 0: Diagram/Vector Art Check (The Strongest Check)
+    # Real photos have noise -> High unique color count.
+    # Diagrams have flat colors -> Low unique color count.
+    # Threshold: < 2% unique colors is definitely not a natural photo.
+    if unique < 0.02:
+        return False
+        
     # Rule 1: Artificial Background Check (Diagrams, Screenshots, Docs)
     # Real crop photos rarely have >30% pure white pixels.
-    if w_bg > 0.30: 
+    # Lowered slightly to 25% to catch more screenshots.
+    if w_bg > 0.25: 
         return False
         
     # Rule 2: Monochrome/Grey Check (Scanning documents, concrete, roads)

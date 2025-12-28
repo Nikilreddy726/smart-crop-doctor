@@ -66,7 +66,11 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                 contentType: req.file.mimetype
             });
 
-            const aiRes = await axios.post('http://localhost:8000/predict', formData, {
+            // Use Environment Variable for Production AI Service
+            const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+            console.log(`Calling AI Service at: ${AI_SERVICE_URL}/predict`);
+
+            const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                 headers: formData.getHeaders(),
                 timeout: 30000
             });

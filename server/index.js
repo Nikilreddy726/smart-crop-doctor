@@ -97,6 +97,16 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
             };
         }
 
+        // CHECK: Is this a valid crop? If not, do NOT save to History or Storage.
+        if (aiResult.disease === 'Not a Crop') {
+            console.log("Validation Failed: Not a crop. Skipping database storage.");
+            return res.json({
+                id: null,
+                ...aiResult,
+                imageUrl: null
+            });
+        }
+
         // 2. Try to upload to Firebase Storage
         let imageUrl = null;
         try {

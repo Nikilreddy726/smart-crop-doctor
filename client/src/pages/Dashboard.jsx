@@ -57,29 +57,45 @@ const Dashboard = () => {
         else if (hour < 18) setGreeting(t('goodAfternoon'));
         else setGreeting(t('goodEvening'));
 
+        const getSafeTime = (ts) => {
+            if (!ts) return 0;
+            if (ts.seconds) return ts.seconds * 1000;
+            if (ts._seconds) return ts._seconds * 1000;
+            const d = new Date(ts);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+        };
+
         const fetchData = async () => {
             try {
                 // 1. Fetch Cloud History
                 let cloudData = [];
                 try {
-                    cloudData = await getHistory();
+                    const res = await getHistory();
+                    cloudData = Array.isArray(res) ? res : [];
                 } catch (e) {
                     console.error("Cloud fetch failed", e);
                 }
 
                 // 2. Fetch Local History
-                const localData = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
+                let localData = [];
+                try {
+                    const raw = localStorage.getItem('local_crop_scans');
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        localData = Array.isArray(parsed) ? parsed : [];
+                    }
+                } catch (e) {
+                    console.error("Local parse failed", e);
+                }
 
                 // 3. Merge and Sort (Latest first)
                 const combinedHistory = [...localData, ...cloudData].sort((a, b) => {
-                    const dateA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp).getTime();
-                    const dateB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp).getTime();
-                    return dateB - dateA;
+                    return getSafeTime(b.timestamp) - getSafeTime(a.timestamp);
                 });
 
-                setHistory(combinedHistory.slice(0, 5)); // Show last 5
+                setHistory(combinedHistory.slice(0, 5));
 
-                // Calculate stats from combined history
+                // Calculate stats
                 const totalScans = combinedHistory.length;
                 const healthyCount = combinedHistory.filter(h => h.disease === 'Healthy' || h.severity === 'None').length;
                 const diseasedCount = totalScans - healthyCount;

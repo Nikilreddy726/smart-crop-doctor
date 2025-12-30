@@ -40,24 +40,43 @@ const History = () => {
         fetchHistory();
     }, []);
 
+    const getSafeTime = (ts) => {
+        if (!ts) return 0;
+        if (ts.seconds) return ts.seconds * 1000;
+        if (ts._seconds) return ts._seconds * 1000;
+        const d = new Date(ts);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
     const fetchHistory = async () => {
         try {
             // 1. Fetch Cloud History
             let cloudData = [];
             try {
-                cloudData = await getHistory();
-            } catch (e) { console.error("Cloud fetch failed", e); }
+                const res = await getHistory();
+                cloudData = Array.isArray(res) ? res : [];
+            } catch (e) {
+                console.error("Cloud fetch failed", e);
+            }
 
             // 2. Fetch Local History
-            const localData = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
+            let localData = [];
+            try {
+                const raw = localStorage.getItem('local_crop_scans');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    localData = Array.isArray(parsed) ? parsed : [];
+                }
+            } catch (e) {
+                console.error("Local parse failed", e);
+            }
 
-            // 3. Merge and Sort (Local-first logic)
+            // 3. Merge and Sort
             const combined = [...localData, ...cloudData].sort((a, b) => {
-                const dateA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp).getTime();
-                const dateB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp).getTime();
-                return dateB - dateA;
+                return getSafeTime(b.timestamp) - getSafeTime(a.timestamp);
             });
 
+            console.log("History records loaded:", combined.length);
             setHistoryItems(combined);
         } catch (err) {
             console.error("History Fetch Error:", err);

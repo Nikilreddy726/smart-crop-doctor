@@ -65,12 +65,7 @@ const Detection = () => {
             console.log("Detection response:", response);
 
             if (response && response.disease) {
-                if (response.disease === 'Not a Crop') {
-                    // Show a specific alert or error rather than setting it as a standard result
-                    setResult(response); // We still set it to show the specialized error UI, but let's make it clear
-                } else {
-                    setResult(response);
-                }
+                setResult(response);
             } else {
                 console.error("Invalid response:", response);
                 alert("Received invalid response from server. Please try again.");
@@ -80,6 +75,43 @@ const Detection = () => {
             alert("Failed to analyze image. Ensure it's a clear photo of a crop. Error: " + (error.message || "Unknown error"));
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleCommitToCloud = () => {
+        try {
+            setSaved(true);
+
+            // 1. Prepare Record
+            const newRecord = {
+                id: 'local-' + Date.now(),
+                disease: result.disease,
+                crop: result.crop,
+                severity: result.severity,
+                confidence: result.confidence,
+                recommendations: result.recommendations,
+                imageUrl: result.imageUrl || 'image-not-stored',
+                timestamp: new Date().toISOString()
+            };
+
+            // 2. Load and Update Local Storage
+            const raw = localStorage.getItem('local_crop_scans');
+            let history = [];
+            try {
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    history = Array.isArray(parsed) ? parsed : [];
+                }
+            } catch (e) {
+                history = [];
+            }
+
+            history.unshift(newRecord);
+            localStorage.setItem('local_crop_scans', JSON.stringify(history.slice(0, 50)));
+            console.log("Record saved to local storage:", newRecord);
+        } catch (err) {
+            console.error("Failed to save record:", err);
+            alert("Failed to save report locally. Please check browser permissions.");
         }
     };
 
@@ -295,17 +327,7 @@ const Detection = () => {
                                         {!saved ? (
                                             <>
                                                 <button
-                                                    onClick={() => {
-                                                        setSaved(true);
-                                                        // Local History Fallback
-                                                        const historyDocs = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
-                                                        const newRecord = {
-                                                            id: 'local-' + Date.now(),
-                                                            ...result,
-                                                            timestamp: new Date().toISOString()
-                                                        };
-                                                        localStorage.setItem('local_crop_scans', JSON.stringify([newRecord, ...historyDocs]));
-                                                    }}
+                                                    onClick={handleCommitToCloud}
                                                     className="w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 bg-slate-900 text-white hover:bg-primary shadow-slate-200"
                                                 >
                                                     <ShieldCheck size={20} />

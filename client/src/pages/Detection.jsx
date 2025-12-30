@@ -223,7 +223,7 @@ const Detection = () => {
                                                 {result.recommendations?.pesticides?.map((p, i) => (
                                                     <div key={i} className="flex gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
                                                         <div className="bg-white w-8 h-8 rounded-lg flex items-center justify-center text-primary border border-slate-200 font-bold shrink-0 text-sm">{i + 1}</div>
-                                                        <p className="text-slate-600 font-bold leading-snug self-center">{p}</p>
+                                                        <p className="text-slate-600 font-bold leading-snug self-center">{t(p)}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -237,7 +237,7 @@ const Detection = () => {
                                             </h3>
                                             <div className="flex flex-wrap gap-2">
                                                 {result.recommendations?.preventive_steps?.map((p, i) => (
-                                                    <span key={i} className="bg-primary/5 text-primary px-4 py-2 rounded-xl text-xs font-black tracking-tight">{p}</span>
+                                                    <span key={i} className="bg-primary/5 text-primary px-4 py-2 rounded-xl text-xs font-black tracking-tight">{t(p)}</span>
                                                 ))}
                                             </div>
                                         </div>
@@ -251,7 +251,7 @@ const Detection = () => {
                                                 </h3>
                                                 <div className="flex flex-wrap gap-2">
                                                     {result.recommendations.organic_solutions.map((p, i) => (
-                                                        <span key={i} className="bg-green-50 text-green-700 px-4 py-2 rounded-xl text-xs font-black tracking-tight border border-green-100">{p}</span>
+                                                        <span key={i} className="bg-green-600/5 text-green-700 px-4 py-2 rounded-xl text-xs font-black tracking-tight border border-green-100">{t(p)}</span>
                                                     ))}
                                                 </div>
                                             </div>
@@ -295,7 +295,17 @@ const Detection = () => {
                                         {!saved ? (
                                             <>
                                                 <button
-                                                    onClick={() => setSaved(true)}
+                                                    onClick={() => {
+                                                        setSaved(true);
+                                                        // Local History Fallback
+                                                        const historyDocs = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
+                                                        const newRecord = {
+                                                            id: 'local-' + Date.now(),
+                                                            ...result,
+                                                            timestamp: new Date().toISOString()
+                                                        };
+                                                        localStorage.setItem('local_crop_scans', JSON.stringify([newRecord, ...historyDocs]));
+                                                    }}
                                                     className="w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 bg-slate-900 text-white hover:bg-primary shadow-slate-200"
                                                 >
                                                     <ShieldCheck size={20} />

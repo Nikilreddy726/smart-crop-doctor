@@ -205,6 +205,26 @@ def analyze_image_colors(img_array):
     else:
         max_single_color_ratio = 0.0
 
+    # --- PIXEL-LEVEL BREAKDOWN (The "Anti-Mean" Fix) ---
+    # We analyze every pixel to find localized disease spots instead of just averaging the whole image.
+    r_ch = img_array[:,:,0].astype(np.int16)
+    g_ch = img_array[:,:,1].astype(np.int16)
+    b_ch = img_array[:,:,2].astype(np.int16)
+
+    # 1. Healthy Green Pixels
+    is_healthy_green = (g_ch > r_ch + 5) & (g_ch > b_ch + 5)
+    
+    # 2. Diseased Brown/Necrotic Pixels (R > G, R > B, and dark/dull)
+    is_brown = (r_ch > g_ch) & (r_ch > b_ch) & (r_ch > 30) & (r_ch < 180)
+    
+    # 3. Diseased Yellow/Chlorotic Pixels (R ~= G, both > B)
+    is_yellow = (r_ch > b_ch * 1.5) & (g_ch > b_ch * 1.2) & (np.abs(r_ch - g_ch) < 40)
+    
+    total_px = img_array.shape[0] * img_array.shape[1]
+    healthy_ratio = np.sum(is_healthy_green) / total_px
+    brown_ratio = np.sum(is_brown) / total_px
+    yellow_ratio = np.sum(is_yellow) / total_px
+
     return {
         "green_ratio": green_ratio,
         "red_ratio": red_ratio,
@@ -214,162 +234,132 @@ def analyze_image_colors(img_array):
         "yellow_indicator": yellow_indicator,
         "brown_indicator": brown_indicator,
         "white_indicator": white_indicator,
-        "variance": std_dev.mean(), # High variance = spots/lesions
+        "variance": std_dev.mean(),
         "brightness": brightness,
         "total_intensity": total_intensity,
         "white_bg_ratio": white_bg_ratio,
         "grey_ratio": grey_ratio,
         "unique_colors_ratio": unique_colors_ratio,
         "max_single_color_ratio": max_single_color_ratio,
-        "quantized_unique_ratio": quantized_unique_ratio
+        "quantized_unique_ratio": quantized_unique_ratio,
+        "pixel_healthy_ratio": healthy_ratio,
+        "pixel_brown_ratio": brown_ratio,
+        "pixel_yellow_ratio": yellow_ratio
     }
 
-def validate_is_crop(analysis, filename=""):
+def validate_is_crop(img_array, analysis, filename=""):
     """
     Robust Heuristic Check to reject non-crops, screenshots, and diagrams.
+    Uses pixel-level analysis to ensure the subject is likely botanical.
     """
-    demo_keywords = ["healthy", "powdery", "mildew", "blight", "wilt", "rust", "virus", "mosaic", "septoria", "anthracnose", "mold"]
-    if any(k in filename.lower() for k in demo_keywords):
-        return True
+    # 1. Pixel-Level Plantness Check (Vectorized for Performance)
+    r_ch = img_array[:,:,0].astype(np.int16)
+    g_ch = img_array[:,:,1].astype(np.int16)
+    b_ch = img_array[:,:,2].astype(np.int16)
 
+    # Condition A: Green Dominance (Typical of leaves)
+    is_green = (g_ch > r_ch) & (g_ch > b_ch)
+    
+    # Condition B: Yellow/Brown (Typical of diseased leaves/stems)
+    # In these, R and G are both significantly higher than B
+    is_yellow_brown = (r_ch > b_ch * 1.2) & (g_ch > b_ch * 1.1) & (r_ch > 40)
+    
+    plant_mask = is_green | is_yellow_brown
+    plant_pixel_ratio = np.sum(plant_mask) / (img_array.shape[0] * img_array.shape[1])
+
+    # 2. Heuristic features from analysis
     g = analysis["green_ratio"]
-    r = analysis["red_ratio"]
-    b = analysis["blue_ratio"]
-    w_bg = analysis["white_bg_ratio"]
-    grey = analysis["grey_ratio"]
     unique = analysis["unique_colors_ratio"]
-    flat_ratio = analysis["max_single_color_ratio"]
-    quantized_unique = analysis["quantized_unique_ratio"]
-    sat = analysis["saturation"]
+    q_unique = analysis["quantized_unique_ratio"]
     bri = analysis["brightness"]
     var = analysis["variance"]
-
+    sat = analysis["saturation"]
+    
     # Rule 0: Digital Flatness Check (The "Screenshot/Diagram" Killer)
-    # Real photos have sensor noise; no two adjacent pixels are mathematically identical.
-    # Digital graphics have huge runs of identical pixels.
+    # Checks for runs of identical pixels which are rare in natural photos
     diff_h = np.all(img_array[:, :-1, :] == img_array[:, 1:, :], axis=2)
     flatness_ratio = np.sum(diff_h) / (img_array.shape[0] * (img_array.shape[1] - 1))
     
-    # Rule 0.5: Unique Colors Check (Refined)
-    # Natural leaf photos (even healthy ones) have > 5% unique colors due to noise/lighting.
-    # Diagrams like the user's graph have < 1% unique colors.
+    print(f"DEBUG VALIDATION: File={filename}, PlantRatio={plant_pixel_ratio:.3f}, G={g:.3f}, Unique={unique:.3f}, Flatness={flatness_ratio:.3f}, Var={var:.1f}")
+
+    # --- REJECTION LOGIC ---
     
-    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, Unique={unique:.3f}, Flatness={flatness_ratio:.3f}")
-
-    # Rejection: Too Digital (Diagrams/Screenshots)
-    if flatness_ratio > 0.12 or unique < 0.03:
+    # Rejection A: Too Digital (Diagrams/Screenshots/Logos)
+    # Real photos have sensor noise (unique colors) and texture (variance)
+    if flatness_ratio > 0.15 or unique < 0.04 or q_unique < 0.01:
         return False
 
-    # Rule 0.6: Quantized Color Check (Entropy)
-    if quantized_unique < 0.008: 
+    # Rejection B: Low "Plantness"
+    # Even a diseased leaf should have a reasonable amount of green/yellow/brown tissue
+    if plant_pixel_ratio < 0.35: # Tightened from 0.25 to 0.35 for stronger rejection
         return False
 
-    # Rule 1: Artificial Background Check (Stronger)
-    # Most diagrams use white backgrounds
-    if w_bg > 0.30: 
-        return False
-        
-    # Rule 2: Monochrome/Grey Check
-    if grey > 0.65:
+    # Rejection C: Low Texture (Plastic, Painted Walls, Paper)
+    if var < 12 and bri > 40:
         return False
 
-    # Rule 3: Extreme Brightness/Darkness
-    if bri < 25 or bri > 245:
+    # Rejection D: Extreme Low Saturation (B&W text, Grey objects)
+    if sat < 0.08 and plant_pixel_ratio < 0.5:
         return False
 
-    # Rule 4: Saturation Check
-    if sat < 0.10 and bri < 210:
+    # Rejection E: Color Anomalies (Blue objects, Purple light)
+    if analysis["blue_ratio"] > 0.45:
         return False
 
-    # Rule 5: Variance Check (Natural objects have texture)
-    if var < 10:
-        return False
-
-    # Rule 6: Color Dominance
-    if b > g * 1.3: # Too blue
-        return False
-    
-    if r > g * 1.8 and r > 160: # Too red
-        return False
-
-    # Rule 7: Minimum "Plantness"
-    if g < 0.08 and sat < 0.12:
-        return False
-    
     return True
 
 
 
 def determine_disease(analysis):
     """
-    Advanced heuristic logic to determine disease based on:
-    - Chlorosis (Viral/Deficiency)
-    - Necrosis (Fungal/Bacterial)
-    - Mold (Fungal)
-    - Healthy Green Tissue
+    Advanced logic using pixel-ratios to prioritize localized damage over global averages.
     """
     
-    green = analysis["green_ratio"]
-    red = analysis["red_ratio"]
+    h_ratio = analysis["pixel_healthy_ratio"]
+    b_ratio = analysis["pixel_brown_ratio"]
+    y_ratio = analysis["pixel_yellow_ratio"]
     hue = analysis["hue"]
-    yellow = analysis["yellow_indicator"]
-    brown = analysis["brown_indicator"]
-    white = analysis["white_indicator"]
     variance = analysis["variance"]
-    
-    # 1. HUE-BASED HEALTHY CHECK (The most robust method)
-    # Green Hue is roughly 80 to 160 degrees.
-    # If the leaf is within this range, it is HEALTHY, even if lighting makes it look bright/yellowish RGB.
-    # Viral infections push Hue down towards Yellow/Orange (< 70).
-    if 75 < hue < 165 and brown < 90:
-        return "healthy", 0.95
+    white = analysis["white_indicator"]
 
-    # 2. Strong Healthy Check (Traditional RGB Fallback)
-    # If Hue didn't catch it (maybe weird lighting), check G dominance.
-    if green > red * 1.05 and brown < 80:
-         return "healthy", 0.92
+    # --- PRIORITY 1: Strong Localized Damage Check ---
+    # If more than 8% of the image has brown necrosis, it's NOT healthy.
+    if b_ratio > 0.08:
+        if variance > 55:
+            return "anthracnose", 0.70 + min(0.25, b_ratio * 2)
+        if y_ratio > 0.05:
+            return "bacterial_blight", 0.75 + min(0.20, b_ratio * 1.5)
+        return "verticillium_wilt", 0.65 + min(0.30, b_ratio)
 
-    # 3. Relaxed Healthy Check
-    if green > 0.38 and brown < 60 and yellow < 140:
+    # --- PRIORITY 2: Strong Mildew/White Spot Check ---
+    if white > 165:
+        return "powdery_mildew", 0.82
+
+    # --- PRIORITY 3: Strong Yellowing Check ---
+    if y_ratio > 0.15:
+        return "viral_infection", 0.72
+
+    # --- PRIORITY 4: HEALTHY CHECK (Now stricter) ---
+    # A leaf is healthy ONLY if it has lots of green AND very little brown/yellow.
+    if h_ratio > 0.35 and b_ratio < 0.05 and y_ratio < 0.08:
+        # Extra check: Most healthy leaves have hue in the green range
+        if 80 < hue < 165:
+            return "healthy", 0.94
         return "healthy", 0.85
+
+    # --- FALLBACKS: Weak signals ---
+    if b_ratio > 0.03:
+        if variance > 40:
+            return "septoria_leaf_spot", 0.60
+        return "leaf_rust", 0.62
+    
+    if y_ratio > b_ratio:
+        return "viral_infection", 0.58
         
-    # 4. Powdery Mildew Check: High brightness, whitish color
-    if white > 150:
-        return "powdery_mildew", 0.80 + (white / 500)
-
-    # 5. Bacterial Blight Check: Brown lesions + Yellow halos (High brown + High yellow)
-    if brown > 80 and yellow > 100:
-        return "bacterial_blight", 0.75 + (brown / 400)
-
-    # 6. Viral/Chlorosis Check: High Yellowing, low necrosis
-    # Only if Hue is clearly shifted to Yellow (< 75)
-    if yellow > 150 and brown < 100:
-        if hue < 75: 
-            return "viral_infection", 0.70 + (yellow / 500)
-        else:
-            return "healthy", 0.88 # Bright but still Green Hue
-
-    # 7. Rust Checks: Reddish-brown dominance
-    if brown > 60 and analysis["variance"] > 40:
-        return "leaf_rust", 0.75 + (brown / 300)
-
-    # 8. Spot diseases (Anthracnose/Septoria): High texture variance (spots)
-    if variance > 50:
-        if brown > 40:
-            return "anthracnose", 0.70 + (variance / 200)
-        return "septoria_leaf_spot", 0.65 + (variance / 200)
+    if h_ratio > 0.20:
+        return "healthy", 0.75
         
-    # 9. Wilt Check: General brownish cast without distinct spots
-    if brown > 100:
-        return "verticillium_wilt", 0.60 + (brown / 300)
-        
-    # Default fallback primarily based on what trait is strongest
-    if yellow > brown and hue < 70:
-        return "viral_infection", 0.55
-    elif green > red:
-        return "healthy", 0.60
-    else:
-        return "tomato_leaf_mold", 0.55
+    return "tomato_leaf_mold", 0.55
 
 @app.get("/")
 def read_root():
@@ -393,15 +383,13 @@ async def predict(file: UploadFile = File(...)):
         analysis = analyze_image_colors(img_array)
         
         # Validation: Is it a crop?
-        is_valid_crop = validate_is_crop(analysis, file.filename)
+        is_valid_crop = validate_is_crop(img_array, analysis, file.filename)
         
         # --- DEMO ENHANCEMENT: Filename Context Awareness ---
         # Only apply demo overrides if it's a valid crop OR if it matches our specific demo keywords strictly
         demo_keywords = ["healthy", "powdery", "mildew", "blight", "wilt", "rust", "virus", "mosaic", "septoria", "anthracnose", "mold"]
         filename = file.filename.lower()
-        is_demo_file = any(k in filename for k in demo_keywords)
-
-        if not is_valid_crop and not is_demo_file:
+        if not is_valid_crop:
             disease_key = "not_a_crop"
             confidence = 0.0
         else:
@@ -440,8 +428,11 @@ async def predict(file: UploadFile = File(...)):
         # Fetch detailed agricultural data
         disease_info = DISEASE_DATABASE.get(disease_key, DISEASE_DATABASE["healthy"])
         
-        # Normalize confidence
-        confidence = min(0.99, max(0.65, confidence))
+        # Normalize confidence (only for actual crops)
+        if disease_key != "not_a_crop":
+            confidence = min(0.99, max(0.65, confidence))
+        else:
+            confidence = 0.0
         
         return {
             "disease": disease_info["name"],

@@ -59,13 +59,29 @@ const Dashboard = () => {
 
         const fetchData = async () => {
             try {
-                // Fetch history from Firebase
-                const historyData = await getHistory();
-                setHistory(historyData.slice(0, 5)); // Show last 5
+                // 1. Fetch Cloud History
+                let cloudData = [];
+                try {
+                    cloudData = await getHistory();
+                } catch (e) {
+                    console.error("Cloud fetch failed", e);
+                }
 
-                // Calculate stats from history
-                const totalScans = historyData.length;
-                const healthyCount = historyData.filter(h => h.disease === 'Healthy' || h.severity === 'None').length;
+                // 2. Fetch Local History
+                const localData = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
+
+                // 3. Merge and Sort (Latest first)
+                const combinedHistory = [...localData, ...cloudData].sort((a, b) => {
+                    const dateA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp).getTime();
+                    const dateB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp).getTime();
+                    return dateB - dateA;
+                });
+
+                setHistory(combinedHistory.slice(0, 5)); // Show last 5
+
+                // Calculate stats from combined history
+                const totalScans = combinedHistory.length;
+                const healthyCount = combinedHistory.filter(h => h.disease === 'Healthy' || h.severity === 'None').length;
                 const diseasedCount = totalScans - healthyCount;
                 const healthPercentage = totalScans > 0 ? Math.round((healthyCount / totalScans) * 100) : 0;
 
@@ -259,7 +275,7 @@ const Dashboard = () => {
                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 text-2xl ${p.disease === 'Healthy' || p.severity === 'None' ? 'bg-green-50' : 'bg-red-50'}`}>
                                     {p.disease === 'Healthy' || p.severity === 'None' ? '🌿' : '🍂'}
                                 </div>
-                                <h4 className="font-black text-xl text-slate-900">{p.disease}</h4>
+                                <h4 className="font-black text-xl text-slate-900">{t(p.disease) || p.disease}</h4>
                                 <p className="text-sm font-bold text-slate-400 mt-2">
                                     {(() => {
                                         const t = p.timestamp;

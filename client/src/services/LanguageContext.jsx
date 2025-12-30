@@ -187,7 +187,23 @@ const en = {
     "Haryana": "Haryana",
     noCropDetected: "No Crop Detected",
     noCropDetectedDesc: "This system only analyzes field crops. Please upload a clear photo of a crop leaf or stem.",
-    tryAnotherImage: "Scan Another Image"
+    tryAnotherImage: "Scan Another Image",
+    severity: "Severity",
+    // Recommendations
+    "Copper-based bactericides (preventative)": "Copper-based bactericides (preventative)",
+    "Streptomycin (limited use)": "Streptomycin (limited use)",
+    "Use disease-free seeds": "Use disease-free seeds",
+    "Practice crop rotation": "Practice crop rotation",
+    "Avoid working in wet fields": "Avoid working in wet fields",
+    "Disinfect tools regularly": "Disinfect tools regularly",
+    "Copper soap": "Copper soap",
+    "Biological controls (Bacillus subtilis)": "Biological controls (Bacillus subtilis)",
+    "Remove infected leaves immediately": "Remove infected leaves immediately",
+    "Sulfur-based fungicides": "Sulfur-based fungicides",
+    "Neem oil": "Neem oil",
+    "Mancozeb": "Mancozeb",
+    "Water at roots": "Water at roots",
+    "Improve air circulation": "Improve air circulation"
 };
 
 // 2. Hindi Overrides
@@ -280,6 +296,7 @@ const hi = {
     attemptDelete: "हटाने का प्रयास:",
     deleteSuccess: "रिकॉर्ड सफलतापूर्वक हटा दिया गया!",
     deleteFail: "हटाने में विफल...",
+    confidence: "निश्चितता",
     newDiscussion: "नई चर्चा",
     shareTip: "अपना कृषि प्रश्न या टिप साझा करें...",
     cancel: "रद्द करें",
@@ -359,7 +376,22 @@ const hi = {
     "Haryana": "हरियाणा",
     noCropDetected: "कोई फसल नहीं मिली",
     noCropDetectedDesc: "यह प्रणाली केवल कृषि फसलों का विश्लेषण करती है। कृपया फसल के पत्ते या तने की स्पष्ट तस्वीर अपलोड करें।",
-    tryAnotherImage: "दूसरी छवि स्कैन करें"
+    tryAnotherImage: "दूसरी छवि स्कैन करें",
+    severity: "गंभीरता",
+    "Copper-based bactericides (preventative)": "कॉपर-आधारित जीवाणुनाशक (निवारक)",
+    "Streptomycin (limited use)": "स्ट्रैप्टोमाइसिन (सीमित उपयोग)",
+    "Use disease-free seeds": "रोग मुक्त बीजों का प्रयोग करें",
+    "Practice crop rotation": "फसल चक्र अपनाएं",
+    "Avoid working in wet fields": "गीले खेतों में काम करने से बचें",
+    "Disinfect tools regularly": "औजारों को नियमित रूप से कीटाणुरहित करें",
+    "Copper soap": "कॉपर साबुन",
+    "Biological controls (Bacillus subtilis)": "जैविक नियंत्रण (बैसिलस सबटिलिस)",
+    "Remove infected leaves immediately": "संक्रमित पत्तियों को तुरंत हटा दें",
+    "Sulfur-based fungicides": "सल्फर आधारित कवकनाशी",
+    "Neem oil": "नीम का तेल",
+    "Mancozeb": "मैंकोज़ेब",
+    "Water at roots": "जड़ों में पानी दें",
+    "Improve air circulation": "हवा का संचार सुधारें"
 };
 
 // 3. Define Other Regional Languages
@@ -538,7 +570,22 @@ const te = {
     "Haryana": "హర్యానా",
     noCropDetected: "పంటను గుర్తించలేదు",
     noCropDetectedDesc: "ఈ వ్యవస్థ పంటలను మాత్రమే విశ్లేషిస్తుంది. దయచేసి పంట ఆకు లేదా కాండం యొక్క స్పష్టమైన ఫోటోను అప్‌లోడ్ చేయండి.",
-    tryAnotherImage: "మరో చిత్రాన్ని ప్రయత్నించండి"
+    tryAnotherImage: "మరో చిత్రాన్ని ప్రయత్నించండి",
+    severity: "తీవ్రత",
+    "Copper-based bactericides (preventative)": "రాగి ఆధారిత బాక్టీరిసైడ్లు (నివారణ)",
+    "Streptomycin (limited use)": "స్ట్రెప్టోమైసిన్ (పరిమిత వినియోగం)",
+    "Use disease-free seeds": "వ్యాధి రహిత విత్తనాలను ఉపయోగించండి",
+    "Practice crop rotation": "పంట మార్పిడిని ప్రాక్టీస్ చేయండి",
+    "Avoid working in wet fields": "తడి పొలాల్లో పనిచేయడం మానుకోండి",
+    "Disinfect tools regularly": "సామగ్రిని క్రమం తప్పకుండా శుభ్రపరచండి",
+    "Copper soap": "రాగి సబ్బు (Copper soap)",
+    "Biological controls (Bacillus subtilis)": "జీవ నియంత్రణలు (బాసిల్లస్ సబ్టిలిస్)",
+    "Remove infected leaves immediately": "సోకిన ఆకులను వెంటనే తొలగించండి",
+    "Sulfur-based fungicides": "సల్ఫర్ ఆధారిత శిలీంద్ర సంహారిణులు",
+    "Neem oil": "వేప నూనె",
+    "Mancozeb": "మాంకోజెబ్ (Mancozeb)",
+    "Water at roots": "వేర్ల వద్ద నీరు పోయండి",
+    "Improve air circulation": "గాలి ప్రసరణను మెరుగుపరచండి"
 };
 
 const kn = {
@@ -715,7 +762,22 @@ const kn = {
     "Haryana": "ಹರಿಯಾಣ",
     noCropDetected: "ಯಾವುದೇ ಬೆಳೆ ಕಂಡುಬಂದಿಲ್ಲ",
     noCropDetectedDesc: "ಈ ವ್ಯವಸ್ಥೆಯು ಕೃಷಿ ಬೆಳೆಗಳನ್ನು ಮಾತ್ರ ವಿಶ್ಲೇಷಿಸುತ್ತದೆ. ದಯವಿಟ್ಟು ಬೆಳೆಯ ಎಲೆ ಅಥವಾ ಕಾಂಡದ ಸ್ಪಷ್ಟ ಫೋಟೋವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.",
-    tryAnotherImage: "ಮತ್ತೊಂದು ಚಿತ್ರ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ"
+    tryAnotherImage: "ಮತ್ತೊಂದು ಚಿತ್ರ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ",
+    severity: "ತೀವ್ರತೆ",
+    "Copper-based bactericides (preventative)": "ತಾಮ್ರ ಆಧಾರಿತ ಬ್ಯಾಕ್ಟೀರಿಸೈಡ್‌ಗಳು (ಮುನ್ನೆಚ್ಚರಿಕೆ)",
+    "Streptomycin (limited use)": "ಸ್ಟ್ರೆಪ್ಟೊಮೈಸಿನ್ (ಸೀಮಿತ ಬಳಕೆ)",
+    "Use disease-free seeds": "ರೋಗಮುಕ್ತ ಬೀಜಗಳನ್ನು ಬಳಸಿ",
+    "Practice crop rotation": "ಬೆಳೆ ಸರದಿಯನ್ನು ಅಭ್ಯಾಸ ಮಾಡಿ",
+    "Avoid working in wet fields": "ಒದ್ದೆಯಾದ ಹೊಲಗಳಲ್ಲಿ ಕೆಲಸ ಮಾಡುವುದನ್ನು ತಪ್ಪಿಸಿ",
+    "Disinfect tools regularly": "ಪರಿಕರಗಳನ್ನು ನಿಯಮಿತವಾಗಿ ಸೋಂಕುರಹಿತಗೊಳಿಸಿ",
+    "Copper soap": "ತಾಮ್ರದ ಸಾಬೂನು (Copper soap)",
+    "Biological controls (Bacillus subtilis)": "ಜೈವಿಕ ನಿಯಂತ್ರಣಗಳು (ಬ್ಯಾಸಿಲಸ್ ಸಬ್ಟಿಲಿಸ್)",
+    "Remove infected leaves immediately": "ಸೋಂಕಿತ ಎಲೆಗಳನ್ನು ಕೂಡಲೇ ತೆಗೆದುಹಾಕಿ",
+    "Sulfur-based fungicides": "ಗಂಧಕ ಆಧಾರಿತ ಶಿಲೀಂಧ್ರನಾಶಕಗಳು",
+    "Neem oil": "ಬೇವು ಎಣ್ಣೆ",
+    "Mancozeb": "ಮ್ಯಾಂಕೋಜೆಬ್ (Mancozeb)",
+    "Water at roots": "ಬೇರುಗಳ ಬಳಿ ನೀರು ಹಾಕಿ",
+    "Improve air circulation": "ಗಾಳಿಯ ಸಂಚಾರವನ್ನು ಸುಧಾರಿಸಿ"
 };
 
 const ta = {
@@ -890,7 +952,22 @@ const ta = {
     "Haryana": "ஹரியானா",
     noCropDetected: "பயிர் எதுவும் கண்டறியப்படவில்லை",
     noCropDetectedDesc: "இந்த அமைப்பு பயிர்களை மட்டுமே பகுப்பாய்வு செய்கிறது. பயிர் இலை அல்லது தண்டின் தெளிவான புகைப்படத்தைப் பதிவேற்றவும்.",
-    tryAnotherImage: "மற்றொரு படத்தை முயற்சிக்கவும்"
+    tryAnotherImage: "மற்றொரு படத்தை முயற்சிக்கவும்",
+    severity: "தீவிரம்",
+    "Copper-based bactericides (preventative)": "தாமிரம் கலந்த பாக்டீரியா கொல்லிகள் (தடுப்பு)",
+    "Streptomycin (limited use)": "ஸ்ட்ரெப்டோமைசின் (வரையறுக்கப்பட்ட பயன்பாடு)",
+    "Use disease-free seeds": "நோய் இல்லாத விதைகளைப் பயன்படுத்துங்கள்",
+    "Practice crop rotation": "பயிர் சுழற்சியைப் பின்பற்றுங்கள்",
+    "Avoid working in wet fields": "ஈரமான வயல்களில் வேலை செய்வதைத் தவிர்க்கவும்",
+    "Disinfect tools regularly": "கருவிகளைத் தொடர்ந்து கிருமி நீக்கம் செய்யவும்",
+    "Copper soap": "தாமிர சோப் (Copper soap)",
+    "Biological controls (Bacillus subtilis)": "உயிரியல் கட்டுப்பாடுகள் (பேசிலஸ் சப்டிலிஸ்)",
+    "Remove infected leaves immediately": "பாதிக்கப்பட்ட இலைகளை உடனடியாக அகற்றவும்",
+    "Sulfur-based fungicides": "கந்தகம் சார்ந்த பூஞ்சை காளான் கொல்லிகள்",
+    "Neem oil": "வேப்ப எண்ணெய்",
+    "Mancozeb": "மேன்கோசெப் (Mancozeb)",
+    "Water at roots": "வேர்களுக்கு நீர் பாய்ச்சுவது",
+    "Improve air circulation": "காற்று சுழற்சியை மேம்படுத்தவும்"
 };
 
 const ml = {
@@ -1066,6 +1143,21 @@ const ml = {
     noCropDetected: "വിളകളൊന്നും കണ്ടെത്തിയില്ല",
     noCropDetectedDesc: "ഈ സിസ്റ്റം വിളകളെ മാത്രമേ വിശകലനം ചെയ്യുകയുള്ളൂ. ഒരു വിളയുടെ ഇലയുടെയോ തണ്ടിന്റെയോ വ്യക്തമായ ചിത്രം അപ്‌ലോഡ് ചെയ്യുക.",
     tryAnotherImage: "മറ്റൊരു ചിത്രം സ്കാൻ ചെയ്യുക",
+    severity: "തീവ്രത",
+    "Copper-based bactericides (preventative)": "ചെമ്പ് അടിസ്ഥാനമാക്കിയുള്ള ബാക്ടീരിസൈഡുകൾ (പ്രതിരോധം)",
+    "Streptomycin (limited use)": "സ്ട്രെപ്റ്റോമൈസിൻ (പരിമിതമായ ഉപയോഗം)",
+    "Use disease-free seeds": "രോഗമില്ലാത്ത വിത്തുകൾ ഉപയോഗിക്കുക",
+    "Practice crop rotation": "വിള പരിക്രമണം നടപ്പിലാക്കുക",
+    "Avoid working in wet fields": "നനഞ്ഞ പാടങ്ങളിൽ ജോലി ചെയ്യുന്നത് ഒഴിവാക്കുക",
+    "Disinfect tools regularly": "ഉപകരണങ്ങൾ പതിവായി അണുവിമുക്തമാക്കുക",
+    "Copper soap": "കോപ്പർ സോപ്പ് (Copper soap)",
+    "Biological controls (Bacillus subtilis)": "ജൈവ നിയന്ത്രണങ്ങൾ (ബാസിലസ് സബ്റ്റിലിസ്)",
+    "Remove infected leaves immediately": "രോഗം ബാധിച്ച ഇലകൾ ഉടൻ നീക്കം ചെയ്യുക",
+    "Sulfur-based fungicides": "സൾഫർ അടിസ്ഥാനമാക്കിയുള്ള കുമിൾനാശിനികൾ",
+    "Neem oil": "വേപ്പെണ്ണ",
+    "Mancozeb": "മാൻകോസെബ് (Mancozeb)",
+    "Water at roots": "വേരുകളിൽ നനയ്ക്കുക",
+    "Improve air circulation": "വായു സഞ്ചാരം മെച്ചപ്പെടുത്തുക",
     allIndiaCommunity: "അഖിലേന്ത്യ കമ്മ്യൂണിറ്റി",
     discussNation: "രാജ്യത്തുടനീളമുള്ള കർഷകരുമായി ചർച്ച ചെയ്യുക",
     tabAllIndia: "മുഴുവൻ ഇന്ത്യ",

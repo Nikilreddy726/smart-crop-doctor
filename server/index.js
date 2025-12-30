@@ -11,24 +11,21 @@ const port = process.env.PORT || 5000;
 
 // Initialize Firebase Admin
 let serviceAccount;
+let firebaseInitialized = false;
 try {
     serviceAccount = require('./serviceAccountKey.json');
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: "smart-doctor-crop.firebasestorage.app"
+    });
+    firebaseInitialized = true;
+    console.log("Firebase initialized successfully");
 } catch (e) {
-    // Production fallback: Use Environment Variable
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    } else {
-        console.error("Firebase Service Account not found.");
-    }
+    console.error("Firebase Service Account not found or invalid - Storage features will be disabled.");
 }
 
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: "smart-doctor-crop.firebasestorage.app" // Updated to correct bucket domain
-});
-
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+const db = firebaseInitialized ? admin.firestore() : null;
+const bucket = firebaseInitialized ? admin.storage().bucket() : null;
 
 // Middleware
 app.use(cors());
@@ -44,7 +41,7 @@ const upload = multer({
 
 // Basic Root Route
 app.get('/', (req, res) => {
-    res.send('Crop Guard AI Server is live with Firebase integration');
+    res.send('Crop Guard AI Server is live' + (firebaseInitialized ? ' with Firebase' : ' (Local Mode - No DB)'));
 });
 
 // AI Prediction Route
@@ -54,9 +51,9 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
             return res.status(400).json({ error: 'No image uploaded' });
         }
 
-        console.log("Received image:", req.file.originalname, req.file.size, "bytes");
+        console.log("Processing image:", req.file.originalname);
 
-        // 1. Call AI Microservice first
+        // 1. Call AI Microservice
         let aiResult;
         try {
             const FormData = require('form-data');
@@ -66,40 +63,22 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                 contentType: req.file.mimetype
             });
 
-            // Use Environment Variable for Production AI Service
             const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
-            console.log(`Calling AI Service at: ${AI_SERVICE_URL}/predict`);
-
             const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                 headers: formData.getHeaders(),
                 timeout: 30000
             });
             aiResult = aiRes.data;
-            console.log("AI Result:", aiResult);
         } catch (aiError) {
-            console.log("AI Service unavailable, using mock data:", aiError.message);
-            // Fallback mock data if AI service is down
-            const diseases = [
-                { disease: "Tomato Leaf Mold", severity: "Medium" },
-                { disease: "Potato Late Blight", severity: "High" },
-                { disease: "Healthy", severity: "None" }
-            ];
-            const picked = diseases[Math.floor(Math.random() * diseases.length)];
-            aiResult = {
-                disease: picked.disease,
-                confidence: 0.85 + Math.random() * 0.14,
-                severity: picked.severity,
-                recommendations: {
-                    pesticides: picked.severity !== "None" ? ["Copper based fungicide", "Mancozeb"] : [],
-                    preventive_steps: picked.severity !== "None" ? ["Better spacing", "Water at roots", "Remove infected leaves"] : ["Continue monitoring"],
-                    organic_solutions: picked.severity !== "None" ? ["Neem oil spray", "Compost tea"] : []
-                }
-            };
+            console.error("AI Service Error:", aiError.message);
+            return res.status(503).json({
+                error: 'AI Analysis Service is currently offline. Please try again later.',
+                details: aiError.message
+            });
         }
 
-        // CHECK: Is this a valid crop? If not, do NOT save to History or Storage.
+        // CHECK: Is this a valid crop?
         if (aiResult.disease === 'Not a Crop') {
-            console.log("Validation Failed: Not a crop. Skipping database storage.");
             return res.json({
                 id: null,
                 ...aiResult,
@@ -107,50 +86,42 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
             });
         }
 
-        // 2. Try to upload to Firebase Storage
+        // 2. Try to upload to Firebase Storage (Only if initialized)
         let imageUrl = null;
-        try {
-            const blob = bucket.file(`detections/${Date.now()}_${req.file.originalname}`);
-
-            await new Promise((resolve, reject) => {
-                const blobStream = blob.createWriteStream({
-                    metadata: { contentType: req.file.mimetype }
-                });
-                blobStream.on('error', reject);
-                blobStream.on('finish', resolve);
-                blobStream.end(req.file.buffer);
-            });
-
-            // Make the file public so it can be viewed by the frontend
+        if (firebaseInitialized) {
             try {
-                await blob.makePublic();
-            } catch (publicError) {
-                console.log("Warning: Could not make file public automatically:", publicError.message);
+                const blob = bucket.file(`detections/${Date.now()}_${req.file.originalname}`);
+                await new Promise((resolve, reject) => {
+                    const blobStream = blob.createWriteStream({
+                        metadata: { contentType: req.file.mimetype }
+                    });
+                    blobStream.on('error', reject);
+                    blobStream.on('finish', resolve);
+                    blobStream.end(req.file.buffer);
+                });
+                try { await blob.makePublic(); } catch (e) { }
+                imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+            } catch (storageError) {
+                console.log("Firebase storage error:", storageError.message);
             }
-
-            imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-            console.log("Uploaded to Firebase:", imageUrl);
-        } catch (storageError) {
-            console.log("Firebase storage error (continuing anyway):", storageError.message);
-            imageUrl = "local://image-not-stored";
         }
 
-        // 3. Try to save to Firestore
-        let docId = null;
-        try {
-            const docRef = await db.collection('predictions').add({
-                imageUrl: imageUrl,
-                ...aiResult,
-                timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                userId: req.body.userId || 'anonymous'
-            });
-            docId = docRef.id;
-        } catch (dbError) {
-            console.log("Firestore save error (continuing anyway):", dbError.message);
-            docId = "temp-" + Date.now();
+        // 3. Try to save to Firestore (Only if initialized)
+        let docId = "local-" + Date.now();
+        if (firebaseInitialized && db) {
+            try {
+                const docRef = await db.collection('predictions').add({
+                    imageUrl: imageUrl,
+                    ...aiResult,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                    userId: req.body.userId || 'anonymous'
+                });
+                docId = docRef.id;
+            } catch (dbError) {
+                console.log("Firestore save error:", dbError.message);
+            }
         }
 
-        // Return result regardless of storage issues
         res.json({ id: docId, ...aiResult, imageUrl: imageUrl });
 
     } catch (error) {
@@ -241,6 +212,9 @@ app.get('/api/weather', async (req, res) => {
 // History / Predictions Routes
 app.get('/api/predictions', async (req, res) => {
     try {
+        if (!firebaseInitialized || !db) {
+            return res.json([]); // Return empty history in local mode
+        }
         const snapshot = await db.collection('predictions').orderBy('timestamp', 'desc').get();
         const detections = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(detections);
@@ -251,6 +225,9 @@ app.get('/api/predictions', async (req, res) => {
 
 app.delete('/api/predictions/:id', async (req, res) => {
     try {
+        if (!firebaseInitialized || !db) {
+            return res.json({ success: true, localOnly: true });
+        }
         await db.collection('predictions').doc(req.params.id).delete();
         res.json({ success: true });
     } catch (error) {

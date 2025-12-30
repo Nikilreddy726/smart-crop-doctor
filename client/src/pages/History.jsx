@@ -42,8 +42,23 @@ const History = () => {
 
     const fetchHistory = async () => {
         try {
-            const data = await getHistory();
-            setHistoryItems(data);
+            // 1. Fetch Cloud History
+            let cloudData = [];
+            try {
+                cloudData = await getHistory();
+            } catch (e) { console.error("Cloud fetch failed", e); }
+
+            // 2. Fetch Local History
+            const localData = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
+
+            // 3. Merge and Sort (Local-first logic)
+            const combined = [...localData, ...cloudData].sort((a, b) => {
+                const dateA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : new Date(a.timestamp).getTime();
+                const dateB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : new Date(b.timestamp).getTime();
+                return dateB - dateA;
+            });
+
+            setHistoryItems(combined);
         } catch (err) {
             console.error("History Fetch Error:", err);
         } finally {
@@ -53,6 +68,15 @@ const History = () => {
 
     const handleDelete = async (id) => {
         try {
+            // Check if local
+            if (id.toString().startsWith('local-')) {
+                const localData = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
+                const filtered = localData.filter(item => item.id !== id);
+                localStorage.setItem('local_crop_scans', JSON.stringify(filtered));
+                setHistoryItems(prev => prev.filter(item => item.id !== id));
+                return;
+            }
+
             await deletePrediction(id);
             setHistoryItems(prev => prev.filter(item => item.id !== id));
         } catch (err) {

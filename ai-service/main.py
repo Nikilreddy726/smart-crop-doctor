@@ -240,46 +240,58 @@ def validate_is_crop(analysis, filename=""):
     unique = analysis["unique_colors_ratio"]
     flat_ratio = analysis["max_single_color_ratio"]
     quantized_unique = analysis["quantized_unique_ratio"]
+    sat = analysis["saturation"]
+    bri = analysis["brightness"]
+    var = analysis["variance"]
 
-    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, WhiteBG={w_bg:.3f}, Grey={grey:.3f}, Unique={unique:.3f}, Flat={flat_ratio:.3f}, Quantized={quantized_unique:.3f}")
+    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, Sat={sat:.3f}, Var={var:.3f}, Unique={unique:.3f}")
 
     # Rule 0: Digital/Flat Art Check (Screenshots, UI, Diagrams)
-    # If any SINGLE color makes up > 15% of the image, it's digital.
-    # Real photos, even of a blank wall, have noise (0.1% max frequency for a single value).
-    if flat_ratio > 0.15:
+    if flat_ratio > 0.15: # Single color > 15%
         return False
 
-    # Rule 0.5: Quantized Color Check (The new "Smart" check)
-    # Natural images have high entropy even when colors are rounded.
-    # Digital images collapse heavily.
-    # Threshold: < 1% unique colors after quantization -> Digital.
-    if quantized_unique < 0.01:
+    # Rule 0.5: Quantized Color Check
+    if quantized_unique < 0.005: 
         return False
 
-    # Rule 0.6: Diagram/Vector Art Check (Original)
-    if unique < 0.02:
+    # Rule 1: Artificial Background Check
+    if w_bg > 0.35: 
         return False
         
-    # Rule 1: Artificial Background Check (Diagrams, Screenshots, Docs)
-    # Real crop photos rarely have >30% pure white pixels.
-    if w_bg > 0.25: 
-        return False
-        
-    # Rule 2: Monochrome/Grey Check (Scanning documents, concrete, roads)
-    if grey > 0.60:
+    # Rule 2: Monochrome/Grey Check
+    if grey > 0.70:
         return False
 
-    # Rule 3: Blue Dominance Check
-    if b > g:
+    # Rule 3: Extreme Brightness/Darkness
+    if bri < 30 or bri > 240:
         return False
-        
-    # Rule 4: Red Dominance Check
-    if r > g * 1.15:
+
+    # Rule 4: Saturation Check (Plants are usually somewhat saturated)
+    # Very low saturation = grey/white objects
+    if sat < 0.12 and bri < 200:
         return False
-        
-    # Rule 5: Minimum Green Threshold
-    if g < 0.15:
-         return False
+
+    # Rule 5: Variance Check (Natural objects have texture)
+    # Very low variance = flat surfaces (walls, paper)
+    if var < 12:
+        return False
+
+    # Rule 6: Color Dominance - Plants MUST have significant green or be brownish/yellowish (sick)
+    # But they should NOT be purely Blue or purely Red (unless it's a very specific fruit, but this is a Crop Doctor for leaves)
+    if b > g * 1.5: # Way too blue
+        return False
+    
+    if r > g * 2.0 and r > 150: # Way too red (and bright)
+        return False
+
+    # Rule 7: Minimum "Plantness"
+    # A mix of Green ratio and Saturation
+    if g < 0.10 and sat < 0.15:
+        return False
+
+    # Rule 8: If it's mostly green but has ZERO texture, it's a green screen or flat graphic
+    if g > 0.5 and var < 8:
+        return False
     
     return True
 

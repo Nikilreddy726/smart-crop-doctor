@@ -57,7 +57,7 @@ const Detection = () => {
     const handleUpload = async () => {
         if (!selectedFile) return;
         setLoading(true);
-        setResult(null); // Clear previous result
+        setResult(null);
         setSaved(false);
         try {
             console.log("Sending image for analysis...");
@@ -65,14 +65,19 @@ const Detection = () => {
             console.log("Detection response:", response);
 
             if (response && response.disease) {
-                setResult(response);
+                if (response.disease === 'Not a Crop') {
+                    // Show a specific alert or error rather than setting it as a standard result
+                    setResult(response); // We still set it to show the specialized error UI, but let's make it clear
+                } else {
+                    setResult(response);
+                }
             } else {
                 console.error("Invalid response:", response);
                 alert("Received invalid response from server. Please try again.");
             }
         } catch (error) {
             console.error("Detection Error:", error);
-            alert("Failed to analyze image. Error: " + (error.message || "Unknown error"));
+            alert("Failed to analyze image. Ensure it's a clear photo of a crop. Error: " + (error.message || "Unknown error"));
         } finally {
             setLoading(false);
         }
@@ -256,14 +261,23 @@ const Detection = () => {
 
                                 {/* Not a Crop / Invalid Image Message */}
                                 {result.disease === 'Not a Crop' && (
-                                    <div className="p-6 bg-yellow-50 rounded-2xl border border-yellow-100 text-center space-y-3">
-                                        <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-yellow-100 text-yellow-600 mb-2">
-                                            <Info size={24} />
+                                    <div className="p-8 md:p-10 bg-yellow-50 rounded-[3rem] border-2 border-dashed border-yellow-200 text-center space-y-6 flex flex-col items-center justify-center min-h-[300px]">
+                                        <div className="p-5 rounded-3xl bg-yellow-100 text-yellow-600 animate-bounce">
+                                            <AlertTriangle size={48} />
                                         </div>
-                                        <p className="text-lg font-black text-yellow-800">No Crop Detected</p>
-                                        <p className="text-sm text-yellow-700 font-medium">
-                                            We could not identify a plant in this image. Please ensure you are finding the picture of a crop leaf or stem with good lighting.
-                                        </p>
+                                        <div className="space-y-2">
+                                            <p className="text-2xl font-black text-yellow-900 tracking-tight">{t('noCropDetected') || 'Detection Restricted'}</p>
+                                            <p className="text-yellow-700 font-medium max-w-xs mx-auto">
+                                                {t('noCropDetectedDesc') || 'This system only analyzes field crops. Please upload a clear photo of a crop leaf or stem.'}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); }}
+                                            className="px-8 py-4 bg-yellow-600 text-white rounded-2xl font-bold hover:bg-yellow-700 transition-all shadow-lg shadow-yellow-200 flex items-center gap-2"
+                                        >
+                                            <Camera size={20} />
+                                            {t('tryAnotherImage') || 'Try Another Image'}
+                                        </button>
                                     </div>
                                 )}
 

@@ -184,7 +184,10 @@ const en = {
     "Madhya Pradesh": "Madhya Pradesh",
     "Tamil Nadu": "Tamil Nadu",
     "Gujarat": "Gujarat",
-    "Haryana": "Haryana"
+    "Haryana": "Haryana",
+    noCropDetected: "No Crop Detected",
+    noCropDetectedDesc: "This system only analyzes field crops. Please upload a clear photo of a crop leaf or stem.",
+    tryAnotherImage: "Scan Another Image"
 };
 
 // 2. Hindi Overrides
@@ -353,7 +356,10 @@ const hi = {
     "Madhya Pradesh": "मध्य प्रदेश",
     "Tamil Nadu": "तमिलनाडु",
     "Gujarat": "गुजरात",
-    "Haryana": "हरियाणा"
+    "Haryana": "हरियाणा",
+    noCropDetected: "कोई फसल नहीं मिली",
+    noCropDetectedDesc: "यह प्रणाली केवल कृषि फसलों का विश्लेषण करती है। कृपया फसल के पत्ते या तने की स्पष्ट तस्वीर अपलोड करें।",
+    tryAnotherImage: "दूसरी छवि स्कैन करें"
 };
 
 // 3. Define Other Regional Languages
@@ -529,7 +535,10 @@ const te = {
     "Madhya Pradesh": "మధ్య ప్రదేశ్",
     "Tamil Nadu": "తమిళనాడు",
     "Gujarat": "గుజరాత్",
-    "Haryana": "హర్యానా"
+    "Haryana": "హర్యానా",
+    noCropDetected: "పంటను గుర్తించలేదు",
+    noCropDetectedDesc: "ఈ వ్యవస్థ పంటలను మాత్రమే విశ్లేషిస్తుంది. దయచేసి పంట ఆకు లేదా కాండం యొక్క స్పష్టమైన ఫోటోను అప్‌లోడ్ చేయండి.",
+    tryAnotherImage: "మరో చిత్రాన్ని ప్రయత్నించండి"
 };
 
 const kn = {
@@ -703,7 +712,10 @@ const kn = {
     "Madhya Pradesh": "ಮಧ್ಯ ಪ್ರದೇಶ",
     "Tamil Nadu": "ತಮಿಳುನಾಡು",
     "Gujarat": "ಗುಜರಾತ್",
-    "Haryana": "ಹರಿಯಾಣ"
+    "Haryana": "ಹರಿಯಾಣ",
+    noCropDetected: "ಯಾವುದೇ ಬೆಳೆ ಕಂಡುಬಂದಿಲ್ಲ",
+    noCropDetectedDesc: "ಈ ವ್ಯವಸ್ಥೆಯು ಕೃಷಿ ಬೆಳೆಗಳನ್ನು ಮಾತ್ರ ವಿಶ್ಲೇಷಿಸುತ್ತದೆ. ದಯವಿಟ್ಟು ಬೆಳೆಯ ಎಲೆ ಅಥವಾ ಕಾಂಡದ ಸ್ಪಷ್ಟ ಫೋಟೋವನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ.",
+    tryAnotherImage: "ಮತ್ತೊಂದು ಚಿತ್ರ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ"
 };
 
 const ta = {
@@ -875,7 +887,10 @@ const ta = {
     "Madhya Pradesh": "மத்தியப் பிரதேசம்",
     "Tamil Nadu": "தமிழ்நாடு",
     "Gujarat": "குஜராத்",
-    "Haryana": "ஹரியானா"
+    "Haryana": "ஹரியானா",
+    noCropDetected: "பயிர் எதுவும் கண்டறியப்படவில்லை",
+    noCropDetectedDesc: "இந்த அமைப்பு பயிர்களை மட்டுமே பகுப்பாய்வு செய்கிறது. பயிர் இலை அல்லது தண்டின் தெளிவான புகைப்படத்தைப் பதிவேற்றவும்.",
+    tryAnotherImage: "மற்றொரு படத்தை முயற்சிக்கவும்"
 };
 
 const ml = {
@@ -1048,6 +1063,9 @@ const ml = {
     "Tamil Nadu": "തമിഴ്നാട്",
     "Gujarat": "ഗുജറാത്ത്",
     "Haryana": "ഹരിയാന",
+    noCropDetected: "വിളകളൊന്നും കണ്ടെത്തിയില്ല",
+    noCropDetectedDesc: "ഈ സിസ്റ്റം വിളകളെ മാത്രമേ വിശകലനം ചെയ്യുകയുള്ളൂ. ഒരു വിളയുടെ ഇലയുടെയോ തണ്ടിന്റെയോ വ്യക്തമായ ചിത്രം അപ്‌ലോഡ് ചെയ്യുക.",
+    tryAnotherImage: "മറ്റൊരു ചിത്രം സ്കാൻ ചെയ്യുക",
     allIndiaCommunity: "അഖിലേന്ത്യ കമ്മ്യൂണിറ്റി",
     discussNation: "രാജ്യത്തുടനീളമുള്ള കർഷകരുമായി ചർച്ച ചെയ്യുക",
     tabAllIndia: "മുഴുവൻ ഇന്ത്യ",

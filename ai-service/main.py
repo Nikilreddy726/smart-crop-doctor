@@ -244,53 +244,56 @@ def validate_is_crop(analysis, filename=""):
     bri = analysis["brightness"]
     var = analysis["variance"]
 
-    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, Sat={sat:.3f}, Var={var:.3f}, Unique={unique:.3f}")
+    # Rule 0: Digital Flatness Check (The "Screenshot/Diagram" Killer)
+    # Real photos have sensor noise; no two adjacent pixels are mathematically identical.
+    # Digital graphics have huge runs of identical pixels.
+    diff_h = np.all(img_array[:, :-1, :] == img_array[:, 1:, :], axis=2)
+    flatness_ratio = np.sum(diff_h) / (img_array.shape[0] * (img_array.shape[1] - 1))
+    
+    # Rule 0.5: Unique Colors Check (Refined)
+    # Natural leaf photos (even healthy ones) have > 5% unique colors due to noise/lighting.
+    # Diagrams like the user's graph have < 1% unique colors.
+    
+    print(f"DEBUG VALIDATION: File={filename}, G={g:.3f}, R={r:.3f}, B={b:.3f}, Unique={unique:.3f}, Flatness={flatness_ratio:.3f}")
 
-    # Rule 0: Digital/Flat Art Check (Screenshots, UI, Diagrams)
-    if flat_ratio > 0.15: # Single color > 15%
+    # Rejection: Too Digital (Diagrams/Screenshots)
+    if flatness_ratio > 0.12 or unique < 0.03:
         return False
 
-    # Rule 0.5: Quantized Color Check
-    if quantized_unique < 0.005: 
+    # Rule 0.6: Quantized Color Check (Entropy)
+    if quantized_unique < 0.008: 
         return False
 
-    # Rule 1: Artificial Background Check
-    if w_bg > 0.35: 
+    # Rule 1: Artificial Background Check (Stronger)
+    # Most diagrams use white backgrounds
+    if w_bg > 0.30: 
         return False
         
     # Rule 2: Monochrome/Grey Check
-    if grey > 0.70:
+    if grey > 0.65:
         return False
 
     # Rule 3: Extreme Brightness/Darkness
-    if bri < 30 or bri > 240:
+    if bri < 25 or bri > 245:
         return False
 
-    # Rule 4: Saturation Check (Plants are usually somewhat saturated)
-    # Very low saturation = grey/white objects
-    if sat < 0.12 and bri < 200:
+    # Rule 4: Saturation Check
+    if sat < 0.10 and bri < 210:
         return False
 
     # Rule 5: Variance Check (Natural objects have texture)
-    # Very low variance = flat surfaces (walls, paper)
-    if var < 12:
+    if var < 10:
         return False
 
-    # Rule 6: Color Dominance - Plants MUST have significant green or be brownish/yellowish (sick)
-    # But they should NOT be purely Blue or purely Red (unless it's a very specific fruit, but this is a Crop Doctor for leaves)
-    if b > g * 1.5: # Way too blue
+    # Rule 6: Color Dominance
+    if b > g * 1.3: # Too blue
         return False
     
-    if r > g * 2.0 and r > 150: # Way too red (and bright)
+    if r > g * 1.8 and r > 160: # Too red
         return False
 
     # Rule 7: Minimum "Plantness"
-    # A mix of Green ratio and Saturation
-    if g < 0.10 and sat < 0.15:
-        return False
-
-    # Rule 8: If it's mostly green but has ZERO texture, it's a green screen or flat graphic
-    if g > 0.5 and var < 8:
+    if g < 0.08 and sat < 0.12:
         return False
     
     return True

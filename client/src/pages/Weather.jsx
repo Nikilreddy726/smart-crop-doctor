@@ -12,7 +12,18 @@ const Weather = () => {
     const [searchCity, setSearchCity] = useState('');
 
     useEffect(() => {
-        // Try to get user's location
+        // 1. Instant Load from Cache
+        try {
+            const cachedW = localStorage.getItem('cached_weather');
+            const cachedL = localStorage.getItem('cached_location');
+            if (cachedW) {
+                setWeather(JSON.parse(cachedW));
+                if (cachedL) setLocation(JSON.parse(cachedL));
+                setLoading(false); // Show UI immediately if we have a cache
+            }
+        } catch (e) { console.error("Cache load failed", e); }
+
+        // 2. Refresh in background
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
@@ -21,12 +32,10 @@ const Weather = () => {
                 },
                 async (error) => {
                     console.log("Geolocation error, using default:", error);
-                    // Default to Guntur, Andhra Pradesh
                     await fetchWeather(16.3067, 80.4365);
                 }
             );
         } else {
-            // Default location
             fetchWeather(16.3067, 80.4365);
         }
     }, []);
@@ -39,12 +48,16 @@ const Weather = () => {
 
             if (locationOverride) {
                 setLocation(locationOverride);
+                localStorage.setItem('cached_location', JSON.stringify(locationOverride));
             } else {
-                setLocation({
+                const loc = {
                     city: data.name || 'Unknown',
                     region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || ''
-                });
+                };
+                setLocation(loc);
+                localStorage.setItem('cached_location', JSON.stringify(loc));
             }
+            localStorage.setItem('cached_weather', JSON.stringify(data));
         } catch (error) {
             console.error("Weather fetch error:", error);
             if (locationOverride) {

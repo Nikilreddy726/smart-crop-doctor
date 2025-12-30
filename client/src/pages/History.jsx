@@ -49,39 +49,37 @@ const History = () => {
     };
 
     const fetchHistory = async () => {
+        // 1. Instant Load Local
+        let localData = [];
         try {
-            // 1. Fetch Cloud History
+            const raw = localStorage.getItem('local_crop_scans');
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                localData = Array.isArray(parsed) ? parsed : [];
+            }
+        } catch (e) { console.error("Local Load Error", e); }
+
+        setHistoryItems(localData);
+        setLoading(false); // UI is now visible with local records
+
+        // 2. Background Cloud Sync
+        try {
             let cloudData = [];
             try {
                 const res = await getHistory();
                 cloudData = Array.isArray(res) ? res : [];
             } catch (e) {
-                console.error("Cloud fetch failed", e);
+                console.log("Cloud sync delayed... switching to background wait.");
             }
 
-            // 2. Fetch Local History
-            let localData = [];
-            try {
-                const raw = localStorage.getItem('local_crop_scans');
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    localData = Array.isArray(parsed) ? parsed : [];
-                }
-            } catch (e) {
-                console.error("Local parse failed", e);
+            if (cloudData.length > 0) {
+                const combined = [...localData, ...cloudData].sort((a, b) => {
+                    return getSafeTime(b.timestamp) - getSafeTime(a.timestamp);
+                });
+                setHistoryItems(combined);
             }
-
-            // 3. Merge and Sort
-            const combined = [...localData, ...cloudData].sort((a, b) => {
-                return getSafeTime(b.timestamp) - getSafeTime(a.timestamp);
-            });
-
-            console.log("History records loaded:", combined.length);
-            setHistoryItems(combined);
         } catch (err) {
-            console.error("History Fetch Error:", err);
-        } finally {
-            setLoading(false);
+            console.error("Cloud background sync failed", err);
         }
     };
 

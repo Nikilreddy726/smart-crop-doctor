@@ -65,74 +65,70 @@ const Dashboard = () => {
             return isNaN(d.getTime()) ? 0 : d.getTime();
         };
 
-        const fetchData = async () => {
+        const processHistory = (local, cloud = []) => {
+            const combined = [...local, ...cloud].sort((a, b) => {
+                return getSafeTime(b.timestamp) - getSafeTime(a.timestamp);
+            });
+
+            const totalScans = combined.length;
+            const healthyCount = combined.filter(h => h.disease === 'Healthy' || h.severity === 'None').length;
+            const diseasedCount = totalScans - healthyCount;
+            const healthPercentage = totalScans > 0 ? Math.round((healthyCount / totalScans) * 100) : 0;
+
+            setHistory(combined.slice(0, 5));
+            setStats({ totalScans, healthyCount, diseasedCount, healthPercentage });
+        };
+
+        // 1. Instant Load from Local Storage
+        let initialLocal = [];
+        try {
+            const raw = localStorage.getItem('local_crop_scans');
+            if (raw) initialLocal = JSON.parse(raw);
+            const cachedWeather = localStorage.getItem('cached_weather');
+            if (cachedWeather) setWeather(JSON.parse(cachedWeather));
+        } catch (e) {
+            console.error("Local Load Error", e);
+        }
+
+        processHistory(initialLocal);
+        setLoading(false); // Stop blocking UI early
+
+        // 2. Background Cloud Sync
+        const syncData = async () => {
             try {
-                // 1. Fetch Cloud History
-                let cloudData = [];
-                try {
-                    const res = await getHistory();
-                    cloudData = Array.isArray(res) ? res : [];
-                } catch (e) {
-                    console.error("Cloud fetch failed", e);
-                }
+                const cloudData = await getHistory();
+                processHistory(initialLocal, Array.isArray(cloudData) ? cloudData : []);
 
-                // 2. Fetch Local History
-                let localData = [];
-                try {
-                    const raw = localStorage.getItem('local_crop_scans');
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        localData = Array.isArray(parsed) ? parsed : [];
-                    }
-                } catch (e) {
-                    console.error("Local parse failed", e);
-                }
-
-                // 3. Merge and Sort (Latest first)
-                const combinedHistory = [...localData, ...cloudData].sort((a, b) => {
-                    return getSafeTime(b.timestamp) - getSafeTime(a.timestamp);
-                });
-
-                setHistory(combinedHistory.slice(0, 5));
-
-                // Calculate stats
-                const totalScans = combinedHistory.length;
-                const healthyCount = combinedHistory.filter(h => h.disease === 'Healthy' || h.severity === 'None').length;
-                const diseasedCount = totalScans - healthyCount;
-                const healthPercentage = totalScans > 0 ? Math.round((healthyCount / totalScans) * 100) : 0;
-
-                setStats({ totalScans, healthyCount, diseasedCount, healthPercentage });
-
-                // Fetch weather (using geolocation or default)
+                // Background Weather Fetch
                 if (navigator.geolocation) {
                     navigator.geolocation.getCurrentPosition(
-                        async (position) => {
+                        async (pos) => {
                             try {
-                                const weatherData = await getWeather(position.coords.latitude, position.coords.longitude);
-                                setWeather(weatherData);
+                                const w = await getWeather(pos.coords.latitude, pos.coords.longitude);
+                                setWeather(w);
+                                localStorage.setItem('cached_weather', JSON.stringify(w));
                             } catch (e) {
-                                console.log("Weather error:", e);
+                                console.log("Weather fetch error:", e);
                             }
                         },
                         async () => {
-                            // Default to Guntur
+                            // Default to Guntur if geolocation fails
                             try {
-                                const weatherData = await getWeather(16.3067, 80.4365);
-                                setWeather(weatherData);
+                                const w = await getWeather(16.3067, 80.4365);
+                                setWeather(w);
+                                localStorage.setItem('cached_weather', JSON.stringify(w));
                             } catch (e) {
-                                console.log("Weather error:", e);
+                                console.log("Default weather fetch error:", e);
                             }
                         }
                     );
                 }
             } catch (err) {
-                console.error("Dashboard Fetch Error:", err);
-            } finally {
-                setLoading(false);
+                console.log("Background sync slowed down by server wake-up...", err);
             }
         };
 
-        fetchData();
+        syncData();
     }, [t]);
 
     // Dynamic chart data based on history

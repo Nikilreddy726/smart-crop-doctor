@@ -18,28 +18,44 @@ const MandiPrices = () => {
     const [search, setSearch] = useState('');
     const [selectedState, setSelectedState] = useState('All');
 
-    const fetchPrices = async () => {
-        setLoading(true);
+    const fetchPrices = async (isBackground = false) => {
+        if (!isBackground) setLoading(true);
         try {
             const response = await getMandiPrices();
-            setPrices(response.data || []);
-            setLastUpdated(new Date().toLocaleString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            }));
+            const data = response.data || [];
+            const time = new Date().toLocaleString('en-IN', {
+                day: 'numeric', month: 'short', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            setPrices(data);
+            setLastUpdated(time);
+
+            // Sync to cache
+            localStorage.setItem('cached_mandi_prices', JSON.stringify({ data, time }));
         } catch (err) {
-            console.error(err);
+            console.error("Mandi background fetch failed", err);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchPrices();
-        const interval = setInterval(fetchPrices, 60000); // Auto-refresh every minute
+        // 1. Instant Load from Cache
+        try {
+            const cached = localStorage.getItem('cached_mandi_prices');
+            if (cached) {
+                const { data, time } = JSON.parse(cached);
+                setPrices(data);
+                setLastUpdated(time);
+                setLoading(false); // Show UI immediately
+            }
+        } catch (e) { console.error("Cache load failed", e); }
+
+        // 2. Refresh in background
+        fetchPrices(true);
+
+        const interval = setInterval(() => fetchPrices(true), 60000); // Auto-refresh every minute
         return () => clearInterval(interval);
     }, []);
 

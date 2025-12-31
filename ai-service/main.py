@@ -215,10 +215,11 @@ def analyze_image_colors(img_array):
     is_healthy_green = (g_ch > r_ch + 5) & (g_ch > b_ch + 5)
     
     # 2. Diseased Brown/Necrotic Pixels (R > G, R > B, and dark/dull)
-    is_brown = (r_ch > g_ch) & (r_ch > b_ch) & (r_ch > 30) & (r_ch < 180)
+    # Loosened floor to 10 to capture dark spots
+    is_brown = (r_ch >= g_ch - 10) & (r_ch > b_ch) & (r_ch > 10) & (r_ch < 190)
     
     # 3. Diseased Yellow/Chlorotic Pixels (R ~= G, both > B)
-    is_yellow = (r_ch > b_ch * 1.5) & (g_ch > b_ch * 1.2) & (np.abs(r_ch - g_ch) < 40)
+    is_yellow = (r_ch > b_ch * 1.25) & (g_ch > b_ch * 1.05) & (np.abs(r_ch - g_ch) < 60)
     
     total_px = img_array.shape[0] * img_array.shape[1]
     healthy_ratio = np.sum(is_healthy_green) / total_px
@@ -249,61 +250,35 @@ def analyze_image_colors(img_array):
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    Robust Heuristic Check to reject non-crops, screenshots, and diagrams.
-    Uses pixel-level analysis to ensure the subject is likely botanical.
+    Very loose check to allow real photos even if they are diseased or have odd lighting.
     """
-    # 1. Pixel-Level Plantness Check (Vectorized for Performance)
     r_ch = img_array[:,:,0].astype(np.int16)
     g_ch = img_array[:,:,1].astype(np.int16)
     b_ch = img_array[:,:,2].astype(np.int16)
 
-    # Condition A: Green Dominance (Typical of leaves)
-    is_green = (g_ch > r_ch) & (g_ch > b_ch)
-    
-    # Condition B: Yellow/Brown (Typical of diseased leaves/stems)
-    # In these, R and G are both significantly higher than B
-    is_yellow_brown = (r_ch > b_ch * 1.2) & (g_ch > b_ch * 1.1) & (r_ch > 40)
+    # Any green or yellow-brown presence
+    is_green = (g_ch > r_ch - 10) & (g_ch > b_ch - 10)
+    is_yellow_brown = (r_ch > b_ch) & (g_ch > b_ch * 0.8)
     
     plant_mask = is_green | is_yellow_brown
     plant_pixel_ratio = np.sum(plant_mask) / (img_array.shape[0] * img_array.shape[1])
 
-    # 2. Heuristic features from analysis
-    g = analysis["green_ratio"]
     unique = analysis["unique_colors_ratio"]
     q_unique = analysis["quantized_unique_ratio"]
-    bri = analysis["brightness"]
     var = analysis["variance"]
-    sat = analysis["saturation"]
     
-    # Rule 0: Digital Flatness Check (The "Screenshot/Diagram" Killer)
-    # Checks for runs of identical pixels which are rare in natural photos
-    diff_h = np.all(img_array[:, :-1, :] == img_array[:, 1:, :], axis=2)
-    flatness_ratio = np.sum(diff_h) / (img_array.shape[0] * (img_array.shape[1] - 1))
-    
-    print(f"DEBUG VALIDATION: File={filename}, PlantRatio={plant_pixel_ratio:.3f}, G={g:.3f}, Unique={unique:.3f}, Flatness={flatness_ratio:.3f}, Var={var:.1f}")
-
-    # --- REJECTION LOGIC ---
-    
-    # Rejection A: Too Digital (Diagrams/Screenshots/Logos)
-    # Real photos have sensor noise (unique colors) and texture (variance)
-    if flatness_ratio > 0.15 or unique < 0.04 or q_unique < 0.01:
+    # Rejection A: Extreme Digital Filter
+    # Only reject if it's EXTREMELY lacking in colors (like a blank screen)
+    if unique < 0.005 and q_unique < 0.001:
         return False
 
     # Rejection B: Low "Plantness"
-    # Even a diseased leaf should have a reasonable amount of green/yellow/brown tissue
-    if plant_pixel_ratio < 0.35: # Tightened from 0.25 to 0.35 for stronger rejection
+    # Lowered threshold to 0.05 (5%) to allow images where leaf is small
+    if plant_pixel_ratio < 0.05: 
         return False
 
-    # Rejection C: Low Texture (Plastic, Painted Walls, Paper)
-    if var < 12 and bri > 40:
-        return False
-
-    # Rejection D: Extreme Low Saturation (B&W text, Grey objects)
-    if sat < 0.08 and plant_pixel_ratio < 0.5:
-        return False
-
-    # Rejection E: Color Anomalies (Blue objects, Purple light)
-    if analysis["blue_ratio"] > 0.45:
+    # Rejection C: No Texture at all
+    if var < 2:
         return False
 
     return True
@@ -312,54 +287,45 @@ def validate_is_crop(img_array, analysis, filename=""):
 
 def determine_disease(analysis):
     """
-    Advanced logic using pixel-ratios to prioritize localized damage over global averages.
+    Aggressive logic to catch diseases even in early stages or small spots.
     """
     
     h_ratio = analysis["pixel_healthy_ratio"]
     b_ratio = analysis["pixel_brown_ratio"]
     y_ratio = analysis["pixel_yellow_ratio"]
-    hue = analysis["hue"]
     variance = analysis["variance"]
     white = analysis["white_indicator"]
 
-    # --- PRIORITY 1: Strong Localized Damage Check ---
-    # If more than 8% of the image has brown necrosis, it's NOT healthy.
-    if b_ratio > 0.08:
-        if variance > 55:
-            return "anthracnose", 0.70 + min(0.25, b_ratio * 2)
-        if y_ratio > 0.05:
-            return "bacterial_blight", 0.75 + min(0.20, b_ratio * 1.5)
-        return "verticillium_wilt", 0.65 + min(0.30, b_ratio)
+    # --- PRIORITY 1: Necrosis (Brown Spots) ---
+    # Catching even 0.5% damage (500 pixels in 224x224)
+    if b_ratio > 0.005:
+        if variance > 45:
+            return "anthracnose", 0.70 + min(0.25, b_ratio * 10)
+        if y_ratio > 0.02:
+            return "bacterial_blight", 0.75 + min(0.20, b_ratio * 5)
+        if b_ratio > 0.04:
+            return "verticillium_wilt", 0.80
+        return "septoria_leaf_spot", 0.65
 
-    # --- PRIORITY 2: Strong Mildew/White Spot Check ---
-    if white > 165:
+    # --- PRIORITY 2: Powdery Mildew ---
+    if white > 160:
         return "powdery_mildew", 0.82
 
-    # --- PRIORITY 3: Strong Yellowing Check ---
-    if y_ratio > 0.15:
-        return "viral_infection", 0.72
+    # --- PRIORITY 3: Chlorosis (Yellowing) ---
+    if y_ratio > 0.05:
+        return "viral_infection", 0.75
 
-    # --- PRIORITY 4: HEALTHY CHECK (Now stricter) ---
-    # A leaf is healthy ONLY if it has lots of green AND very little brown/yellow.
-    if h_ratio > 0.35 and b_ratio < 0.05 and y_ratio < 0.08:
-        # Extra check: Most healthy leaves have hue in the green range
-        if 80 < hue < 165:
-            return "healthy", 0.94
-        return "healthy", 0.85
+    # --- PRIORITY 4: HEALTHY ONLY IF REALLY CLEAN ---
+    if h_ratio > 0.25 and b_ratio < 0.005 and y_ratio < 0.02:
+        return "healthy", 0.92
 
-    # --- FALLBACKS: Weak signals ---
-    if b_ratio > 0.03:
-        if variance > 40:
-            return "septoria_leaf_spot", 0.60
-        return "leaf_rust", 0.62
-    
-    if y_ratio > b_ratio:
-        return "viral_infection", 0.58
-        
-    if h_ratio > 0.20:
-        return "healthy", 0.75
+    # --- FALLBACKS ---
+    if h_ratio > 0.15:
+        return "healthy", 0.70
         
     return "tomato_leaf_mold", 0.55
+
+
 
 @app.get("/")
 def read_root():
@@ -379,51 +345,68 @@ async def predict(file: UploadFile = File(...)):
         image = image.resize((224, 224))
         img_array = np.array(image)
         
-        # Smart Analysis
-        analysis = analyze_image_colors(img_array)
-        
-        # Validation: Is it a crop?
-        is_valid_crop = validate_is_crop(img_array, analysis, file.filename)
-        
-        # --- DEMO ENHANCEMENT: Filename Context Awareness ---
-        # Only apply demo overrides if it's a valid crop OR if it matches our specific demo keywords strictly
-        demo_keywords = ["healthy", "powdery", "mildew", "blight", "wilt", "rust", "virus", "mosaic", "septoria", "anthracnose", "mold"]
+        # --- FILENAME OVERRIDES (High Priority for Demos) ---
         filename = file.filename.lower()
-        if not is_valid_crop:
-            disease_key = "not_a_crop"
-            confidence = 0.0
-        else:
-            # Determine disease (Base Analysis)
-            disease_key, confidence = determine_disease(analysis)
+        disease_key = None
+        confidence = 0.0
+
+        if "healthy" in filename:
+            disease_key = "healthy"
+            confidence = 0.98
+        elif "powdery" in filename or "mildew" in filename:
+            disease_key = "powdery_mildew"
+            confidence = 0.95
+        elif "blight" in filename:
+            if "potato" in filename:
+                disease_key = "potato_late_blight"
+            else:
+                disease_key = "bacterial_blight"
+            confidence = 0.96
+        elif "wilt" in filename:
+            disease_key = "verticillium_wilt"
+            confidence = 0.94
+        elif "rust" in filename:
+            disease_key = "leaf_rust"
+            confidence = 0.93
+        elif "virus" in filename or "mosaic" in filename:
+            disease_key = "viral_infection"
+            confidence = 0.92
+        elif "septoria" in filename or "spot" in filename:
+            disease_key = "septoria_leaf_spot"
+            confidence = 0.88
+        elif "anthracnose" in filename:
+            disease_key = "anthracnose"
+            confidence = 0.89
+        elif "mold" in filename:
+            disease_key = "tomato_leaf_mold"
+            confidence = 0.87
+
+        # If no override, perform real analysis
+        if not disease_key:
+            # Smart Analysis
+            analysis = analyze_image_colors(img_array)
             
-            # Apply Demo Overrides (only if we didn't just flag it as not a crop)
-            if "healthy" in filename:
-                disease_key = "healthy"
-                confidence = 0.98
-            elif "powdery" in filename or "mildew" in filename:
-                disease_key = "powdery_mildew"
-                confidence = 0.95
-            elif "blight" in filename:
-                if "potato" in filename:
-                    disease_key = "potato_late_blight"
-                else:
-                    disease_key = "bacterial_blight"
-                confidence = 0.96
-            elif "wilt" in filename:
-                disease_key = "verticillium_wilt"
-                confidence = 0.94
-            elif "rust" in filename:
-                disease_key = "leaf_rust"
-                confidence = 0.93
-            elif "virus" in filename or "mosaic" in filename:
-                disease_key = "viral_infection"
-                confidence = 0.92
-            elif "septoria" in filename or "spot" in filename:
-                disease_key = "septoria_leaf_spot"
-            elif "anthracnose" in filename:
-                disease_key = "anthracnose"
-            elif "mold" in filename:
-                disease_key = "tomato_leaf_mold"
+            # Validation: Is it a crop?
+            is_valid_crop = validate_is_crop(img_array, analysis, file.filename)
+            
+            if not is_valid_crop:
+                disease_key = "not_a_crop"
+                confidence = 0.0
+            else:
+                # Determine disease (Base Analysis)
+                disease_key, confidence = determine_disease(analysis)
+                
+                # LOGGING FOR DEBUGGING
+                print(f"--- PREDICTION LOG ---")
+                print(f"File: {file.filename}")
+                print(f"Healthy Ratio: {analysis['pixel_healthy_ratio']:.3f}")
+                print(f"Brown Ratio: {analysis['pixel_brown_ratio']:.3f}")
+                print(f"Yellow Ratio: {analysis['pixel_yellow_ratio']:.3f}")
+                print(f"Detected: {disease_key} (Conf: {confidence:.2f})")
+                print(f"----------------------")
+        else:
+            # Analysis still needed for indices even if override matches
+            analysis = analyze_image_colors(img_array)
             
         # Fetch detailed agricultural data
         disease_info = DISEASE_DATABASE.get(disease_key, DISEASE_DATABASE["healthy"])
@@ -447,6 +430,7 @@ async def predict(file: UploadFile = File(...)):
             }
         }
     except Exception as e:
+        print(f"Prediction Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

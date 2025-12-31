@@ -250,46 +250,45 @@ def analyze_image_colors(img_array):
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    Advanced filter to distinguish real plant photos from digital UI, 
-    screenshots, and artificial graphics.
+    Ultimate filter to reject digital artifacts, screenshots, and UI.
+    Natural photos have 'Complexity' (noise, noise, noise).
+    Digital photos have 'Simplicity' (flat colors, perfect lines).
     """
-    # Use the pixel-level ratios calculated in analyze_image_colors
+    # 1. Natural Complexity Check (The Quantized Gate)
+    # Natural photos have sensor noise. Even if we divide color depth by 10, 
+    # there should still be thousands of color variations.
+    # Digital UI will collapse to almost ZERO unique colors.
+    if analysis["quantized_unique_ratio"] < 0.005: 
+        return False
+
+    # 2. Raw Unique Colors
+    # Natural 50k pixel images HAVE to have high variety.
+    # Screenshots are often very optimized.
+    if analysis["unique_colors_ratio"] < 0.08: 
+        return False
+
+    # 3. Flatness Check
+    # No part of a real leaf is mathematically identical to another.
+    if analysis["max_single_color_ratio"] > 0.08: 
+        return False
+
+    # 4. Texture Variance
+    # Real leaves have veins and imperfections. UI widgets are smooth.
+    if analysis["variance"] < 25: 
+        return False
+
+    # 5. Plantness Intensity
+    # We require the "Plant" part to be substantial and colored.
     h_ratio = analysis["pixel_healthy_ratio"]
     b_ratio = analysis["pixel_brown_ratio"]
     y_ratio = analysis["pixel_yellow_ratio"]
-    
     total_plant_ratio = h_ratio + b_ratio + y_ratio
     
-    # --- CRITICAL: THE "DIGITAL WIDGET" FILTER ---
-    # 1. Common Color Dominance
-    # Real photos have sensor noise. Digital graphics have large flat areas of EXACTLY the same color.
-    # If the single most common color covers > 10% of the image, it's digital/artificial.
-    if analysis["max_single_color_ratio"] > 0.10:
+    if total_plant_ratio < 0.25: 
         return False
 
-    # 2. Color Variety (Entropy)
-    # A 224x224 photo (50k pixels) usually has 5,000 to 15,000 unique colors.
-    # Digital graphics like the weather widget often have fewer than 1,000 unique colors.
-    if analysis["unique_colors_ratio"] < 0.05: # Requiring at least 5% unique colors
-        return False
-
-    # 3. Text/UI Texture Rejection
-    # Natural leaves have high noise. flat UI has low variance.
-    if analysis["variance"] < 20: 
-        return False
-
-    # 4. Plant Presence
-    # We now require a solid 20% of the image to look like plant tissue.
-    if total_plant_ratio < 0.20: 
-        return False
-
-    # 5. Saturation check
-    # Natural leaves are vibrant. Rejects grayish/dull objects.
-    if analysis["saturation"] < 0.20:
-        return False
-
-    # 6. Excessive Brightness (Overexposed or white UI backgrounds)
-    if analysis["white_bg_ratio"] > 0.7:
+    # 6. Saturation check (Natural greens are deep)
+    if analysis["saturation"] < 0.25:
         return False
 
     return True

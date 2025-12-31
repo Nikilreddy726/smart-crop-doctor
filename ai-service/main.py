@@ -250,8 +250,8 @@ def analyze_image_colors(img_array):
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    Balanced check to reject non-plant images (selfies, objects, UI) 
-    while allowing real field photos.
+    Advanced filter to distinguish real plant photos from digital UI, 
+    screenshots, and artificial graphics.
     """
     # Use the pixel-level ratios calculated in analyze_image_colors
     h_ratio = analysis["pixel_healthy_ratio"]
@@ -259,31 +259,37 @@ def validate_is_crop(img_array, analysis, filename=""):
     y_ratio = analysis["pixel_yellow_ratio"]
     
     total_plant_ratio = h_ratio + b_ratio + y_ratio
-
-    # Rejection A: Low "Plantness"
-    # We now require at least 15% of the image to look like plant tissue.
-    # This rejects selfies or random objects that only have a few "brown" or "yellow" pixels.
-    if total_plant_ratio < 0.15: 
+    
+    # --- CRITICAL: THE "DIGITAL WIDGET" FILTER ---
+    # 1. Common Color Dominance
+    # Real photos have sensor noise. Digital graphics have large flat areas of EXACTLY the same color.
+    # If the single most common color covers > 10% of the image, it's digital/artificial.
+    if analysis["max_single_color_ratio"] > 0.10:
         return False
 
-    # Rejection B: Saturation check
-    # Real leaves, even diseased ones, have significant color depth.
-    # Most random objects or greyish backgrounds have saturation < 0.15.
-    if analysis["saturation"] < 0.15:
+    # 2. Color Variety (Entropy)
+    # A 224x224 photo (50k pixels) usually has 5,000 to 15,000 unique colors.
+    # Digital graphics like the weather widget often have fewer than 1,000 unique colors.
+    if analysis["unique_colors_ratio"] < 0.05: # Requiring at least 5% unique colors
         return False
 
-    # Rejection C: Texture check
-    # Natural leaves have high noise/texture. Digital UI or flat walls have very low variance.
-    if analysis["variance"] < 15:
+    # 3. Text/UI Texture Rejection
+    # Natural leaves have high noise. flat UI has low variance.
+    if analysis["variance"] < 20: 
         return False
 
-    # Rejection D: Color Diversity Check
-    # Real photos have sensor noise/shading. UI/Diagrams have flat colors.
-    if analysis["unique_colors_ratio"] < 0.02:
+    # 4. Plant Presence
+    # We now require a solid 20% of the image to look like plant tissue.
+    if total_plant_ratio < 0.20: 
         return False
 
-    # Rejection E: Excessive Brightness (Overexposed or white background)
-    if analysis["white_bg_ratio"] > 0.8:
+    # 5. Saturation check
+    # Natural leaves are vibrant. Rejects grayish/dull objects.
+    if analysis["saturation"] < 0.20:
+        return False
+
+    # 6. Excessive Brightness (Overexposed or white UI backgrounds)
+    if analysis["white_bg_ratio"] > 0.7:
         return False
 
     return True

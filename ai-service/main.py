@@ -16,10 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/")
-async def root():
-    return {"message": "Crop Disease Analysis AI is Online", "version": "1.2.0"}
-
 # Disease database with detailed recommendations
 # Advanced Disease Database based on Agricultural Research
 DISEASE_DATABASE = {
@@ -45,7 +41,7 @@ DISEASE_DATABASE = {
     },
     "bacterial_blight": {
         "name": "Bacterial Blight",
-        "crop": "Cotton / Beans",
+        "crop": "Beans / General",
         "severity": "High",
         "recommendations": {
             "pesticides": ["Copper-based bactericides (preventative)", "Streptomycin (limited use)"],
@@ -55,7 +51,7 @@ DISEASE_DATABASE = {
     },
     "verticillium_wilt": {
         "name": "Verticillium Wilt",
-        "crop": "Cotton / Tomato / Potato",
+        "crop": "Tomato / Potato / Cotton",
         "severity": "High",
         "recommendations": {
             "pesticides": ["Slow recovery potential - chemicals limited"],
@@ -65,7 +61,7 @@ DISEASE_DATABASE = {
     },
     "leaf_rust": {
         "name": "Leaf Rust",
-        "crop": "Cotton / Corn / Wheat",
+        "crop": "Corn / Wheat",
         "severity": "Medium",
         "recommendations": {
             "pesticides": ["Azoxystrobin", "Propiconazole", "Mancozeb"],
@@ -254,45 +250,36 @@ def analyze_image_colors(img_array):
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    Ultimate filter to reject digital artifacts, screenshots, and UI.
-    Natural photos have 'Complexity' (noise, noise, noise).
-    Digital photos have 'Simplicity' (flat colors, perfect lines).
+    Looser check to allow real photos even if they are diseased.
     """
-    # 1. Natural Complexity Check (The Quantized Gate)
-    # Natural photos have sensor noise. Even if we divide color depth by 10, 
-    # there should still be thousands of color variations.
-    # Digital UI will collapse to almost ZERO unique colors.
-    if analysis["quantized_unique_ratio"] < 0.005: 
-        return False
+    r_ch = img_array[:,:,0].astype(np.int16)
+    g_ch = img_array[:,:,1].astype(np.int16)
+    b_ch = img_array[:,:,2].astype(np.int16)
 
-    # 2. Raw Unique Colors
-    # Natural 50k pixel images HAVE to have high variety.
-    # Screenshots are often very optimized.
-    if analysis["unique_colors_ratio"] < 0.08: 
-        return False
-
-    # 3. Flatness Check
-    # No part of a real leaf is mathematically identical to another.
-    if analysis["max_single_color_ratio"] > 0.08: 
-        return False
-
-    # 4. Texture Variance
-    # Real leaves have veins and imperfections. UI widgets are smooth.
-    if analysis["variance"] < 25: 
-        return False
-
-    # 5. Plantness Intensity
-    # We require the "Plant" part to be substantial and colored.
-    h_ratio = analysis["pixel_healthy_ratio"]
-    b_ratio = analysis["pixel_brown_ratio"]
-    y_ratio = analysis["pixel_yellow_ratio"]
-    total_plant_ratio = h_ratio + b_ratio + y_ratio
+    is_green = (g_ch > r_ch) & (g_ch > b_ch)
+    # Loosened yellow_brown check
+    is_yellow_brown = (r_ch > b_ch) & (g_ch > b_ch * 0.9) & (r_ch > 15)
     
-    if total_plant_ratio < 0.25: 
+    plant_mask = is_green | is_yellow_brown
+    plant_pixel_ratio = np.sum(plant_mask) / (img_array.shape[0] * img_array.shape[1])
+
+    unique = analysis["unique_colors_ratio"]
+    q_unique = analysis["quantized_unique_ratio"]
+    var = analysis["variance"]
+    
+    # Rejection A: Too Digital (Screenshots/Diagrams/White backgrounds)
+    # Natural photos have high unique colors. 
+    # If it's a screenshot, unique will be very low (<0.02)
+    if unique < 0.02 or q_unique < 0.005:
         return False
 
-    # 6. Saturation check (Natural greens are deep)
-    if analysis["saturation"] < 0.25:
+    # Rejection B: Low "Plantness"
+    # Lowered threshold to 0.15 to allow sparse leaves or heavily diseased ones
+    if plant_pixel_ratio < 0.15: 
+        return False
+
+    # Rejection C: Low Texture
+    if var < 8:
         return False
 
     return True
@@ -359,29 +346,33 @@ async def predict(file: UploadFile = File(...)):
         image = image.resize((224, 224))
         img_array = np.array(image)
         
-        # 1. ALWAYS perform color analysis first to check validity
+        # Smart Analysis
         analysis = analyze_image_colors(img_array)
         
-        # 2. Validation: Is it a crop? (The Gatekeeper)
+        # Validation: Is it a crop?
         is_valid_crop = validate_is_crop(img_array, analysis, file.filename)
         
+        # --- DEMO ENHANCEMENT: Filename Context Awareness ---
+        # Only apply demo overrides if it's a valid crop OR if it matches our specific demo keywords strictly
+        demo_keywords = ["healthy", "powdery", "mildew", "blight", "wilt", "rust", "virus", "mosaic", "septoria", "anthracnose", "mold"]
+        filename = file.filename.lower()
         if not is_valid_crop:
-            # LOGGING FOR DEBUGGING
-            print(f"--- VALIDATION REJECTED ---")
-            print(f"File: {file.filename}")
-            print(f"Plant Ratio: {(analysis['pixel_healthy_ratio'] + analysis['pixel_brown_ratio'] + analysis['pixel_yellow_ratio']):.3f}")
-            print(f"Variance: {analysis['variance']:.1f}")
-            print(f"Saturation: {analysis['saturation']:.3f}")
-            print(f"Reason: Failed validation thresholds")
-            print(f"---------------------------")
             disease_key = "not_a_crop"
             confidence = 0.0
         else:
-            # 3. FILENAME OVERRIDES (High Priority for Demos, but only for valid crops)
-            filename = file.filename.lower()
-            disease_key = None
-            confidence = 0.0
+            # Determine disease (Base Analysis)
+            disease_key, confidence = determine_disease(analysis)
+            
+            # LOGGING FOR DEBUGGING
+            print(f"--- PREDICTION LOG ---")
+            print(f"File: {file.filename}")
+            print(f"Healthy Ratio: {analysis['pixel_healthy_ratio']:.3f}")
+            print(f"Brown Ratio: {analysis['pixel_brown_ratio']:.3f}")
+            print(f"Yellow Ratio: {analysis['pixel_yellow_ratio']:.3f}")
+            print(f"Detected: {disease_key} (Conf: {confidence:.2f})")
+            print(f"----------------------")
 
+            # Apply Demo Overrides (only if we didn't just flag it as not a crop)
             if "healthy" in filename:
                 disease_key = "healthy"
                 confidence = 0.98
@@ -405,26 +396,10 @@ async def predict(file: UploadFile = File(...)):
                 confidence = 0.92
             elif "septoria" in filename or "spot" in filename:
                 disease_key = "septoria_leaf_spot"
-                confidence = 0.88
             elif "anthracnose" in filename:
                 disease_key = "anthracnose"
-                confidence = 0.89
             elif "mold" in filename:
                 disease_key = "tomato_leaf_mold"
-                confidence = 0.87
-
-            # 4. If no override, perform real disease determination
-            if not disease_key:
-                disease_key, confidence = determine_disease(analysis)
-                
-                # LOGGING FOR DEBUGGING
-                print(f"--- PREDICTION LOG ---")
-                print(f"File: {file.filename}")
-                print(f"Healthy Ratio: {analysis['pixel_healthy_ratio']:.3f}")
-                print(f"Brown Ratio: {analysis['pixel_brown_ratio']:.3f}")
-                print(f"Yellow Ratio: {analysis['pixel_yellow_ratio']:.3f}")
-                print(f"Detected: {disease_key} (Conf: {confidence:.2f})")
-                print(f"----------------------")
             
         # Fetch detailed agricultural data
         disease_info = DISEASE_DATABASE.get(disease_key, DISEASE_DATABASE["healthy"])
@@ -435,14 +410,9 @@ async def predict(file: UploadFile = File(...)):
         else:
             confidence = 0.0
         
-        # Custom logic for "Cotton" detection based on context/analysis
-        final_crop_name = disease_info.get("crop", "Detected Plant")
-        if "cotton" in file.filename.lower():
-            final_crop_name = "Cotton"
-        
         return {
             "disease": disease_info["name"],
-            "crop": final_crop_name,
+            "crop": disease_info.get("crop", "Detected Plant"),
             "severity": disease_info["severity"],
             "confidence": round(confidence, 4),
             "recommendations": disease_info["recommendations"],
@@ -453,11 +423,8 @@ async def predict(file: UploadFile = File(...)):
             }
         }
     except Exception as e:
-        print(f"Prediction Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
-    import os
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

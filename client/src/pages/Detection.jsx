@@ -3,9 +3,11 @@ import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Cam
 import { detectDisease } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
+import { useAuth } from '../services/AuthContext';
 
 const Detection = () => {
     const { t } = useLanguage();
+    const { user } = useAuth();
     const [selectedFile, setSelectedFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -95,7 +97,8 @@ const Detection = () => {
             };
 
             // 2. Load and Update Local Storage
-            const raw = localStorage.getItem('local_crop_scans');
+            const storageKey = user ? `local_crop_scans_${user.uid}` : 'local_crop_scans';
+            const raw = localStorage.getItem(storageKey);
             let history = [];
             try {
                 if (raw) {
@@ -107,8 +110,8 @@ const Detection = () => {
             }
 
             history.unshift(newRecord);
-            localStorage.setItem('local_crop_scans', JSON.stringify(history.slice(0, 50)));
-            console.log("Record saved to local storage:", newRecord);
+            localStorage.setItem(storageKey, JSON.stringify(history.slice(0, 50)));
+            console.log("Record saved to local storage for user:", user?.uid || 'guest');
         } catch (err) {
             console.error("Failed to save record:", err);
             alert("Failed to save report locally. Please check browser permissions.");
@@ -188,7 +191,12 @@ const Detection = () => {
                                         className="flex flex-col items-center gap-4 py-4"
                                     >
                                         <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                        <p className="text-primary font-black animate-pulse tracking-widest text-xs uppercase">{t('computing')}</p>
+                                        <div className="text-center space-y-2">
+                                            <p className="text-primary font-black animate-pulse tracking-widest text-xs uppercase">{t('computing')}</p>
+                                            <p className="text-[10px] text-slate-400 font-bold max-w-[200px] leading-tight">
+                                                (First scan may take 1 minute as AI engines wake up)
+                                            </p>
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>

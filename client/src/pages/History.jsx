@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History as HistoryIcon, Download, Search, Filter, ArrowRight, ExternalLink, Loader2, Trash2, X } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
+import { useAuth } from '../services/AuthContext';
 import { getHistory, deletePrediction } from '../services/api';
 
 const ImageWithFallback = ({ src, alt, crop, disease, severity, onClick }) => {
@@ -30,6 +31,7 @@ const ImageWithFallback = ({ src, alt, crop, disease, severity, onClick }) => {
 
 const History = () => {
     const { t } = useLanguage();
+    const { user } = useAuth();
     const [historyItems, setHistoryItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('All');
@@ -38,7 +40,7 @@ const History = () => {
 
     useEffect(() => {
         fetchHistory();
-    }, []);
+    }, [user]);
 
     const getSafeTime = (ts) => {
         if (!ts) return 0;
@@ -52,7 +54,8 @@ const History = () => {
         // 1. Instant Load Local
         let localData = [];
         try {
-            const raw = localStorage.getItem('local_crop_scans');
+            const storageKey = user ? `local_crop_scans_${user.uid}` : 'local_crop_scans';
+            const raw = localStorage.getItem(storageKey);
             if (raw) {
                 const parsed = JSON.parse(raw);
                 localData = Array.isArray(parsed) ? parsed : [];
@@ -87,9 +90,10 @@ const History = () => {
         try {
             // Check if local
             if (id.toString().startsWith('local-')) {
-                const localData = JSON.parse(localStorage.getItem('local_crop_scans') || '[]');
+                const storageKey = user ? `local_crop_scans_${user.uid}` : 'local_crop_scans';
+                const localData = JSON.parse(localStorage.getItem(storageKey) || '[]');
                 const filtered = localData.filter(item => item.id !== id);
-                localStorage.setItem('local_crop_scans', JSON.stringify(filtered));
+                localStorage.setItem(storageKey, JSON.stringify(filtered));
                 setHistoryItems(prev => prev.filter(item => item.id !== id));
                 return;
             }

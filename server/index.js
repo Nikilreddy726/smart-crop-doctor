@@ -53,35 +53,55 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
         console.log("Processing image:", req.file.originalname);
 
-        // 1. Call AI Microservice
+        // 1. Call AI Microservice with Robust Retry (Solves Render Cold Start 502/503)
         let aiResult;
-        try {
-            const FormData = require('form-data');
-            const formData = new FormData();
-            formData.append('file', req.file.buffer, {
-                filename: req.file.originalname,
-                contentType: req.file.mimetype
-            });
+        const maxRetries = 2; // Total 3 attempts (approx 3 minutes total wait time)
+        let attempt = 0;
+        let lastError;
 
-            const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
-            console.log(`Calling AI Service at: ${AI_SERVICE_URL}/predict`);
+        while (attempt <= maxRetries) {
+            try {
+                console.log(`[AI SERVICE] Attempt ${attempt + 1}/${maxRetries + 1} for ${req.file.originalname}`);
+                const FormData = require('form-data');
+                const formData = new FormData();
+                formData.append('file', req.file.buffer, {
+                    filename: req.file.originalname,
+                    contentType: req.file.mimetype
+                });
 
-            const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
-                headers: formData.getHeaders(),
-                timeout: 30000
-            });
-            aiResult = aiRes.data;
-        } catch (aiError) {
-            console.error("AI Service Error:", aiError.message);
-            if (aiError.response) {
-                console.error("AI Service Response Data:", aiError.response.data);
-                console.error("AI Service Response Status:", aiError.response.status);
+                const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://crop-ai-service-avko.onrender.com';
+
+                const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
+                    headers: formData.getHeaders(),
+                    timeout: 60000 // Increased to 60s to allow for Render boot sequence
+                });
+
+                aiResult = aiRes.data;
+                console.log(`[AI SERVICE] Success on attempt ${attempt + 1}`);
+                break; // Exit loop on success
+            } catch (aiError) {
+                lastError = aiError;
+                attempt++;
+                console.error(`[AI SERVICE] Attempt ${attempt} failed: ${aiError.message}`);
+
+                if (aiError.response && aiError.response.status < 500) {
+                    // If it's a 4xx error (e.g. Bad Request), don't retry
+                    break;
+                }
+
+                if (attempt <= maxRetries) {
+                    console.log(`[AI SERVICE] Retrying in 3 seconds...`);
+                    await new Promise(r => setTimeout(r, 3000));
+                }
             }
+        }
 
-            return res.status(aiError.response?.status || 503).json({
-                error: 'AI Analysis Service Error',
-                details: aiError.message,
-                status: aiError.response?.status
+        if (!aiResult) {
+            console.error("[AI SERVICE] All attempts failed.");
+            return res.status(lastError?.response?.status || 503).json({
+                error: 'AI service is currently waking up or unavailable.',
+                details: 'This usually happens during the first scan as our AI engines boot up. Please try one more time in 30 seconds.',
+                code: lastError?.code
             });
         }
 

@@ -51,6 +51,7 @@ const Dashboard = () => {
         return () => clearInterval(timer);
     }, []);
 
+
     useEffect(() => {
         const hour = new Date().getHours();
         if (hour < 12) setGreeting(t('goodMorning'));
@@ -79,18 +80,26 @@ const Dashboard = () => {
             setStats({ totalScans, healthyCount, diseasedCount, healthPercentage });
         };
 
-        // 1. Instant Load from Local Storage
-        let initialLocal = [];
+        // 1. Instant Load Local
+        let localData = [];
         try {
-            const raw = localStorage.getItem('local_crop_scans');
-            if (raw) initialLocal = JSON.parse(raw);
-            const cachedWeather = localStorage.getItem('cached_weather');
+            const storageKey = user ? `local_crop_scans_${user.uid}` : 'local_crop_scans';
+            const raw = localStorage.getItem(storageKey);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                localData = Array.isArray(parsed) ? parsed : [];
+            }
+        } catch (e) { console.error("Local Load Error", e); }
+
+        try {
+            const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
+            const cachedWeather = localStorage.getItem(weatherKey);
             if (cachedWeather) setWeather(JSON.parse(cachedWeather));
         } catch (e) {
             console.error("Local Load Error", e);
         }
 
-        processHistory(initialLocal);
+        processHistory(localData);
         setLoading(false); // Stop blocking UI early
 
         // 2. Background Cloud Sync
@@ -106,7 +115,8 @@ const Dashboard = () => {
                             try {
                                 const w = await getWeather(pos.coords.latitude, pos.coords.longitude);
                                 setWeather(w);
-                                localStorage.setItem('cached_weather', JSON.stringify(w));
+                                const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
+                                localStorage.setItem(weatherKey, JSON.stringify(w));
                             } catch (e) {
                                 console.log("Weather fetch error:", e);
                             }
@@ -116,7 +126,8 @@ const Dashboard = () => {
                             try {
                                 const w = await getWeather(16.3067, 80.4365);
                                 setWeather(w);
-                                localStorage.setItem('cached_weather', JSON.stringify(w));
+                                const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
+                                localStorage.setItem(weatherKey, JSON.stringify(w));
                             } catch (e) {
                                 console.log("Default weather fetch error:", e);
                             }
@@ -129,7 +140,7 @@ const Dashboard = () => {
         };
 
         syncData();
-    }, [t]);
+    }, [t, user]);
 
     // Dynamic chart data based on history
     const chartData = {

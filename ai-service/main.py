@@ -16,6 +16,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/")
+async def root():
+    return {"message": "Crop Disease Analysis AI is Online", "version": "1.2.0"}
+
 # Disease database with detailed recommendations
 # Advanced Disease Database based on Agricultural Research
 DISEASE_DATABASE = {

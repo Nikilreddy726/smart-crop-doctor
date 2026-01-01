@@ -55,7 +55,7 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
         // 1. Call AI Microservice with Robust Retry (Solves Render Cold Start 502/503)
         let aiResult;
-        const maxRetries = 2; // Total 3 attempts (approx 3 minutes total wait time)
+        const maxRetries = 4; // Total 5 attempts 
         let attempt = 0;
         let lastError;
 
@@ -69,7 +69,8 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                     contentType: req.file.mimetype
                 });
 
-                const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'https://crop-ai-service-avko.onrender.com';
+                const AI_SERVICE_URL = process.env.AI_SERVICE_URL ||
+                    (process.env.PORT ? 'https://crop-ai-service.onrender.com' : 'http://127.0.0.1:8000');
 
                 const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                     headers: formData.getHeaders(),
@@ -90,18 +91,19 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                 }
 
                 if (attempt <= maxRetries) {
-                    console.log(`[AI SERVICE] Retrying in 3 seconds...`);
-                    await new Promise(r => setTimeout(r, 3000));
+                    console.log(`[AI SERVICE] Engine sleeping. Retrying in 5 seconds...`);
+                    await new Promise(r => setTimeout(r, 5000));
                 }
             }
         }
 
         if (!aiResult) {
-            console.error("[AI SERVICE] All attempts failed.");
-            return res.status(lastError?.response?.status || 503).json({
-                error: 'AI service is currently waking up or unavailable.',
-                details: 'This usually happens during the first scan as our AI engines boot up. Please try one more time in 30 seconds.',
-                code: lastError?.code
+            const errorStatus = lastError?.response?.status || 503;
+            console.error(`[AI SERVICE] All 5 attempts failed with status: ${errorStatus}`);
+            return res.status(errorStatus).json({
+                error: 'AI Analysis Engine is deep-sleeping.',
+                details: `We tried 5 times to wake up the engine, but it is taking longer than usual. Service returned ${errorStatus}. Please wait 1 minute and try your scan again.`,
+                diagnostic: { status: errorStatus, url: lastError?.config?.url, msg: lastError?.message }
             });
         }
 

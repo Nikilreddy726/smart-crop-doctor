@@ -63,7 +63,9 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                 contentType: req.file.mimetype
             });
 
-            const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://localhost:8000';
+            const AI_SERVICE_URL = process.env.AI_SERVICE_URL || 'http://127.0.0.1:8000';
+            console.log(`Calling AI Service at: ${AI_SERVICE_URL}/predict`);
+
             const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                 headers: formData.getHeaders(),
                 timeout: 30000
@@ -71,9 +73,15 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
             aiResult = aiRes.data;
         } catch (aiError) {
             console.error("AI Service Error:", aiError.message);
-            return res.status(503).json({
-                error: 'AI Analysis Service is currently offline. Please try again later.',
-                details: aiError.message
+            if (aiError.response) {
+                console.error("AI Service Response Data:", aiError.response.data);
+                console.error("AI Service Response Status:", aiError.response.status);
+            }
+
+            return res.status(aiError.response?.status || 503).json({
+                error: 'AI Analysis Service Error',
+                details: aiError.message,
+                status: aiError.response?.status
             });
         }
 

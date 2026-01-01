@@ -71,8 +71,8 @@ const Detection = () => {
                 alert("Received invalid response from server. Please try again.");
             }
         } catch (error) {
-            console.error("Detection Error:", error);
-            alert("Failed to analyze image. Ensure it's a clear photo of a crop. Error: " + (error.message || "Unknown error"));
+            const errorDetail = error.response?.data?.details || error.response?.data?.error || error.message;
+            alert("Failed to analyze image. Ensure it's a clear photo of a crop. Error: " + errorDetail);
         } finally {
             setLoading(false);
         }

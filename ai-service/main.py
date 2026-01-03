@@ -232,67 +232,64 @@ def validate_is_crop(img_array, analysis, filename=""):
 
 def determine_crop(analysis):
     """
-    Vision-based crop identification without filename hints.
+    PERMANENT VISION FIX: Using strict Emerald vs Yellow-Green separation.
     """
     hue = analysis["hue"]
     sat = analysis["saturation"]
     var = analysis["variance"]
     
-    # Cotton Signature: Pure green to deep green
-    if 90 <= hue <= 140 and sat > 0.25:
+    # 1. COTTON SIGNATURE: Deep Emerald / Forest Green
+    # Cotton leaves in sunlight range from 110 to 160 hue.
+    if 112 <= hue <= 165 and sat > 0.20:
         return "Cotton"
     
-    # Tomato/Potato Signature: Yellow-leaning green
-    if 65 <= hue < 90:
+    # 2. TOMATO / POTATO: Lime / Yellow-Green
+    # Tomatoes are almost always < 105 hue.
+    if 65 <= hue <= 110:
         return "Tomato / Potato"
     
-    # Grains Signature: High variance patterns, lighter hues
-    if var > 60 and 45 <= hue <= 100:
+    # 3. GRAINS: Pattern Variance
+    if var > 60 and 40 <= hue <= 95:
         return "Wheat / Rice"
         
     return "Detected Plant"
 
 def determine_disease(analysis):
     """
-    Refined logic to distinguish real disease from leaf veins/textures.
+    VEIN-AWARE LOGIC: Natural leaf textures are NOT diseases.
     """
-    
     h_ratio = analysis["pixel_healthy_ratio"]
     b_ratio = analysis["pixel_brown_ratio"]
     y_ratio = analysis["pixel_yellow_ratio"]
-    variance = analysis["variance"]
     white = analysis["white_indicator"]
 
-    # --- PRIORITY 1: REAL HEALTHY CHECK ---
-    # If the leaf is overwhelmingly green (>40%), it's almost certainly healthy
-    # unless there's an obvious diseased ratio.
-    if h_ratio > 0.40 and b_ratio < 0.015:
-        return "healthy", 0.95
+    # --- PRIORITY 1: OVERWHELMING HEALTHY CHECK ---
+    # Most Cotton leaves have huge surface area. If healthy > 40%, it's Healthy.
+    if h_ratio > 0.35 and b_ratio < 0.02 and y_ratio < 0.08:
+        return "healthy", 0.98
 
-    # --- PRIORITY 2: Necrosis (Brown Spots) ---
-    # Increased threshold for 'Anthracnose' to avoid vein misdetection
-    if b_ratio > 0.012: # 1.2% damage threshold
-        if variance > 55:
-            return "anthracnose", 0.70 + min(0.25, b_ratio * 5)
-        if y_ratio > 0.05:
-            return "bacterial_blight", 0.75 + min(0.20, b_ratio * 5)
-        if b_ratio > 0.06:
-            return "verticillium_wilt", 0.85
-        return "septoria_leaf_spot", 0.65
+    # --- PRIORITY 2: REAL DISEASE THRESHOLDS ---
+    # We only call a disease if the infection is substantial (>2% of leaf)
+    # This prevents 'Vein Misdetection'
+    
+    # Necrosis (Anthracnose / Spots)
+    if b_ratio > 0.025: 
+        if b_ratio > 0.08: return "verticillium_wilt", 0.85
+        return "anthracnose", 0.75
+    
+    # Blight / Yellowing
+    if y_ratio > 0.15: # Veins can be yellowish, so we need 15% for real Blight
+        return "bacterial_blight", 0.80
 
-    # --- PRIORITY 3: Powdery Mildew ---
-    if white > 185:
+    # Mildew
+    if white > 0.10: # 10% white coverage for Mildew
         return "powdery_mildew", 0.82
 
-    # --- PRIORITY 4: Chlorosis (Yellowing) ---
-    if y_ratio > 0.10:
-        return "viral_infection", 0.75
-
-    # --- FALLBACKS ---
-    if h_ratio > 0.15:
-        return "healthy", 0.75
+    # --- FALLBACK: IF IT LOOKS MOSTLY GREEN, IT IS HEALTHY ---
+    if h_ratio > 0.10:
+        return "healthy", 0.85
         
-    return "healthy", 0.60 # Default to healthy if unclear but not failing validation
+    return "healthy", 0.60
 
 @app.get("/")
 async def root():

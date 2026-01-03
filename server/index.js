@@ -80,117 +80,114 @@ app.get('/api/health', async (req, res) => {
     });
 });
 
-// AI Prediction Route
+// --- PERMANENT SOLUTION: BACKGROUND JOB POLLING SYSTEM ---
+// This prevents the 30s connection timeout by using a 'Job ID' pattern.
+const jobs = new Map();
+
+// AI Prediction Route (Initiator)
 app.post('/api/detect', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No image uploaded' });
         }
 
-        console.log("Processing image:", req.file.originalname);
+        const jobId = "job-" + Date.now() + Math.random().toString(36).substring(7);
+        console.log(`[JOB] Starting ${jobId} for ${req.file.originalname}`);
 
-        // 1. Call AI Microservice with Enhanced Fast-Retry 
-        // We use a short timeout (10s) to "kick" Render awake without hanging for 30s
-        let aiResult;
-        const maxRetries = 8; // More retries
-        let attempt = 0;
-        let lastError;
+        // Initialize job status
+        jobs.set(jobId, { status: 'pending', result: null, error: null });
 
-        while (attempt <= maxRetries) {
+        // Run AI Analysis in the background so we can return the Job ID immediately
+        (async () => {
             try {
-                console.log(`[AI SERVICE] Wake-up call ${attempt + 1}/${maxRetries + 1}...`);
-                const FormData = require('form-data');
-                const formData = new FormData();
-                formData.append('file', req.file.buffer, {
-                    filename: req.file.originalname,
-                    contentType: req.file.mimetype
-                });
+                let aiResult;
+                const maxRetries = 15; // We can now wait up to 2 minutes for the AI
+                let attempt = 0;
 
-                const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
-                    headers: formData.getHeaders(),
-                    timeout: 10000 // 10s timeout per kick
-                });
+                while (attempt <= maxRetries) {
+                    try {
+                        const FormData = require('form-data');
+                        const formData = new FormData();
+                        formData.append('file', req.file.buffer, {
+                            filename: req.file.originalname,
+                            contentType: req.file.mimetype
+                        });
 
-                aiResult = aiRes.data;
-                console.log(`[AI SERVICE] Success! Engine is online.`);
-                break;
-            } catch (aiError) {
-                lastError = aiError;
-                attempt++;
+                        const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
+                            headers: formData.getHeaders(),
+                            timeout: 10000
+                        });
 
-                // If we get an actual response (like 400), stop retrying
-                if (aiError.response && aiError.response.status < 500) break;
-
-                console.log(`[AI SERVICE] Still booting... (Attempt ${attempt} failed)`);
-
-                if (attempt <= maxRetries) {
-                    // Constant 1.5s wait between pings
-                    await new Promise(r => setTimeout(r, 1500));
+                        aiResult = aiRes.data;
+                        console.log(`[JOB ${jobId}] Engine Responded!`);
+                        break;
+                    } catch (e) {
+                        attempt++;
+                        console.log(`[JOB ${jobId}] AI Warming up... (${attempt})`);
+                        await new Promise(r => setTimeout(r, 2000));
+                    }
                 }
+
+                if (!aiResult) throw new Error("AI Engine took too long to boot.");
+
+                // Check for Not a Crop
+                if (aiResult.disease === 'Not a Crop') {
+                    jobs.set(jobId, { status: 'completed', result: { id: null, ...aiResult, imageUrl: null } });
+                    return;
+                }
+
+                // Image Upload and Firestore logic
+                let imageUrl = null;
+                if (firebaseInitialized && bucket) {
+                    try {
+                        const blob = bucket.file(`detections/${Date.now()}_${req.file.originalname}`);
+                        const blobStream = blob.createWriteStream({ metadata: { contentType: req.file.mimetype } });
+                        await new Promise((resolve, reject) => {
+                            blobStream.on('error', reject).on('finish', resolve).end(req.file.buffer);
+                        });
+                        try { await blob.makePublic(); } catch (e) { }
+                        imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
+                    } catch (e) { console.log("Storage error:", e.message); }
+                }
+
+                let docId = "local-" + Date.now();
+                if (firebaseInitialized && db) {
+                    try {
+                        const docRef = await db.collection('predictions').add({
+                            ...aiResult,
+                            imageUrl,
+                            timestamp: admin.firestore.FieldValue.serverTimestamp(),
+                            userId: req.body.userId || 'anonymous'
+                        });
+                        docId = docRef.id;
+                    } catch (e) { console.log("DB error:", e.message); }
+                }
+
+                jobs.set(jobId, { status: 'completed', result: { id: docId, ...aiResult, imageUrl } });
+                console.log(`[JOB ${jobId}] COMPLETED`);
+
+            } catch (err) {
+                console.error(`[JOB ${jobId}] FAILED:`, err.message);
+                jobs.set(jobId, { status: 'failed', error: err.message });
             }
-        }
 
-        if (!aiResult) {
-            const errorStatus = lastError?.response?.status || 503;
-            return res.status(errorStatus).json({
-                error: 'AI Engine Cold-Start',
-                details: `The AI engine is taking longer than 30 seconds to boot on Render's free tier. Please wait 10 seconds and try again—the engine is already in the final stage of booting now.`,
-                diagnostic: { status: errorStatus, msg: lastError?.message }
-            });
-        }
-        // ... [rest of the original logic]
+            // Cleanup memory after 10 mins
+            setTimeout(() => jobs.delete(jobId), 10 * 60 * 1000);
+        })();
 
-        // CHECK: Is this a valid crop?
-        if (aiResult.disease === 'Not a Crop') {
-            return res.json({
-                id: null,
-                ...aiResult,
-                imageUrl: null
-            });
-        }
-
-        // 2. Try to upload to Firebase Storage (Only if initialized)
-        let imageUrl = null;
-        if (firebaseInitialized) {
-            try {
-                const blob = bucket.file(`detections/${Date.now()}_${req.file.originalname}`);
-                await new Promise((resolve, reject) => {
-                    const blobStream = blob.createWriteStream({
-                        metadata: { contentType: req.file.mimetype }
-                    });
-                    blobStream.on('error', reject);
-                    blobStream.on('finish', resolve);
-                    blobStream.end(req.file.buffer);
-                });
-                try { await blob.makePublic(); } catch (e) { }
-                imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-            } catch (storageError) {
-                console.log("Firebase storage error:", storageError.message);
-            }
-        }
-
-        // 3. Try to save to Firestore (Only if initialized)
-        let docId = "local-" + Date.now();
-        if (firebaseInitialized && db) {
-            try {
-                const docRef = await db.collection('predictions').add({
-                    imageUrl: imageUrl,
-                    ...aiResult,
-                    timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                    userId: req.body.userId || 'anonymous'
-                });
-                docId = docRef.id;
-            } catch (dbError) {
-                console.log("Firestore save error:", dbError.message);
-            }
-        }
-
-        res.json({ id: docId, ...aiResult, imageUrl: imageUrl });
+        res.json({ jobId, status: 'pending' });
 
     } catch (error) {
-        console.error("Server Error:", error);
-        res.status(500).json({ error: error.message });
+        console.error("Critical error in /api/detect:", error);
+        res.status(500).json({ error: 'Internal Server Error' });
     }
+});
+
+// Status check route
+app.get('/api/status/:jobId', (req, res) => {
+    const job = jobs.get(req.params.jobId);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    res.json(job);
 });
 
 // Weather Route Proxy

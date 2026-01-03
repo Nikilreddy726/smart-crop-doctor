@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Camera, ImageIcon } from 'lucide-react';
-import { detectDisease, getHealth } from '../services/api'; // Added getHealth
+import axios from 'axios';
+import api, { detectDisease, getHealth } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
@@ -14,16 +15,19 @@ const Detection = () => {
     const [result, setResult] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [aiStatus, setAiStatus] = useState('warming'); // Added status state
+    const [aiStatus, setAiStatus] = useState('warming');
 
     // --- AUTO-WARMING LOGIC ---
-    React.useEffect(() => {
+    useEffect(() => {
         const warmUp = async () => {
-            console.log("Pre-warming AI Engine...");
-            const health = await getHealth();
-            setAiStatus(health.ai);
-            if (health.ai !== 'online') {
-                // If not online yet, check again in 10s
+            try {
+                const health = await getHealth();
+                setAiStatus(health.ai);
+                if (health.ai !== 'online') {
+                    setTimeout(warmUp, 10000);
+                }
+            } catch (e) {
+                setAiStatus('offline');
                 setTimeout(warmUp, 10000);
             }
         };
@@ -32,9 +36,7 @@ const Detection = () => {
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
-        if (file) {
-            processFile(file);
-        }
+        if (file) processFile(file);
     };
 
     const processFile = (file) => {
@@ -48,27 +50,13 @@ const Detection = () => {
         }
     };
 
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(true);
-    };
-
-    const handleDragLeave = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        setIsDragging(false);
-    };
-
+    const handleDragOver = (e) => { e.preventDefault(); setIsDragging(true); };
+    const handleDragLeave = () => setIsDragging(false);
     const handleDrop = (e) => {
         e.preventDefault();
-        e.stopPropagation();
         setIsDragging(false);
-
         const files = e.dataTransfer.files;
-        if (files && files.length > 0) {
-            processFile(files[0]);
-        }
+        if (files && files.length > 0) processFile(files[0]);
     };
 
     const handleUpload = async () => {
@@ -76,21 +64,41 @@ const Detection = () => {
         setLoading(true);
         setResult(null);
         setSaved(false);
-        try {
-            console.log("Sending image for analysis...");
-            const response = await detectDisease(selectedFile);
-            console.log("Detection response:", response);
 
-            if (response && response.disease) {
-                setResult(response);
-            } else {
-                console.error("Invalid response:", response);
-                alert("Received invalid response from server. Please try again.");
+        try {
+            // 1. Submit the Job
+            const initialResponse = await detectDisease(selectedFile);
+            const { jobId } = initialResponse;
+
+            if (!jobId) {
+                setResult(initialResponse);
+                setLoading(false);
+                return;
             }
+
+            // 2. Poll for Status (Every 3 seconds)
+            const pollInterval = setInterval(async () => {
+                try {
+                    const statusRes = await axios.get(`${api.defaults.baseURL}/status/${jobId}`);
+                    const job = statusRes.data;
+
+                    if (job.status === 'completed') {
+                        clearInterval(pollInterval);
+                        setResult(job.result);
+                        setLoading(false);
+                    } else if (job.status === 'failed') {
+                        clearInterval(pollInterval);
+                        alert("Analysis Error: " + job.error);
+                        setLoading(false);
+                    }
+                } catch (e) {
+                    console.warn("Polling retry...", e.message);
+                }
+            }, 3000);
+
         } catch (error) {
-            const errorDetail = error.response?.data?.details || error.response?.data?.error || error.message;
-            alert("Failed to analyze image. Ensure it's a clear photo of a crop. Error: " + errorDetail);
-        } finally {
+            console.error('Detection failed:', error);
+            alert(`Analysis failed. The engine might be under heavy load. Please try again.`);
             setLoading(false);
         }
     };
@@ -98,43 +106,28 @@ const Detection = () => {
     const handleCommitToCloud = () => {
         try {
             setSaved(true);
-
-            // 1. Prepare Record
-            const newRecord = {
-                id: 'local-' + Date.now(),
-                disease: result.disease,
-                crop: result.crop,
-                severity: result.severity,
-                confidence: result.confidence,
-                recommendations: result.recommendations,
-                imageUrl: result.imageUrl || 'image-not-stored',
-                timestamp: new Date().toISOString()
-            };
-
-            // 2. Load and Update Local Storage
             const storageKey = user ? `local_crop_scans_${user.uid}` : 'local_crop_scans';
             const raw = localStorage.getItem(storageKey);
             let history = [];
             try {
-                if (raw) {
-                    const parsed = JSON.parse(raw);
-                    history = Array.isArray(parsed) ? parsed : [];
-                }
-            } catch (e) {
-                history = [];
-            }
+                if (raw) history = JSON.parse(raw);
+            } catch (e) { history = []; }
+
+            const newRecord = {
+                id: result.id || 'local-' + Date.now(),
+                ...result,
+                timestamp: new Date().toISOString()
+            };
 
             history.unshift(newRecord);
             localStorage.setItem(storageKey, JSON.stringify(history.slice(0, 50)));
-            console.log("Record saved to local storage for user:", user?.uid || 'guest');
         } catch (err) {
-            console.error("Failed to save record:", err);
-            alert("Failed to save report locally. Please check browser permissions.");
+            console.error("Save error:", err);
         }
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-12 pb-24">
+        <div className="max-w-6xl mx-auto space-y-12 pb-24 px-4">
             <div className="text-center space-y-4">
                 <div className="flex flex-col items-center gap-4">
                     <motion.div
@@ -145,292 +138,148 @@ const Detection = () => {
                         <Sparkles size={14} /> Neural-Net Diagnostics
                     </motion.div>
 
-                    {/* Status Indicator */}
-                    <motion.div
-                        animate={{ opacity: [0.5, 1, 0.5] }}
-                        transition={{ repeat: Infinity, duration: 2 }}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${aiStatus === 'online' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'
-                            }`}>
+                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${aiStatus === 'online' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'
+                        }`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${aiStatus === 'online' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
                         Engine: {aiStatus === 'online' ? 'Ready' : 'Warming Up...'}
-                    </motion.div>
+                    </div>
                 </div>
                 <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter">{t('aiCropDoctor')}</h1>
                 <p className="text-slate-500 text-lg max-w-2xl mx-auto font-medium">{t('detectionSubtitle')}</p>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start h-full">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
                 {/* Upload Panel */}
-                <motion.div layout className="card-base p-6 md:p-10 h-full flex flex-col justify-center min-h-[400px] md:min-h-[500px]">
+                <motion.div layout className="card-base p-6 md:p-10 min-h-[400px] flex flex-col justify-center">
                     {!preview ? (
                         <label
-                            className={`group relative w-full h-full min-h-[300px] md:min-h-[400px] flex flex-col items-center justify-center border-4 border-dashed rounded-[2rem] md:rounded-[3rem] cursor-pointer transition-all duration-500 ${isDragging
-                                ? 'border-primary bg-primary/5 scale-105'
-                                : 'border-slate-100 hover:border-primary/20 hover:bg-slate-50'
+                            className={`group border-4 border-dashed rounded-[3rem] p-12 flex flex-col items-center justify-center cursor-pointer transition-all ${isDragging ? 'border-primary bg-primary/5 scale-105' : 'border-slate-100 hover:bg-slate-50'
                                 }`}
                             onDragOver={handleDragOver}
                             onDragLeave={handleDragLeave}
                             onDrop={handleDrop}
                         >
-                            <div className="flex flex-col items-center justify-center space-y-6 pointer-events-none">
-                                <div className={`w-20 h-20 md:w-24 md:h-24 rounded-[2rem] flex items-center justify-center transition-all duration-700 ${isDragging ? 'bg-primary scale-110 rotate-12' : 'bg-slate-100 group-hover:scale-110 group-hover:rotate-12'
-                                    }`}>
-                                    <Camera className={`w-10 h-10 ${isDragging ? 'text-white' : 'text-primary'}`} />
+                            <div className="flex flex-col items-center space-y-6">
+                                <div className="w-20 h-20 bg-slate-100 rounded-3xl flex items-center justify-center text-primary group-hover:rotate-12 transition-transform">
+                                    <Camera size={40} />
                                 </div>
                                 <div className="text-center">
-                                    <p className="text-2xl font-black text-slate-900 leading-tight tracking-tight">
-                                        {isDragging ? 'Drop Image Here!' : t('readyToScan')}
-                                    </p>
-                                    <p className="text-xs text-slate-400 font-black mt-2 uppercase tracking-[0.2em]">{t('dropImage')}</p>
+                                    <p className="text-2xl font-black text-slate-900">{t('readyToScan')}</p>
+                                    <p className="text-[10px] text-slate-400 font-black uppercase mt-2">{t('dropImage')}</p>
                                 </div>
                             </div>
                             <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" />
                         </label>
                     ) : (
-                        <div className="space-y-8 h-full flex flex-col">
-                            <div className="relative group rounded-[3rem] overflow-hidden shadow-2xl grow aspect-video lg:aspect-square bg-slate-100 border border-slate-100">
+                        <div className="space-y-6">
+                            <div className="relative rounded-[2rem] overflow-hidden shadow-2xl bg-slate-100 border border-slate-100 aspect-video">
                                 <img src={preview} alt="Preview" className="w-full h-full object-cover" />
                                 <button
                                     onClick={() => { setPreview(null); setSelectedFile(null); setResult(null); }}
-                                    className="absolute top-6 right-6 bg-white/90 backdrop-blur-md p-4 rounded-2xl text-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-2xl"
+                                    className="absolute top-4 right-4 bg-white/90 p-3 rounded-xl shadow-xl hover:bg-red-500 hover:text-white transition-all"
                                 >
                                     <X size={20} />
                                 </button>
                             </div>
 
-                            <AnimatePresence mode="wait">
-                                {!result && !loading && (
-                                    <div className="space-y-4 w-full">
-                                        <motion.button
-                                            initial={{ opacity: 0, y: 10 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            onClick={handleUpload}
-                                            disabled={aiStatus !== 'online'}
-                                            className={`w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all ${aiStatus === 'online'
-                                                    ? 'bg-primary text-white shadow-primary/20 hover:scale-[1.02] active:scale-95'
-                                                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                                }`}
-                                        >
-                                            <Sparkles size={24} />
-                                            {aiStatus === 'online' ? t('analyzeInfection') : 'Engine Warming...'}
-                                        </motion.button>
+                            {!result && !loading && (
+                                <button
+                                    onClick={handleUpload}
+                                    disabled={aiStatus !== 'online'}
+                                    className={`w-full py-5 rounded-2xl text-xl font-black flex items-center justify-center gap-3 transition-all ${aiStatus === 'online' ? 'bg-primary text-white hover:scale-[1.02] shadow-xl' : 'bg-slate-100 text-slate-400'
+                                        }`}
+                                >
+                                    <Sparkles size={24} /> {aiStatus === 'online' ? t('analyzeInfection') : 'Engine Warming...'}
+                                </button>
+                            )}
 
-                                        {aiStatus !== 'online' && (
-                                            <p className="text-center text-[10px] text-slate-400 font-bold px-4 leading-tight animate-pulse">
-                                                ⏳ {t('waitingForEngine') || 'AI engine is waking up from sleep. The button will enable automatically in a few seconds...'}
-                                                <br />
-                                                <span className="text-[9px] font-medium opacity-50">
-                                                    (Render Free Tier takes ~30s to boot after inactivity)
-                                                </span>
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-
-                                {loading && (
-                                    <motion.div
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="flex flex-col items-center gap-4 py-4"
-                                    >
-                                        <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                        <div className="text-center space-y-2">
-                                            <p className="text-primary font-black animate-pulse tracking-widest text-xs uppercase">{t('computing')}</p>
-                                            <p className="text-[10px] text-slate-400 font-bold max-w-[200px] leading-tight">
-                                                (First scan may take 1 minute as AI engines wake up)
-                                            </p>
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
+                            {loading && (
+                                <div className="flex flex-col items-center gap-4 py-6">
+                                    <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                    <p className="text-primary font-black uppercase text-[10px] tracking-widest">{t('computing')}</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </motion.div>
 
-                {/* Response / Info Panel */}
-                <div className="h-full">
+                {/* Result Panel */}
+                <div className="min-h-[400px]">
                     <AnimatePresence mode="wait">
                         {result ? (
                             <motion.div
                                 key="result"
-                                initial={{ opacity: 0, x: 30 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="bg-white p-10 md:p-12 rounded-[4rem] border border-slate-200 shadow-2xl space-y-8"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-white p-8 md:p-10 rounded-[3rem] shadow-2xl border border-slate-100 space-y-8"
                             >
-                                {/* Disease Header */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2.5 rounded-2xl ${result.severity === 'None' || result.disease === 'Healthy' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                            {result.severity === 'None' || result.disease === 'Healthy' ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
-                                        </div>
-                                        <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">{t(result.disease) || result.disease}</h2>
+                                <div className="flex items-center gap-4">
+                                    <div className={`p-3 rounded-2xl ${result.disease === 'Healthy' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                        {result.disease === 'Healthy' ? <CheckCircle size={32} /> : <AlertTriangle size={32} />}
                                     </div>
-
-                                    {/* Key Info Cards */}
-                                    {result.disease !== 'Not a Crop' && (
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                            <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                                                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">🌱 {t('cropName') || 'Crop'}</p>
-                                                <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop || result.disease.split(' ')[0]}</p>
-                                            </div>
-                                            <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50 border-red-100' :
-                                                result.severity === 'Medium' ? 'bg-orange-50 border-orange-100' :
-                                                    result.severity === 'Low' ? 'bg-yellow-50 border-yellow-100' :
-                                                        'bg-green-50 border-green-100'
-                                                }`}>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⚠️ {t('severity') || 'Severity'}</p>
-                                                <p className={`text-lg font-black mt-1 ${result.severity === 'High' ? 'text-red-700' :
-                                                    result.severity === 'Medium' ? 'text-orange-700' :
-                                                        result.severity === 'Low' ? 'text-yellow-700' :
-                                                            'text-green-700'
-                                                    }`}>{t(result.severity) || result.severity || 'None'}</p>
-                                            </div>
-                                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">🎯 {t('confidence')}</p>
-                                                <p className="text-lg font-black text-primary mt-1">{(result.confidence * 100).toFixed(1)}%</p>
-                                            </div>
-                                        </div>
-                                    )}
+                                    <div>
+                                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t(result.disease) || result.disease}</h2>
+                                        <p className="text-slate-500 font-bold text-sm uppercase">{t(result.crop) || result.crop}</p>
+                                    </div>
                                 </div>
 
-                                {/* Recommendations Section */}
-                                {result.severity !== 'None' && result.disease !== 'Healthy' && (
-                                    <div className="space-y-6">
-                                        <div className="space-y-4">
-                                            <h3 className="font-black text-sm uppercase tracking-[0.2em] text-slate-400 flex items-center gap-3">
-                                                <div className="h-px bg-slate-100 grow"></div>
-                                                💊 {t('recommendedRecovery')}
-                                                <div className="h-px bg-slate-100 grow"></div>
-                                            </h3>
-                                            <div className="grid grid-cols-1 gap-3">
-                                                {result.recommendations?.pesticides?.map((p, i) => (
-                                                    <div key={i} className="flex gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                                                        <div className="bg-white w-8 h-8 rounded-lg flex items-center justify-center text-primary border border-slate-200 font-bold shrink-0 text-sm">{i + 1}</div>
-                                                        <p className="text-slate-600 font-bold leading-snug self-center">{t(p)}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-4">
-                                            <h3 className="font-black text-sm uppercase tracking-[0.2em] text-slate-400 flex items-center gap-3">
-                                                <div className="h-px bg-slate-100 grow"></div>
-                                                🌿 {t('biologicalMeasures')}
-                                                <div className="h-px bg-slate-100 grow"></div>
-                                            </h3>
-                                            <div className="flex flex-wrap gap-2">
-                                                {result.recommendations?.preventive_steps?.map((p, i) => (
-                                                    <span key={i} className="bg-primary/5 text-primary px-4 py-2 rounded-xl text-xs font-black tracking-tight">{t(p)}</span>
-                                                ))}
-                                            </div>
-                                        </div>
-
-                                        {result.recommendations?.organic_solutions?.length > 0 && (
-                                            <div className="space-y-4">
-                                                <h3 className="font-black text-sm uppercase tracking-[0.2em] text-slate-400 flex items-center gap-3">
-                                                    <div className="h-px bg-slate-100 grow"></div>
-                                                    🍃 {t('organicSolutions') || 'Organic Solutions'}
-                                                    <div className="h-px bg-slate-100 grow"></div>
-                                                </h3>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {result.recommendations.organic_solutions.map((p, i) => (
-                                                        <span key={i} className="bg-green-600/5 text-green-700 px-4 py-2 rounded-xl text-xs font-black tracking-tight border border-green-100">{t(p)}</span>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-slate-50 rounded-2xl">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase">Confidence</p>
+                                        <p className="text-xl font-black text-primary mt-1">{(result.confidence * 100).toFixed(1)}%</p>
                                     </div>
-                                )}
+                                    <div className="p-4 bg-slate-50 rounded-2xl">
+                                        <p className="text-[10px] font-black text-slate-400 uppercase">Severity</p>
+                                        <p className="text-xl font-black text-slate-900 mt-1">{t(result.severity) || result.severity || 'N/A'}</p>
+                                    </div>
+                                </div>
 
-                                {/* Not a Crop / Invalid Image Message */}
-                                {result.disease === 'Not a Crop' && (
-                                    <div className="p-8 md:p-10 bg-yellow-50 rounded-[3rem] border-2 border-dashed border-yellow-200 text-center space-y-6 flex flex-col items-center justify-center min-h-[300px]">
-                                        <div className="p-5 rounded-3xl bg-yellow-100 text-yellow-600 animate-bounce">
-                                            <AlertTriangle size={48} />
-                                        </div>
+                                {result.disease !== 'Healthy' && result.disease !== 'Not a Crop' && (
+                                    <div className="space-y-4">
+                                        <h3 className="text-lg font-black">{t('recommendedRecovery')}</h3>
                                         <div className="space-y-2">
-                                            <p className="text-2xl font-black text-yellow-900 tracking-tight">{t('noCropDetected') || 'Detection Restricted'}</p>
-                                            <p className="text-yellow-700 font-medium max-w-xs mx-auto">
-                                                {t('noCropDetectedDesc') || 'This system only analyzes field crops. Please upload a clear photo of a crop leaf or stem.'}
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); }}
-                                            className="px-8 py-4 bg-yellow-600 text-white rounded-2xl font-bold hover:bg-yellow-700 transition-all shadow-lg shadow-yellow-200 flex items-center gap-2"
-                                        >
-                                            <Camera size={20} />
-                                            {t('tryAnotherImage') || 'Try Another Image'}
-                                        </button>
-                                    </div>
-                                )}
-
-                                {/* Healthy Plant Message */}
-                                {(result.severity === 'None' || result.disease === 'Healthy') && result.disease !== 'Not a Crop' && (
-                                    <div className="p-6 bg-green-50 rounded-2xl border border-green-100 text-center">
-                                        <p className="text-lg font-bold text-green-700">🎉 {t('healthyMessageTitle') || 'Great News! Your plant appears healthy.'}</p>
-                                        <p className="text-sm text-green-600 mt-2">{t('healthyMessageBody') || 'Continue regular monitoring and care for best results.'}</p>
-                                    </div>
-                                )}
-
-                                {/* Save Button with Explanation */}
-                                {result.disease !== 'Not a Crop' && (
-                                    <div className="space-y-3">
-                                        {!saved ? (
-                                            <>
-                                                <button
-                                                    onClick={handleCommitToCloud}
-                                                    className="w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 bg-slate-900 text-white hover:bg-primary shadow-slate-200"
-                                                >
-                                                    <ShieldCheck size={20} />
-                                                    {t('saveToCloud')}
-                                                </button>
-                                                <p className="text-center text-xs text-slate-400 font-medium">
-                                                    💾 This saves your diagnosis report to your account for future reference
-                                                </p>
-                                            </>
-                                        ) : (
-                                            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                                <div className="w-full py-5 rounded-[2rem] font-bold text-lg flex items-center justify-center gap-3 bg-green-600 text-white shadow-xl shadow-green-100 cursor-default">
-                                                    <CheckCircle size={20} />
-                                                    Report Cloud-Synced
+                                            {result.recommendations?.pesticides?.map((p, i) => (
+                                                <div key={i} className="p-4 bg-slate-50 border border-slate-100 rounded-xl flex items-center gap-3">
+                                                    <div className="w-6 h-6 bg-white rounded-md flex items-center justify-center text-primary font-bold shadow-sm">{i + 1}</div>
+                                                    <span className="font-bold text-slate-600">{t(p)}</span>
                                                 </div>
-                                                <button
-                                                    onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); setSaved(false); }}
-                                                    className="w-full py-4 rounded-[2rem] font-bold text-lg transition-all border-2 border-slate-100 text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 flex items-center justify-center gap-3"
-                                                >
-                                                    <Camera size={20} />
-                                                    Scan Another Crop
-                                                </button>
-                                            </div>
-                                        )}
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!saved ? (
+                                    <button
+                                        onClick={handleCommitToCloud}
+                                        className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black hover:bg-primary transition-all shadow-xl flex items-center justify-center gap-3"
+                                    >
+                                        <ShieldCheck size={20} /> {t('saveToCloud')}
+                                    </button>
+                                ) : (
+                                    <div className="w-full py-5 bg-green-600 text-white rounded-2xl font-black flex items-center justify-center gap-3">
+                                        <CheckCircle size={20} /> Report Saved Successfully
                                     </div>
                                 )}
                             </motion.div>
                         ) : (
-                            <motion.div
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                className="space-y-8"
-                            >
-                                <div className="card-base p-12 space-y-8">
-                                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{t('howItWorks')}</h3>
-                                    <div className="space-y-10">
-                                        {[
-                                            { title: t('singleSubject'), desc: t('singleSubjectDesc'), step: "🎯" },
-                                            { title: t('naturalLight'), desc: t('naturalLightDesc'), step: "☀️" },
-                                            { title: t('highContext'), desc: t('highContextDesc'), step: "🌿" }
-                                        ].map((item, i) => (
-                                            <div key={i} className="flex gap-6 items-start">
-                                                <span className="text-4xl">{item.step}</span>
-                                                <div className="space-y-2">
-                                                    <p className="text-lg font-black text-slate-900">{item.title}</p>
-                                                    <p className="text-slate-500 font-medium leading-relaxed">{item.desc}</p>
-                                                </div>
+                            <div className="bg-slate-50 p-10 rounded-[3rem] border border-slate-200">
+                                <h3 className="text-xl font-black mb-6">{t('howItWorks')}</h3>
+                                <div className="space-y-8">
+                                    {[
+                                        { icon: "🎯", title: t('singleSubject'), desc: t('singleSubjectDesc') },
+                                        { icon: "☀️", title: t('naturalLight'), desc: t('naturalLightDesc') },
+                                        { icon: "🌿", title: t('highContext'), desc: t('highContextDesc') }
+                                    ].map((step, i) => (
+                                        <div key={i} className="flex gap-4">
+                                            <span className="text-3xl">{step.icon}</span>
+                                            <div>
+                                                <p className="font-black text-slate-900">{step.title}</p>
+                                                <p className="text-sm text-slate-500 font-medium">{step.desc}</p>
                                             </div>
-                                        ))}
-                                    </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            </motion.div>
+                            </div>
                         )}
                     </AnimatePresence>
                 </div>
@@ -438,4 +287,5 @@ const Detection = () => {
         </div>
     );
 };
+
 export default Detection;

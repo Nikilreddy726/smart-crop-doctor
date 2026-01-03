@@ -162,81 +162,52 @@ def analyze_image_colors(img_array):
     
     # White (Mildew) = High brightness, low saturation
     white_indicator = brightness if (std_dev.mean() < 30 and brightness > 180) else 0
-
-    # --- NEW: Artificial Background Detection ---
-    # Count pixels that are very bright (near white) -> typical of screenshots/diagrams
-    # Threshold: R>210, G>210, B>210
-    white_pixels = np.sum((img_array[:,:,0] > 210) & (img_array[:,:,1] > 210) & (img_array[:,:,2] > 210))
     total_pixels = img_array.shape[0] * img_array.shape[1]
-    white_bg_ratio = white_pixels / total_pixels
+    
+    # --- NEW: UI & SCREENSHOT DETECTION ---
+    perfect_black = np.sum((img_array[:,:,0] < 2) & (img_array[:,:,1] < 2) & (img_array[:,:,2] < 2))
+    perfect_white = np.sum((img_array[:,:,0] > 253) & (img_array[:,:,1] > 253) & (img_array[:,:,2] > 253))
+    pure_pixel_ratio = (perfect_black + perfect_white) / total_pixels
 
-    # Grey/Monochrome Detection (Low Saturation)
-    # Check pixels where |R-G| < 15 and |G-B| < 15
-    grey_pixels = np.sum((np.abs(img_array[:,:,0] - img_array[:,:,1]) < 15) & (np.abs(img_array[:,:,1] - img_array[:,:,2]) < 15))
-    grey_ratio = grey_pixels / total_pixels
-
-    # --- UNIQUE COLOR CHECK (The Ultimate Diagram Detector) ---
-    # Real photos have THOUSANDS of unique colors due to sensor noise/lighting.
-    # Diagrams/Vectors have very few (< 1% of total pixels).
-    # We use a faster bit-shifting method instead of slow np.unique(axis=0)
+    # Fast unique color counting (Digital detector)
     flattened_img = img_array.reshape(-1, 3).astype(np.int32)
-    # Combine RGB into a single integer for fast unique counting
     combined = (flattened_img[:, 0] << 16) | (flattened_img[:, 1] << 8) | flattened_img[:, 2]
     unique_values, counts = np.unique(combined, return_counts=True)
     
-    unique_colors_count = len(unique_values)
-    unique_colors_ratio = unique_colors_count / total_pixels
+    unique_colors_ratio = len(unique_values) / total_pixels
+    max_single_color_ratio = counts.max() / total_pixels if len(counts) > 0 else 0
     
-    # --- QUANTIZED COLOR CHECK (Smarter Digital Detector) ---
-    # We reduce color depth (divide by 10).
+    # Quantized unique colors (Complexity detector)
     quantized_img = img_array // 10
     q_flat = quantized_img.reshape(-1, 3).astype(np.int32)
     q_combined = (q_flat[:, 0] << 16) | (q_flat[:, 1] << 8) | q_flat[:, 2]
-    unique_quantized_count = len(np.unique(q_combined))
-    quantized_unique_ratio = unique_quantized_count / total_pixels
+    quantized_unique_ratio = len(np.unique(q_combined)) / total_pixels
 
-    # --- FLAT BACKGROUND CHECK (Digital Image Detector) ---
-    # In a digital screenshot (like the weather widget), a large background area is EXACTLY the same color.
-    if len(counts) > 0:
-        max_single_color_ratio = counts.max() / total_pixels
-    else:
-        max_single_color_ratio = 0.0
-
-    # --- PIXEL-LEVEL BREAKDOWN (The "Anti-Mean" Fix) ---
-    # We analyze every pixel to find localized disease spots instead of just averaging the whole image.
+    # --- PIXEL-LEVEL BREAKDOWN ---
     r_ch = img_array[:,:,0].astype(np.int16)
     g_ch = img_array[:,:,1].astype(np.int16)
     b_ch = img_array[:,:,2].astype(np.int16)
 
-    # 1. Healthy Green Pixels
-    is_healthy_green = (g_ch > r_ch + 5) & (g_ch > b_ch + 5)
+    # 1. Healthy Green (Stricter: G must be dominant)
+    is_healthy_green = (g_ch > r_ch + 10) & (g_ch > b_ch + 5)
     
-    # 2. Diseased Brown/Necrotic Pixels (R > G, R > B, and dark/dull)
-    # Loosened floor to 10 to capture dark spots
-    is_brown = (r_ch >= g_ch - 10) & (r_ch > b_ch) & (r_ch > 10) & (r_ch < 190)
+    # 2. Diseased Brown (Modified to avoid skin tones)
+    is_brown = (r_ch >= g_ch) & (r_ch > b_ch) & (r_ch > 20) & (r_ch < 180) & (brightness < 160)
     
-    # 3. Diseased Yellow/Chlorotic Pixels (R ~= G, both > B)
-    is_yellow = (r_ch > b_ch * 1.25) & (g_ch > b_ch * 1.05) & (np.abs(r_ch - g_ch) < 60)
+    # 3. Diseased Yellow
+    is_yellow = (r_ch > b_ch * 1.3) & (g_ch > b_ch * 1.1) & (np.abs(r_ch - g_ch) < 40)
     
-    total_px = img_array.shape[0] * img_array.shape[1]
-    healthy_ratio = np.sum(is_healthy_green) / total_px
-    brown_ratio = np.sum(is_brown) / total_px
-    yellow_ratio = np.sum(is_yellow) / total_px
+    healthy_ratio = np.sum(is_healthy_green) / total_pixels
+    brown_ratio = np.sum(is_brown) / total_pixels
+    yellow_ratio = np.sum(is_yellow) / total_pixels
 
     return {
         "green_ratio": green_ratio,
-        "red_ratio": red_ratio,
-        "blue_ratio": blue_ratio,
         "hue": hue_degrees,
         "saturation": s,
-        "yellow_indicator": yellow_indicator,
-        "brown_indicator": brown_indicator,
-        "white_indicator": white_indicator,
         "variance": std_dev.mean(),
         "brightness": brightness,
-        "total_intensity": total_intensity,
-        "white_bg_ratio": white_bg_ratio,
-        "grey_ratio": grey_ratio,
+        "pure_pixel_ratio": pure_pixel_ratio,
         "unique_colors_ratio": unique_colors_ratio,
         "max_single_color_ratio": max_single_color_ratio,
         "quantized_unique_ratio": quantized_unique_ratio,
@@ -247,32 +218,36 @@ def analyze_image_colors(img_array):
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    Ultimate filter to reject digital artifacts, screenshots, and UI.
-    Natural photos have 'Complexity' (noise). Digital UI has 'Simplicity' (flat colors).
+    Stricter filter to reject digital artifacts, humans, and UI.
     """
-    # 1. Natural Complexity Check (The Quantization Gate)
-    if analysis["quantized_unique_ratio"] < 0.005: 
+    # 1. Reject if too many "perfect" digital pixels (Digital UI/Bars)
+    if analysis["pure_pixel_ratio"] > 0.25:
         return False
 
-    # 2. Raw Unique Colors
-    if analysis["unique_colors_ratio"] < 0.08: 
+    # 2. Reject if it's a "low complexity" digital image
+    if analysis["quantized_unique_ratio"] < 0.008 or analysis["unique_colors_ratio"] < 0.12:
         return False
 
-    # 3. Flatness Check (Rejects UI backgrounds)
-    if analysis["max_single_color_ratio"] > 0.08: 
+    # 3. Reject if it has a giant flat background (Digital/Studio)
+    if analysis["max_single_color_ratio"] > 0.15:
         return False
 
-    # 4. Texture Variance
-    if analysis["variance"] < 25: 
-        return False
-
-    # 5. Plantness Intensity
+    # 4. PLANT LOGIC: A crop must have SOME green or a lot of plant-like texture
     h_ratio = analysis["pixel_healthy_ratio"]
     b_ratio = analysis["pixel_brown_ratio"]
     y_ratio = analysis["pixel_yellow_ratio"]
-    total_plant_ratio = h_ratio + b_ratio + y_ratio
     
-    if total_plant_ratio < 0.25: 
+    # If there is basically NO green (< 1%), it's almost certainly not a plant leaf
+    if h_ratio < 0.01 and b_ratio < 0.1:
+        return False
+
+    # Total plant tissue must be significant
+    total_plant_ratio = h_ratio + b_ratio + y_ratio
+    if total_plant_ratio < 0.20:
+        return False
+
+    # 5. Texture Variance (Natural things are noisy)
+    if analysis["variance"] < 30:
         return False
 
     return True

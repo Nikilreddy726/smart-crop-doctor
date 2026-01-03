@@ -266,38 +266,40 @@ const Detection = () => {
                                         <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">{t(result.disease) || result.disease}</h2>
                                     </div>
 
-                                    {/* Info Cards */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                        <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
-                                            <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">🌱 {t('cropName') || 'Crop'}</p>
-                                            <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop}</p>
-                                        </div>
-                                        <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50/50 border-red-100' :
-                                            result.severity === 'Medium' ? 'bg-orange-50/50 border-orange-100' :
-                                                result.severity === 'Low' ? 'bg-yellow-50/50 border-yellow-100' :
-                                                    'bg-green-50/50 border-green-100'
-                                            }`}>
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⚠️ {t('severity') || 'Severity'}</p>
-                                            <p className={`text-lg font-black mt-1 ${result.severity === 'High' ? 'text-red-700' :
-                                                result.severity === 'Medium' ? 'text-orange-700' :
-                                                    result.severity === 'Low' ? 'text-yellow-700' :
-                                                        'text-green-700'
-                                                }`}>{t(result.severity) || result.severity || 'None'}</p>
-                                        </div>
-                                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-full">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">🎯 Confidence Level</p>
-                                            <div className="flex items-center gap-3 mt-1">
-                                                <div className="h-2 bg-slate-200 grow rounded-full overflow-hidden">
-                                                    <motion.div
-                                                        initial={{ width: 0 }}
-                                                        animate={{ width: `${result.confidence * 100}%` }}
-                                                        className="h-full bg-primary"
-                                                    />
+                                    {/* Info Cards (Only show for valid crops) */}
+                                    {result.disease !== 'Not a Crop' && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                            <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
+                                                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">🌱 {t('cropName') || 'Crop'}</p>
+                                                <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop}</p>
+                                            </div>
+                                            <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50/50 border-red-100' :
+                                                    result.severity === 'Medium' ? 'bg-orange-50/50 border-orange-100' :
+                                                        result.severity === 'Low' ? 'bg-yellow-50/50 border-yellow-100' :
+                                                            'bg-green-50/50 border-green-100'
+                                                }`}>
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⚠️ {t('severity') || 'Severity'}</p>
+                                                <p className={`text-lg font-black mt-1 ${result.severity === 'High' ? 'text-red-700' :
+                                                        result.severity === 'Medium' ? 'text-orange-700' :
+                                                            result.severity === 'Low' ? 'text-yellow-700' :
+                                                                'text-green-700'
+                                                    }`}>{t(result.severity) || result.severity || 'None'}</p>
+                                            </div>
+                                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-full">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">🎯 Confidence Level</p>
+                                                <div className="flex items-center gap-3 mt-1">
+                                                    <div className="h-2 bg-slate-200 grow rounded-full overflow-hidden">
+                                                        <motion.div
+                                                            initial={{ width: 0 }}
+                                                            animate={{ width: `${result.confidence * 100}%` }}
+                                                            className="h-full bg-primary"
+                                                        />
+                                                    </div>
+                                                    <span className="font-black text-primary text-sm">{(result.confidence * 100).toFixed(1)}%</span>
                                                 </div>
-                                                <span className="font-black text-primary text-sm">{(result.confidence * 100).toFixed(1)}%</span>
                                             </div>
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
 
                                 {/* Recommendations Section */}

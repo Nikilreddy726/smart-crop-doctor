@@ -214,7 +214,9 @@ def analyze_image_colors(img_array):
         "pixel_healthy_ratio": healthy_ratio,
         "pixel_brown_ratio": brown_ratio,
         "pixel_yellow_ratio": yellow_ratio,
-        "white_indicator": white_indicator
+        "white_indicator": white_indicator,
+        "yellow_indicator": yellow_indicator,
+        "brown_indicator": brown_indicator
     }
 
 def validate_is_crop(img_array, analysis, filename=""):

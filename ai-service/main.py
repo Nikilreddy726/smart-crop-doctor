@@ -165,16 +165,28 @@ def analyze_image_colors(img_array):
     perfect_white = np.sum((r_ch > 253) & (g_ch > 253) & (b_ch > 253))
     pure_pixel_ratio = (perfect_black + perfect_white) / total_pixels
 
-    # --- PIXEL-LEVEL RATIOS (Plant Only) ---
-    # Healthy Green: Green is significantly higher than red
-    is_healthy_green = (g_ch > r_ch + 15) & (g_ch > b_ch + 10)
-    # Brown: Red is higher than green, but it's not bright white
-    is_brown = (r_ch > g_ch + 5) & (r_ch > b_ch) & (brightness < 150)
-    # Yellow: Red and Green are high and close
-    is_yellow = (r_ch > b_ch + 20) & (g_ch > b_ch + 15) & (np.abs(r_ch - g_ch) < 30)
+    # --- DIGITAL DETECTION (Unique Colors) ---
+    flattened_img = img_array.reshape(-1, 3).astype(np.int32)
+    combined = (flattened_img[:, 0] << 16) | (flattened_img[:, 1] << 8) | flattened_img[:, 2]
+    unique_values, counts = np.unique(combined, return_counts=True)
+    unique_colors_ratio = len(unique_values) / total_pixels
+    max_single_color_ratio = counts.max() / total_pixels if len(counts) > 0 else 0
+    
+    # Quantized unique colors (Complexity detector)
+    quantized_img = img_array // 10
+    q_flat = quantized_img.reshape(-1, 3).astype(np.int32)
+    q_combined = (q_flat[:, 0] << 16) | (q_flat[:, 1] << 8) | q_flat[:, 2]
+    quantized_unique_ratio = len(np.unique(q_combined)) / total_pixels
 
-    # White spots (Mildew)
+    # --- PIXEL-LEVEL RATIOS (Plant Only) ---
+    is_healthy_green = (g_ch > r_ch + 15) & (g_ch > b_ch + 10)
+    is_brown = (r_ch > g_ch + 5) & (r_ch > b_ch) & (brightness < 150)
+    is_yellow = (r_ch > b_ch + 20) & (g_ch > b_ch + 15) & (np.abs(r_ch - g_ch) < 30)
     is_white = (r_ch > 180) & (g_ch > 180) & (b_ch > 180) & (np.std(img_array, axis=2) < 15)
+
+    # --- SKIN TONE DETECTION (To reject humans) ---
+    is_skin = (r_ch > g_ch + 20) & (g_ch > b_ch) & (r_ch > 40) & (r_ch < 220) & (brightness < 200)
+    skin_ratio = np.sum(is_skin) / total_pixels
 
     return {
         "green_ratio": g_mean / (r_mean + g_mean + b_mean + 0.001),
@@ -189,43 +201,40 @@ def analyze_image_colors(img_array):
         "white_indicator": np.sum(is_white) / total_pixels,
         "yellow_indicator": np.sum(is_yellow) / total_pixels,
         "brown_indicator": np.sum(is_brown) / total_pixels,
-        "quantized_unique_ratio": 0.05, # Temporary bypass for speed
-        "unique_colors_ratio": 0.5,
-        "max_single_color_ratio": 0.05
+        "quantized_unique_ratio": quantized_unique_ratio,
+        "unique_colors_ratio": unique_colors_ratio,
+        "max_single_color_ratio": max_single_color_ratio,
+        "skin_ratio": skin_ratio
     }
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    Stricter filter to reject digital artifacts, humans, and UI.
+    PERMANENT REJECTION SYSTEM: Rejects screenshots, UI, and Humans.
     """
-    # 1. Reject if too many "perfect" digital pixels (Digital UI/Bars)
-    if analysis["pure_pixel_ratio"] > 0.25:
-        return False
-
-    # 2. Reject if it's a "low complexity" digital image
+    # 1. Reject if it's a "low complexity" digital image (Screenshots/UI)
+    # Natural photos have thousands of unique colors. UI has very few.
     if analysis["quantized_unique_ratio"] < 0.008 or analysis["unique_colors_ratio"] < 0.12:
         return False
 
+    # 2. Reject if too many "perfect" digital pixels (UI backgrounds/Bars)
+    if analysis["pure_pixel_ratio"] > 0.15: 
+        return False
+
     # 3. Reject if it has a giant flat background (Digital/Studio)
-    if analysis["max_single_color_ratio"] > 0.15:
+    if analysis["max_single_color_ratio"] > 0.20:
+        return False
+        
+    # 4. SKIN REJECTION: If a huge part is skin-toned, it's a person.
+    if analysis["skin_ratio"] > 0.15:
         return False
 
-    # 4. PLANT LOGIC: A crop must have SOME green or a lot of plant-like texture
-    h_ratio = analysis["pixel_healthy_ratio"]
-    b_ratio = analysis["pixel_brown_ratio"]
-    y_ratio = analysis["pixel_yellow_ratio"]
-    
-    # If there is basically NO green (< 1%), it's almost certainly not a plant leaf
-    if h_ratio < 0.01 and b_ratio < 0.1:
+    # 5. PLANT LOGIC: A crop must have SOME leafy material
+    total_plant_ratio = analysis["pixel_healthy_ratio"] + analysis["pixel_brown_ratio"] + analysis["pixel_yellow_ratio"]
+    if total_plant_ratio < 0.20: 
         return False
 
-    # Total plant tissue must be significant
-    total_plant_ratio = h_ratio + b_ratio + y_ratio
-    if total_plant_ratio < 0.20:
-        return False
-
-    # 5. Texture Variance (Natural things are noisy)
-    if analysis["variance"] < 30:
+    # 6. Texture Variance (Biological items are never "flat")
+    if analysis["variance"] < 25:
         return False
 
     return True

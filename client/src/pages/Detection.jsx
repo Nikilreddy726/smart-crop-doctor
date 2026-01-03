@@ -88,7 +88,10 @@ const Detection = () => {
                         setLoading(false);
                     } else if (job.status === 'failed') {
                         clearInterval(pollInterval);
-                        alert("Analysis Error: " + job.error);
+                        const isTimeout = job.error?.includes("failed to start");
+                        alert(isTimeout
+                            ? "The AI engine is taking a bit longer to wake up. Please wait 10 seconds and try your scan again—it will be ready now!"
+                            : "Analysis Precision Error: " + job.error);
                         setLoading(false);
                     }
                 } catch (e) {

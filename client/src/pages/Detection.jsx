@@ -274,15 +274,15 @@ const Detection = () => {
                                                 <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop}</p>
                                             </div>
                                             <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50/50 border-red-100' :
-                                                    result.severity === 'Medium' ? 'bg-orange-50/50 border-orange-100' :
-                                                        result.severity === 'Low' ? 'bg-yellow-50/50 border-yellow-100' :
-                                                            'bg-green-50/50 border-green-100'
+                                                result.severity === 'Medium' ? 'bg-orange-50/50 border-orange-100' :
+                                                    result.severity === 'Low' ? 'bg-yellow-50/50 border-yellow-100' :
+                                                        'bg-green-50/50 border-green-100'
                                                 }`}>
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⚠️ {t('severity') || 'Severity'}</p>
                                                 <p className={`text-lg font-black mt-1 ${result.severity === 'High' ? 'text-red-700' :
-                                                        result.severity === 'Medium' ? 'text-orange-700' :
-                                                            result.severity === 'Low' ? 'text-yellow-700' :
-                                                                'text-green-700'
+                                                    result.severity === 'Medium' ? 'text-orange-700' :
+                                                        result.severity === 'Low' ? 'text-yellow-700' :
+                                                            'text-green-700'
                                                     }`}>{t(result.severity) || result.severity || 'None'}</p>
                                             </div>
                                             <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-full">
@@ -302,9 +302,45 @@ const Detection = () => {
                                     )}
                                 </div>
 
-                                {/* Recommendations Section */}
+                                {/* REJECTION RECTANGLE ANIMATION (For Non-Crops) */}
+                                {result.disease === 'Not a Crop' && (
+                                    <motion.div
+                                        initial={{ scale: 0.9, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        className="p-10 md:p-12 bg-red-50/30 rounded-[3rem] border-4 border-dashed border-red-100/50 text-center space-y-8 flex flex-col items-center justify-center min-h-[350px] relative overflow-hidden"
+                                    >
+                                        {/* Background Pulse Animation */}
+                                        <motion.div
+                                            animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.1, 1] }}
+                                            transition={{ repeat: Infinity, duration: 3 }}
+                                            className="absolute inset-0 bg-red-100/50 rounded-full blur-[80px] -z-10"
+                                        />
+
+                                        <div className="p-6 rounded-[2rem] bg-red-100 text-red-600 shadow-xl shadow-red-100/50 animate-bounce">
+                                            <AlertTriangle size={56} />
+                                        </div>
+
+                                        <div className="space-y-3">
+                                            <h2 className="text-3xl font-black text-red-900 tracking-tight">
+                                                {t('noCropDetected') || 'Detection Restricted'}
+                                            </h2>
+                                            <p className="text-red-700/70 font-bold max-w-xs mx-auto leading-relaxed">
+                                                {t('noCropDetectedDesc') || 'AI failed to verify plant tissue. Please upload a clear photo of a crop leaf or stem in natural light.'}
+                                            </p>
+                                        </div>
+
+                                        {/* Scanning UI Element */}
+                                        <motion.div
+                                            animate={{ top: ['0%', '100%', '0%'] }}
+                                            transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
+                                            className="absolute left-0 right-0 h-1 bg-red-400/20 backdrop-blur-sm shadow-[0_0_15px_rgba(248,113,113,0.5)] z-10"
+                                        />
+                                    </motion.div>
+                                )}
+
+                                {/* Recommendations Section (Restored for valid crops) */}
                                 {result.disease !== 'Not a Crop' && result.disease !== 'Healthy' && (
-                                    <div className="space-y-6">
+                                    <div className="space-y-6 pt-6">
                                         <div className="space-y-4">
                                             <h3 className="font-black text-sm uppercase tracking-[0.2em] text-slate-400 flex items-center gap-3">
                                                 <div className="h-px bg-slate-100 grow"></div>
@@ -315,20 +351,11 @@ const Detection = () => {
                                                 {result.recommendations?.pesticides?.map((p, i) => (
                                                     <div key={i} className="flex gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
                                                         <div className="bg-white w-8 h-8 rounded-lg flex items-center justify-center text-primary border border-slate-200 font-bold shrink-0 text-sm">{i + 1}</div>
-                                                        <p className="text-slate-600 font-bold leading-snug self-center">{t(p)}</p>
+                                                        <p className="text-slate-600 font-bold leading-snug self-center">{t(p) || p}</p>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
-                                    </div>
-                                )}
-
-                                {/* Special Message for Rejections */}
-                                {result.disease === 'Not a Crop' && (
-                                    <div className="p-8 bg-yellow-50 rounded-3xl border-2 border-dashed border-yellow-200 text-center space-y-4">
-                                        <AlertTriangle className="mx-auto text-yellow-600" size={32} />
-                                        <p className="font-bold text-yellow-900">{t('noCropDetected') || 'Validation Failed'}</p>
-                                        <p className="text-sm text-yellow-700">{t('noCropDetectedDesc') || 'Please upload a clear image of a crop leaf or plant tissue for accurate identification.'}</p>
                                     </div>
                                 )}
 

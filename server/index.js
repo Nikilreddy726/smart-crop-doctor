@@ -40,35 +40,36 @@ const upload = multer({
 });
 
 // --- PERMANENT SOLUTION: RENDER COLD-START PRE-WARMER ---
-// This keeps the AI service awake as long as the backend is running
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL ||
     (process.env.PORT ? 'https://crop-ai-service.onrender.com' : 'http://127.0.0.1:8000');
 
 const keepAIWarm = async () => {
     try {
-        console.log("[WARMER] Pinging AI Engine to prevent sleep...");
-        await axios.get(AI_SERVICE_URL, { timeout: 10000 });
+        console.log("[WARMER] Pinging AI Engine...");
+        // Use a 15s timeout to allow for container boot
+        await axios.get(AI_SERVICE_URL, { timeout: 15000 });
         console.log("[WARMER] AI Engine is Awake");
     } catch (e) {
-        console.log("[WARMER] AI Engine is currently sleeping, wake-up signal sent.");
+        console.log("[WARMER] AI Engine wake-up initiated...");
     }
 };
 
-// Ping every 10 minutes (Render sleeps after 15 mins)
+// Ping every 8 minutes (Render sleeps after 15 mins)
 if (process.env.PORT) {
-    setInterval(keepAIWarm, 10 * 60 * 1000);
-    // Initial ping on startup
-    setTimeout(keepAIWarm, 5000);
+    setInterval(keepAIWarm, 8 * 60 * 1000);
+    setTimeout(keepAIWarm, 5000); // Trigger immediately on start
 }
 
-// Health check endpoint for Frontend to call on landing
+// Health check endpoint
 app.get('/api/health', async (req, res) => {
     const start = Date.now();
     let aiStatus = 'offline';
     try {
-        await axios.get(AI_SERVICE_URL, { timeout: 15000 });
+        // A success here means the container is fully up
+        await axios.get(AI_SERVICE_URL, { timeout: 8000 });
         aiStatus = 'online';
     } catch (e) {
+        // If it's a 502/503/timeout, it's booting
         aiStatus = 'booting';
     }
     res.json({

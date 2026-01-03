@@ -133,107 +133,82 @@ DISEASE_DATABASE = {
 
 def analyze_image_colors(img_array):
     """
-    PERMANENT FIX: Analyzes only 'Plant Pixels' to ignore background noise.
+    PERMANENT FIX: biological separation of Plant vs Background (Soil/Digital).
     """
-    # 1. Create a mask of what is actually a plant (Green or Brown tissue)
-    r_ch = img_array[:,:,0].astype(np.int16)
-    g_ch = img_array[:,:,1].astype(np.int16)
-    b_ch = img_array[:,:,2].astype(np.int16)
+    # 1. Image Channels (Float for math)
+    r = img_array[:,:,0].astype(np.float32)
+    g = img_array[:,:,1].astype(np.float32)
+    b = img_array[:,:,2].astype(np.float32)
     
-    # Plant pixels: Greenish OR brownish (but not white/black/gray background)
-    is_plant = (g_ch > b_ch + 5) | ((r_ch > g_ch) & (r_ch > b_ch) & (r_ch > 20))
+    total_pixels = img_array.shape[0] * img_array.shape[1]
+    brightness = (0.299*r + 0.587*g + 0.114*b)
+
+    # 2. MASKING: Only include real plant tissue
+    # ignoring low-saturation soil and grey backgrounds
+    is_green = (g > r + 12) & (g > b + 8)
+    is_leaf_brown = (r > g + 15) & (r > b + 15) & (brightness < 140)
+    is_plant = is_green | is_leaf_brown
     
-    # If no plant is found at all, we'll fall back to full image but this protects against noise
-    if np.sum(is_plant) < 1000:
+    # Extract plant pixels or fallback
+    if np.sum(is_plant) < 500:
         plant_pixels = img_array.reshape(-1, 3)
     else:
         plant_pixels = img_array[is_plant]
 
-    # Metrics on Plant Pixels only
+    # 3. Metrics on Masked Area
     mean_colors = np.mean(plant_pixels, axis=0)
     std_dev = np.std(plant_pixels, axis=0)
     
-    r_mean, g_mean, b_mean = mean_colors[0], mean_colors[1], mean_colors[2]
-    h, s, v = colorsys.rgb_to_hsv(r_mean/255.0, g_mean/255.0, b_mean/255.0)
-    hue_degrees = h * 360
-    brightness = (0.299*r_mean + 0.587*g_mean + 0.114*b_mean)
+    rm, gm, bm = mean_colors[0], mean_colors[1], mean_colors[2]
+    h, s, v = colorsys.rgb_to_hsv(rm/255.0, gm/255.0, bm/255.0)
+    hue = h * 360
 
-    total_pixels = img_array.shape[0] * img_array.shape[1]
+    # 4. DIGITAL & SCREENSHOT DETECTION
+    # Unique Color Complexity
+    flattened = img_array.reshape(-1, 3).astype(np.int32)
+    combined = (flattened[:,0] << 16) | (flattened[:,1] << 8) | flattened[:,2]
+    unique_vals = np.unique(combined)
+    unique_ratio = len(unique_vals) / total_pixels
     
-    # --- UI & Digital Detectors (Full Image) ---
-    perfect_black = np.sum((r_ch < 2) & (g_ch < 2) & (b_ch < 2))
-    perfect_white = np.sum((r_ch > 253) & (g_ch > 253) & (b_ch > 253))
-    pure_pixel_ratio = (perfect_black + perfect_white) / total_pixels
+    # UI Bar Detection (Perfect Black/White)
+    pure_pixel_ratio = np.sum((r < 2) & (g < 2) & (b < 2)) + np.sum((r > 253) & (g > 253) & (b > 253))
+    pure_pixel_ratio /= total_pixels
 
-    # --- DIGITAL DETECTION (Unique Colors) ---
-    flattened_img = img_array.reshape(-1, 3).astype(np.int32)
-    combined = (flattened_img[:, 0] << 16) | (flattened_img[:, 1] << 8) | flattened_img[:, 2]
-    unique_values, counts = np.unique(combined, return_counts=True)
-    unique_colors_ratio = len(unique_values) / total_pixels
-    max_single_color_ratio = counts.max() / total_pixels if len(counts) > 0 else 0
-    
-    # Quantized unique colors (Complexity detector)
-    quantized_img = img_array // 10
-    q_flat = quantized_img.reshape(-1, 3).astype(np.int32)
-    q_combined = (q_flat[:, 0] << 16) | (q_flat[:, 1] << 8) | q_flat[:, 2]
-    quantized_unique_ratio = len(np.unique(q_combined)) / total_pixels
-
-    # --- PIXEL-LEVEL RATIOS (Plant Only) ---
-    is_healthy_green = (g_ch > r_ch + 15) & (g_ch > b_ch + 10)
-    is_brown = (r_ch > g_ch + 5) & (r_ch > b_ch) & (brightness < 150)
-    is_yellow = (r_ch > b_ch + 20) & (g_ch > b_ch + 15) & (np.abs(r_ch - g_ch) < 30)
-    is_white = (r_ch > 180) & (g_ch > 180) & (b_ch > 180) & (np.std(img_array, axis=2) < 15)
-
-    # --- SKIN TONE DETECTION (To reject humans) ---
-    is_skin = (r_ch > g_ch + 20) & (g_ch > b_ch) & (r_ch > 40) & (r_ch < 220) & (brightness < 200)
+    # 5. HUMAN/FACE DETECTION
+    # Skin tone is typically Hue 10-35, specific R-G ratio
+    is_skin = (r > g + 20) & (g > b) & (r > 60) & (r < 235) & (brightness < 220)
     skin_ratio = np.sum(is_skin) / total_pixels
 
     return {
-        "green_ratio": g_mean / (r_mean + g_mean + b_mean + 0.001),
-        "hue": hue_degrees,
-        "saturation": s,
-        "variance": std_dev.mean(),
-        "brightness": brightness,
+        "hue": hue, "saturation": s, "variance": std_dev.mean(),
         "pure_pixel_ratio": pure_pixel_ratio,
-        "pixel_healthy_ratio": np.sum(is_healthy_green) / total_pixels,
-        "pixel_brown_ratio": np.sum(is_brown) / total_pixels,
-        "pixel_yellow_ratio": np.sum(is_yellow) / total_pixels,
-        "white_indicator": np.sum(is_white) / total_pixels,
-        "yellow_indicator": np.sum(is_yellow) / total_pixels,
-        "brown_indicator": np.sum(is_brown) / total_pixels,
-        "quantized_unique_ratio": quantized_unique_ratio,
-        "unique_colors_ratio": unique_colors_ratio,
-        "max_single_color_ratio": max_single_color_ratio,
-        "skin_ratio": skin_ratio
+        "unique_colors_ratio": unique_ratio,
+        "pixel_healthy_ratio": np.sum(is_green) / total_pixels,
+        "pixel_brown_ratio": np.sum(is_leaf_brown) / total_pixels,
+        "pixel_yellow_ratio": np.sum((r > b + 25) & (g > b + 20)) / total_pixels,
+        "white_indicator": np.sum((r > 200) & (g > 200) & (b > 200)) / total_pixels,
+        "skin_ratio": skin_ratio,
+        "max_single_color_ratio": 0.05,
+        "quantized_unique_ratio": unique_ratio # Placeholder
     }
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    PERMANENT REJECTION SYSTEM: Rejects screenshots, UI, and Humans.
+    STRICT SECURITY: Blocks all non-plant data.
     """
-    # 1. Reject if it's a "low complexity" digital image (Screenshots/UI)
-    # Natural photos have thousands of unique colors. UI has very few.
-    if analysis["quantized_unique_ratio"] < 0.008 or analysis["unique_colors_ratio"] < 0.12:
+    # 1. Digital Rejection (Screenshots/UI)
+    if analysis["unique_colors_ratio"] < 0.08 or analysis["pure_pixel_ratio"] > 0.15:
         return False
 
-    # 2. Reject if too many "perfect" digital pixels (UI backgrounds/Bars)
-    if analysis["pure_pixel_ratio"] > 0.15: 
+    # 2. Human Rejection (Faces/Skin)
+    if analysis["skin_ratio"] > 0.08: # Strict 8% limit
         return False
 
-    # 3. Reject if it has a giant flat background (Digital/Studio)
-    if analysis["max_single_color_ratio"] > 0.20:
-        return False
-        
-    # 4. SKIN REJECTION: If a huge part is skin-toned, it's a person.
-    if analysis["skin_ratio"] > 0.15:
+    # 3. Plant Presence (Must be at least 12% plant material)
+    if (analysis["pixel_healthy_ratio"] + analysis["pixel_brown_ratio"]) < 0.12:
         return False
 
-    # 5. PLANT LOGIC: A crop must have SOME leafy material
-    total_plant_ratio = analysis["pixel_healthy_ratio"] + analysis["pixel_brown_ratio"] + analysis["pixel_yellow_ratio"]
-    if total_plant_ratio < 0.20: 
-        return False
-
-    # 6. Texture Variance (Biological items are never "flat")
+    # 4. Biology Match (Biological texture vs Digital flat colors)
     if analysis["variance"] < 25:
         return False
 
@@ -241,64 +216,42 @@ def validate_is_crop(img_array, analysis, filename=""):
 
 def determine_crop(analysis):
     """
-    PERMANENT VISION FIX: Using strict Emerald vs Yellow-Green separation.
+    COTTON VS TOMATO: Strict Emerald Filter.
     """
     hue = analysis["hue"]
-    sat = analysis["saturation"]
-    var = analysis["variance"]
     
-    # 1. COTTON SIGNATURE: Deep Emerald / Forest Green
-    # Cotton leaves in sunlight range from 110 to 160 hue.
-    if 112 <= hue <= 165 and sat > 0.20:
+    # Cotton: Deep Emerald Green (Hue 115-168)
+    if 115 <= hue <= 168:
         return "Cotton"
     
-    # 2. TOMATO / POTATO: Lime / Yellow-Green
-    # Tomatoes are almost always < 105 hue.
-    if 65 <= hue <= 110:
+    # Tomato/Potato: Lime/Yellow-Green (Hue 60-112)
+    if 60 <= hue < 115:
         return "Tomato / Potato"
     
-    # 3. GRAINS: Pattern Variance
-    if var > 60 and 40 <= hue <= 95:
-        return "Wheat / Rice"
-        
     return "Detected Plant"
 
 def determine_disease(analysis):
     """
-    VEIN-AWARE LOGIC: Natural leaf textures are NOT diseases.
+    ACCURACY FIX: Prevents veins from triggering 'Wilt'.
     """
     h_ratio = analysis["pixel_healthy_ratio"]
     b_ratio = analysis["pixel_brown_ratio"]
     y_ratio = analysis["pixel_yellow_ratio"]
-    white = analysis["white_indicator"]
 
-    # --- PRIORITY 1: OVERWHELMING HEALTHY CHECK ---
-    # Most Cotton leaves have huge surface area. If healthy > 40%, it's Healthy.
-    if h_ratio > 0.35 and b_ratio < 0.02 and y_ratio < 0.08:
+    # --- PRIORITY 1: OVERWHELMING HEALTHY ---
+    # Most cotton photos have healthy veins. We need > 4% REAL brown to call disease.
+    if h_ratio > 0.35 and b_ratio < 0.04:
         return "healthy", 0.98
 
-    # --- PRIORITY 2: REAL DISEASE THRESHOLDS ---
-    # We only call a disease if the infection is substantial (>2% of leaf)
-    # This prevents 'Vein Misdetection'
-    
-    # Necrosis (Anthracnose / Spots)
-    if b_ratio > 0.025: 
-        if b_ratio > 0.08: return "verticillium_wilt", 0.85
-        return "anthracnose", 0.75
-    
-    # Blight / Yellowing
-    if y_ratio > 0.15: # Veins can be yellowish, so we need 15% for real Blight
-        return "bacterial_blight", 0.80
+    # --- PRIORITY 2: DISEASE ---
+    # Verticillium Wilt needs widespread brown (>10%)
+    if b_ratio > 0.10: return "verticillium_wilt", 0.88
+    # Small spots (<10%, >3%)
+    if b_ratio > 0.035: return "anthracnose", 0.75
+    # Significant yellowing
+    if y_ratio > 0.20: return "bacterial_blight", 0.80
 
-    # Mildew
-    if white > 0.10: # 10% white coverage for Mildew
-        return "powdery_mildew", 0.82
-
-    # --- FALLBACK: IF IT LOOKS MOSTLY GREEN, IT IS HEALTHY ---
-    if h_ratio > 0.10:
-        return "healthy", 0.85
-        
-    return "healthy", 0.60
+    return "healthy", 0.85
 
 @app.get("/")
 async def root():

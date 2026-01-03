@@ -101,7 +101,7 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         (async () => {
             try {
                 let aiResult;
-                const maxRetries = 15; // We can now wait up to 2 minutes for the AI
+                const maxRetries = 90; // Wait up to 3 minutes for Render to spin up
                 let attempt = 0;
 
                 while (attempt <= maxRetries) {
@@ -115,20 +115,28 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
                         const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                             headers: formData.getHeaders(),
-                            timeout: 10000
+                            timeout: 12000 // 12s timeout per request
                         });
 
                         aiResult = aiRes.data;
-                        console.log(`[JOB ${jobId}] Engine Responded!`);
+                        console.log(`[JOB ${jobId}] Engine Responded Successfully!`);
                         break;
                     } catch (e) {
+                        // CRITICAL: If the server responded with an actual error (4xx, 5xx), 
+                        // it means it's AWAKE. Stop retrying and report the error.
+                        if (e.response) {
+                            console.error(`[JOB ${jobId}] AI Engine is awake but returned error ${e.response.status}`);
+                            throw new Error(`AI Engine Error: ${e.response.data?.error || e.message}`);
+                        }
+
+                        // Otherwise, it's a network timeout/connection refused (Still Booting)
                         attempt++;
-                        console.log(`[JOB ${jobId}] AI Warming up... (${attempt})`);
+                        if (attempt % 5 === 0) console.log(`[JOB ${jobId}] Still waiting for engine to boot... (Attempt ${attempt}/90)`);
                         await new Promise(r => setTimeout(r, 2000));
                     }
                 }
 
-                if (!aiResult) throw new Error("AI Engine took too long to boot.");
+                if (!aiResult) throw new Error("AI Engine failed to start within 3 minutes. Please try again in a moment.");
 
                 // Check for Not a Crop
                 if (aiResult.disease === 'Not a Crop') {
@@ -153,13 +161,13 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                 let docId = "local-" + Date.now();
                 if (firebaseInitialized && db) {
                     try {
-                        const docRef = await db.collection('predictions').add({
+                        const docSnapshot = await db.collection('predictions').add({
                             ...aiResult,
                             imageUrl,
                             timestamp: admin.firestore.FieldValue.serverTimestamp(),
                             userId: req.body.userId || 'anonymous'
                         });
-                        docId = docRef.id;
+                        docId = docSnapshot.id;
                     } catch (e) { console.log("DB error:", e.message); }
                 }
 
@@ -171,8 +179,8 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                 jobs.set(jobId, { status: 'failed', error: err.message });
             }
 
-            // Cleanup memory after 10 mins
-            setTimeout(() => jobs.delete(jobId), 10 * 60 * 1000);
+            // Cleanup memory after 15 mins
+            setTimeout(() => jobs.delete(jobId), 15 * 60 * 1000);
         })();
 
         res.json({ jobId, status: 'pending' });

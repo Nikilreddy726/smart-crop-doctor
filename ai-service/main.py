@@ -263,25 +263,23 @@ def determine_crop(analysis):
     sat = analysis["saturation"]
     var = analysis["variance"]
     
-    # Cotton Signature: Deep green, high saturation
-    if 95 <= hue <= 125 and sat > 0.32:
+    # Cotton Signature: Pure green to deep green
+    if 90 <= hue <= 140 and sat > 0.25:
         return "Cotton"
     
-    # Tomato/Potato Signature: Yellowish green
-    if 75 <= hue < 95:
+    # Tomato/Potato Signature: Yellow-leaning green
+    if 65 <= hue < 90:
         return "Tomato / Potato"
     
-    # Grains Signature: High variance patterns
-    if var > 50 and 60 <= hue <= 90:
+    # Grains Signature: High variance patterns, lighter hues
+    if var > 60 and 45 <= hue <= 100:
         return "Wheat / Rice"
         
     return "Detected Plant"
 
-
-
 def determine_disease(analysis):
     """
-    Aggressive logic to catch diseases even in early stages or small spots.
+    Refined logic to distinguish real disease from leaf veins/textures.
     """
     
     h_ratio = analysis["pixel_healthy_ratio"]
@@ -290,34 +288,36 @@ def determine_disease(analysis):
     variance = analysis["variance"]
     white = analysis["white_indicator"]
 
-    # --- PRIORITY 1: Necrosis (Brown Spots) ---
-    # Catching even 0.5% damage (500 pixels in 224x224)
-    if b_ratio > 0.005:
-        if variance > 45:
-            return "anthracnose", 0.70 + min(0.25, b_ratio * 10)
-        if y_ratio > 0.02:
+    # --- PRIORITY 1: REAL HEALTHY CHECK ---
+    # If the leaf is overwhelmingly green (>40%), it's almost certainly healthy
+    # unless there's an obvious diseased ratio.
+    if h_ratio > 0.40 and b_ratio < 0.015:
+        return "healthy", 0.95
+
+    # --- PRIORITY 2: Necrosis (Brown Spots) ---
+    # Increased threshold for 'Anthracnose' to avoid vein misdetection
+    if b_ratio > 0.012: # 1.2% damage threshold
+        if variance > 55:
+            return "anthracnose", 0.70 + min(0.25, b_ratio * 5)
+        if y_ratio > 0.05:
             return "bacterial_blight", 0.75 + min(0.20, b_ratio * 5)
-        if b_ratio > 0.04:
-            return "verticillium_wilt", 0.80
+        if b_ratio > 0.06:
+            return "verticillium_wilt", 0.85
         return "septoria_leaf_spot", 0.65
 
-    # --- PRIORITY 2: Powdery Mildew ---
-    if white > 160:
+    # --- PRIORITY 3: Powdery Mildew ---
+    if white > 185:
         return "powdery_mildew", 0.82
 
-    # --- PRIORITY 3: Chlorosis (Yellowing) ---
-    if y_ratio > 0.05:
+    # --- PRIORITY 4: Chlorosis (Yellowing) ---
+    if y_ratio > 0.10:
         return "viral_infection", 0.75
-
-    # --- PRIORITY 4: HEALTHY ONLY IF REALLY CLEAN ---
-    if h_ratio > 0.25 and b_ratio < 0.005 and y_ratio < 0.02:
-        return "healthy", 0.92
 
     # --- FALLBACKS ---
     if h_ratio > 0.15:
-        return "healthy", 0.70
+        return "healthy", 0.75
         
-    return "tomato_leaf_mold", 0.55
+    return "healthy", 0.60 # Default to healthy if unclear but not failing validation
 
 @app.get("/")
 async def root():

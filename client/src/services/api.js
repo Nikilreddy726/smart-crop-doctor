@@ -68,4 +68,13 @@ export const getMandiPrices = async () => {
     return response.data;
 };
 
+export const getHealth = async () => {
+    try {
+        const response = await api.get('/health');
+        return response.data;
+    } catch (e) {
+        return { server: 'offline', ai: 'offline' };
+    }
+};
+
 export default api;

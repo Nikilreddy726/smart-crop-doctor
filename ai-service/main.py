@@ -178,28 +178,25 @@ def analyze_image_colors(img_array):
     # --- UNIQUE COLOR CHECK (The Ultimate Diagram Detector) ---
     # Real photos have THOUSANDS of unique colors due to sensor noise/lighting.
     # Diagrams/Vectors have very few (< 1% of total pixels).
-    # We use a simplified check by sampling or just calculating unique rows if efficient.
-    # For a 224x224 image (50k pixels), a photo usually has >5000 unique colors (10%).
-    # A diagram like the one provided will have < 500 unique colors (1%).
-    flattened_img = img_array.reshape(-1, img_array.shape[2])
-    unique_colors, counts = np.unique(flattened_img, axis=0, return_counts=True)
+    # We use a faster bit-shifting method instead of slow np.unique(axis=0)
+    flattened_img = img_array.reshape(-1, 3).astype(np.int32)
+    # Combine RGB into a single integer for fast unique counting
+    combined = (flattened_img[:, 0] << 16) | (flattened_img[:, 1] << 8) | flattened_img[:, 2]
+    unique_values, counts = np.unique(combined, return_counts=True)
     
-    unique_colors_count = len(unique_colors)
+    unique_colors_count = len(unique_values)
     unique_colors_ratio = unique_colors_count / total_pixels
     
     # --- QUANTIZED COLOR CHECK (Smarter Digital Detector) ---
     # We reduce color depth (divide by 10).
-    # Natural texture has noise that spans even reduced buckets.
-    # Digital gradients (like the weather widget) collapse into very few buckets.
     quantized_img = img_array // 10
-    quantized_flat = quantized_img.reshape(-1, 3)
-    unique_quantized_count = len(np.unique(quantized_flat, axis=0))
+    q_flat = quantized_img.reshape(-1, 3).astype(np.int32)
+    q_combined = (q_flat[:, 0] << 16) | (q_flat[:, 1] << 8) | q_flat[:, 2]
+    unique_quantized_count = len(np.unique(q_combined))
     quantized_unique_ratio = unique_quantized_count / total_pixels
 
     # --- FLAT BACKGROUND CHECK (Digital Image Detector) ---
     # In a digital screenshot (like the weather widget), a large background area is EXACTLY the same color.
-    # In a real photo, sensor noise implies no two large areas are mathematically identical.
-    # We check the frequency of the most common color.
     if len(counts) > 0:
         max_single_color_ratio = counts.max() / total_pixels
     else:

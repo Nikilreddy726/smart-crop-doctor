@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Camera, ImageIcon } from 'lucide-react';
-import { detectDisease } from '../services/api';
+import { detectDisease, getHealth } from '../services/api'; // Added getHealth
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
@@ -14,6 +14,21 @@ const Detection = () => {
     const [result, setResult] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [aiStatus, setAiStatus] = useState('warming'); // Added status state
+
+    // --- AUTO-WARMING LOGIC ---
+    React.useEffect(() => {
+        const warmUp = async () => {
+            console.log("Pre-warming AI Engine...");
+            const health = await getHealth();
+            setAiStatus(health.ai);
+            if (health.ai !== 'online') {
+                // If not online yet, check again in 10s
+                setTimeout(warmUp, 10000);
+            }
+        };
+        warmUp();
+    }, []);
 
     const handleFileChange = (e) => {
         const file = e.target.files[0];
@@ -121,13 +136,25 @@ const Detection = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-12 pb-24">
             <div className="text-center space-y-4">
-                <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="inline-flex items-center gap-2 bg-primary/5 text-primary px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase"
-                >
-                    <Sparkles size={14} /> Neural-Net Diagnostics
-                </motion.div>
+                <div className="flex flex-col items-center gap-4">
+                    <motion.div
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="inline-flex items-center gap-2 bg-primary/5 text-primary px-4 py-2 rounded-full text-[10px] font-black tracking-widest uppercase"
+                    >
+                        <Sparkles size={14} /> Neural-Net Diagnostics
+                    </motion.div>
+
+                    {/* Status Indicator */}
+                    <motion.div
+                        animate={{ opacity: [0.5, 1, 0.5] }}
+                        transition={{ repeat: Infinity, duration: 2 }}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${aiStatus === 'online' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'
+                            }`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${aiStatus === 'online' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+                        Engine: {aiStatus === 'online' ? 'Ready' : 'Warming Up...'}
+                    </motion.div>
+                </div>
                 <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter">{t('aiCropDoctor')}</h1>
                 <p className="text-slate-500 text-lg max-w-2xl mx-auto font-medium">{t('detectionSubtitle')}</p>
             </div>

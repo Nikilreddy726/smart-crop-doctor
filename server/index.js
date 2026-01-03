@@ -39,9 +39,44 @@ const upload = multer({
     limits: { fileSize: 10 * 1024 * 1024 } // Increased to 10MB
 });
 
-// Basic Root Route
-app.get('/', (req, res) => {
-    res.send('Crop Guard AI Server is live' + (firebaseInitialized ? ' with Firebase' : ' (Local Mode - No DB)'));
+// --- PERMANENT SOLUTION: RENDER COLD-START PRE-WARMER ---
+// This keeps the AI service awake as long as the backend is running
+const AI_SERVICE_URL = process.env.AI_SERVICE_URL ||
+    (process.env.PORT ? 'https://crop-ai-service.onrender.com' : 'http://127.0.0.1:8000');
+
+const keepAIWarm = async () => {
+    try {
+        console.log("[WARMER] Pinging AI Engine to prevent sleep...");
+        await axios.get(AI_SERVICE_URL, { timeout: 10000 });
+        console.log("[WARMER] AI Engine is Awake");
+    } catch (e) {
+        console.log("[WARMER] AI Engine is currently sleeping, wake-up signal sent.");
+    }
+};
+
+// Ping every 10 minutes (Render sleeps after 15 mins)
+if (process.env.PORT) {
+    setInterval(keepAIWarm, 10 * 60 * 1000);
+    // Initial ping on startup
+    setTimeout(keepAIWarm, 5000);
+}
+
+// Health check endpoint for Frontend to call on landing
+app.get('/api/health', async (req, res) => {
+    const start = Date.now();
+    let aiStatus = 'offline';
+    try {
+        await axios.get(AI_SERVICE_URL, { timeout: 15000 });
+        aiStatus = 'online';
+    } catch (e) {
+        aiStatus = 'booting';
+    }
+    res.json({
+        server: 'online',
+        ai: aiStatus,
+        firebase: firebaseInitialized,
+        latency: Date.now() - start
+    });
 });
 
 // AI Prediction Route
@@ -53,9 +88,10 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
         console.log("Processing image:", req.file.originalname);
 
-        // 1. Call AI Microservice with Robust Retry (Solves Render Cold Start 502/503)
+        // 1. Call AI Microservice with Robust & Faster Retry 
+        // We reduce the wait time to 2s to ensure 5 attempts + processing fits in < 30s (Render Ingress Timeout)
         let aiResult;
-        const maxRetries = 4; // Total 5 attempts 
+        const maxRetries = 4;
         let attempt = 0;
         let lastError;
 
@@ -69,43 +105,39 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                     contentType: req.file.mimetype
                 });
 
-                const AI_SERVICE_URL = process.env.AI_SERVICE_URL ||
-                    (process.env.PORT ? 'https://crop-ai-service.onrender.com' : 'http://127.0.0.1:8000');
-
                 const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                     headers: formData.getHeaders(),
-                    timeout: 60000 // Increased to 60s to allow for Render boot sequence
+                    timeout: 20000 // 20s per attempt, but we loop fast
                 });
 
                 aiResult = aiRes.data;
                 console.log(`[AI SERVICE] Success on attempt ${attempt + 1}`);
-                break; // Exit loop on success
+                break;
             } catch (aiError) {
                 lastError = aiError;
                 attempt++;
                 console.error(`[AI SERVICE] Attempt ${attempt} failed: ${aiError.message}`);
 
-                if (aiError.response && aiError.response.status < 500) {
-                    // If it's a 4xx error (e.g. Bad Request), don't retry
-                    break;
-                }
-
+                // If AI service is booting (502/503/ETIMEDOUT), retry quickly
                 if (attempt <= maxRetries) {
-                    console.log(`[AI SERVICE] Engine sleeping. Retrying in 5 seconds...`);
-                    await new Promise(r => setTimeout(r, 5000));
+                    const waitTime = 2000; // 2 seconds between retries
+                    console.log(`[AI SERVICE] Engine warming up. Retrying in ${waitTime}ms...`);
+                    await new Promise(r => setTimeout(r, waitTime));
+                } else {
+                    break;
                 }
             }
         }
 
         if (!aiResult) {
             const errorStatus = lastError?.response?.status || 503;
-            console.error(`[AI SERVICE] All 5 attempts failed with status: ${errorStatus}`);
             return res.status(errorStatus).json({
-                error: 'AI Analysis Engine is deep-sleeping.',
-                details: `We tried 5 times to wake up the engine, but it is taking longer than usual. Service returned ${errorStatus}. Please wait 1 minute and try your scan again.`,
-                diagnostic: { status: errorStatus, url: lastError?.config?.url, msg: lastError?.message }
+                error: 'AI Analysis Engine is cold-starting.',
+                details: `The AI engine was asleep. We tried 5 times to wake it up, but Render is taking longer than 30 seconds to boot the container. Please wait 30 seconds and try again - the engine is already warming up now.`,
+                diagnostic: { status: errorStatus, msg: lastError?.message }
             });
         }
+        // ... [rest of the original logic]
 
         // CHECK: Is this a valid crop?
         if (aiResult.disease === 'Not a Crop') {

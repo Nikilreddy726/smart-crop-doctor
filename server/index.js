@@ -88,16 +88,16 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
         console.log("Processing image:", req.file.originalname);
 
-        // 1. Call AI Microservice with Robust & Faster Retry 
-        // We reduce the wait time to 2s to ensure 5 attempts + processing fits in < 30s (Render Ingress Timeout)
+        // 1. Call AI Microservice with Enhanced Fast-Retry 
+        // We use a short timeout (10s) to "kick" Render awake without hanging for 30s
         let aiResult;
-        const maxRetries = 4;
+        const maxRetries = 8; // More retries
         let attempt = 0;
         let lastError;
 
         while (attempt <= maxRetries) {
             try {
-                console.log(`[AI SERVICE] Attempt ${attempt + 1}/${maxRetries + 1} for ${req.file.originalname}`);
+                console.log(`[AI SERVICE] Wake-up call ${attempt + 1}/${maxRetries + 1}...`);
                 const FormData = require('form-data');
                 const formData = new FormData();
                 formData.append('file', req.file.buffer, {
@@ -107,24 +107,24 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
                 const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                     headers: formData.getHeaders(),
-                    timeout: 20000 // 20s per attempt, but we loop fast
+                    timeout: 10000 // 10s timeout per kick
                 });
 
                 aiResult = aiRes.data;
-                console.log(`[AI SERVICE] Success on attempt ${attempt + 1}`);
+                console.log(`[AI SERVICE] Success! Engine is online.`);
                 break;
             } catch (aiError) {
                 lastError = aiError;
                 attempt++;
-                console.error(`[AI SERVICE] Attempt ${attempt} failed: ${aiError.message}`);
 
-                // If AI service is booting (502/503/ETIMEDOUT), retry quickly
+                // If we get an actual response (like 400), stop retrying
+                if (aiError.response && aiError.response.status < 500) break;
+
+                console.log(`[AI SERVICE] Still booting... (Attempt ${attempt} failed)`);
+
                 if (attempt <= maxRetries) {
-                    const waitTime = 2000; // 2 seconds between retries
-                    console.log(`[AI SERVICE] Engine warming up. Retrying in ${waitTime}ms...`);
-                    await new Promise(r => setTimeout(r, waitTime));
-                } else {
-                    break;
+                    // Constant 1.5s wait between pings
+                    await new Promise(r => setTimeout(r, 1500));
                 }
             }
         }
@@ -132,8 +132,8 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         if (!aiResult) {
             const errorStatus = lastError?.response?.status || 503;
             return res.status(errorStatus).json({
-                error: 'AI Analysis Engine is cold-starting.',
-                details: `The AI engine was asleep. We tried 5 times to wake it up, but Render is taking longer than 30 seconds to boot the container. Please wait 30 seconds and try again - the engine is already warming up now.`,
+                error: 'AI Engine Cold-Start',
+                details: `The AI engine is taking longer than 30 seconds to boot on Render's free tier. Please wait 10 seconds and try again—the engine is already in the final stage of booting now.`,
                 diagnostic: { status: errorStatus, msg: lastError?.message }
             });
         }

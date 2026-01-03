@@ -200,15 +200,31 @@ const Detection = () => {
 
                             <AnimatePresence mode="wait">
                                 {!result && !loading && (
-                                    <motion.button
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        onClick={handleUpload}
-                                        className="w-full btn-primary py-6 rounded-2xl text-xl font-black shadow-2xl shadow-primary/20 flex items-center justify-center gap-3"
-                                    >
-                                        <Sparkles size={24} />
-                                        {t('analyzeInfection')}
-                                    </motion.button>
+                                    <div className="space-y-4 w-full">
+                                        <motion.button
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            onClick={handleUpload}
+                                            disabled={aiStatus !== 'online'}
+                                            className={`w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all ${aiStatus === 'online'
+                                                    ? 'bg-primary text-white shadow-primary/20 hover:scale-[1.02] active:scale-95'
+                                                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                                }`}
+                                        >
+                                            <Sparkles size={24} />
+                                            {aiStatus === 'online' ? t('analyzeInfection') : 'Engine Warming...'}
+                                        </motion.button>
+
+                                        {aiStatus !== 'online' && (
+                                            <p className="text-center text-[10px] text-slate-400 font-bold px-4 leading-tight animate-pulse">
+                                                ⏳ {t('waitingForEngine') || 'AI engine is waking up from sleep. The button will enable automatically in a few seconds...'}
+                                                <br />
+                                                <span className="text-[9px] font-medium opacity-50">
+                                                    (Render Free Tier takes ~30s to boot after inactivity)
+                                                </span>
+                                            </p>
+                                        )}
+                                    </div>
                                 )}
 
                                 {loading && (

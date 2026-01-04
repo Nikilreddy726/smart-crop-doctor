@@ -40,9 +40,9 @@ const upload = multer({
 });
 
 // --- PERMANENT SOLUTION: RENDER COLD-START PRE-WARMER ---
-// We use the 'smart-crop-doctor' URL which we verified is the live AI engine.
-const AI_SERVICE_URL = process.env.AI_SERVICE_URL ||
-    (process.env.PORT ? 'https://smart-crop-doctor.onrender.com' : 'http://127.0.0.1:8000');
+// HARD-OVERRIDE: The environment variable on Render is currently pointing to a 404 URL.
+// We are forcing the system to use the verified working AI engine URL.
+const AI_SERVICE_URL = 'https://smart-crop-doctor.onrender.com';
 
 const keepAIWarm = async () => {
     try {

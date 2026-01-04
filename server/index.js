@@ -118,34 +118,41 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         // Run AI Analysis in the background so we can return the Job ID immediately
         (async () => {
             try {
-                let aiResult;
-                const maxRetries = 90;
+                const maxRetries = 150; // Wait up to 5 minutes
                 let attempt = 0;
+                let aiResult = null;
+                const FormData = require('form-data');
+
                 while (attempt <= maxRetries) {
                     try {
-                        const FormData = require('form-data');
                         const formData = new FormData();
                         formData.append('file', req.file.buffer, {
                             filename: req.file.originalname,
                             contentType: req.file.mimetype
                         });
 
+                        console.log(`[JOB ${jobId}] Pinging AI Engine (Request Timeout: 30s)...`);
                         const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                             headers: formData.getHeaders(),
-                            timeout: 15000
+                            timeout: 30000
                         });
 
-                        aiResult = aiRes.data;
-                        console.log(`[JOB ${jobId}] Engine Responded Successfully!`);
-                        break;
+                        if (aiRes.data) {
+                            aiResult = aiRes.data;
+                            console.log(`[JOB ${jobId}] Engine Responded Successfully!`);
+                            break;
+                        }
                     } catch (e) {
-                        const isBooting = !e.response || [502, 503, 504].includes(e.response.status);
+                        // 502/503/504 or Socket Error means it's booting
+                        const isBooting = !e.response || [502, 503, 504].includes(e.response.status) || e.code === 'ECONNABORTED';
+
                         if (!isBooting) {
                             console.error(`[JOB ${jobId}] AI Engine returned REAL error ${e.response?.status}`);
                             throw new Error(`AI Engine Error: ${e.response?.data?.error || e.message}`);
                         }
+
                         attempt++;
-                        if (attempt % 5 === 0) console.log(`[JOB ${jobId}] Engine is waking up... (Attempt ${attempt}/90)`);
+                        if (attempt % 5 === 0) console.log(`[JOB ${jobId}] Engine is waking up... (Attempt ${attempt}/${maxRetries})`);
                         await new Promise(r => setTimeout(r, 2000));
                     }
                 }

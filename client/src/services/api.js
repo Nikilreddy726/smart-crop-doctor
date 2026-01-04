@@ -15,23 +15,15 @@ export const detectDisease = async (imageFile) => {
     const formData = new FormData();
     formData.append('image', imageFile);
 
-    let retryCount = 0;
-    const maxRetries = 2;
-
     const performDetection = async () => {
         try {
             const response = await api.post('/detect', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
-                timeout: 45000 // 45s on frontend
+                timeout: 60000 // 60s for job submission
             });
             return response.data;
         } catch (error) {
-            if (error.response?.status === 503 && retryCount < maxRetries) {
-                retryCount++;
-                console.log(`[RETRY] AI Cold-start detected (503). Retrying ${retryCount}/${maxRetries}...`);
-                await new Promise(r => setTimeout(r, 5000)); // Wait 5s before retry
-                return performDetection();
-            }
+            console.error("Detection submission failed:", error.message);
             throw error;
         }
     };

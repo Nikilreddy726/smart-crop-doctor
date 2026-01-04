@@ -67,8 +67,11 @@ app.get('/api/health', async (req, res) => {
     let aiError = null;
 
     try {
-        // A success here means the container is fully up
-        await axios.get(AI_SERVICE_URL, { timeout: 8000 });
+        // Render cold start can take 30-40 seconds. 
+        // We increase the timeout to 45s to ensure we don't call it 'offline' 
+        // while it's still successfully waking up.
+        console.log(`[HEALTH] Checking AI at ${AI_SERVICE_URL}...`);
+        await axios.get(AI_SERVICE_URL, { timeout: 45000 });
         aiStatus = 'online';
     } catch (e) {
         // Log specifically what's happening

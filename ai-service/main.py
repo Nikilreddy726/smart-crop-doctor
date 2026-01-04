@@ -255,7 +255,14 @@ def determine_disease(analysis):
 
 @app.get("/")
 async def root():
-    return {"message": "Crop Disease Analysis AI is Online", "version": "2.1.0"}
+    """
+    Health check for Render.
+    """
+    return {
+        "status": "online",
+        "message": "Crop Analysis Engine 2.1.0 Ready",
+        "endpoints": ["/predict"]
+    }
 
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
@@ -267,7 +274,7 @@ async def predict(file: UploadFile = File(...)):
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         
-        # Resize for analysis
+        # Resize for analysis - significantly speeds up processing on free tier
         image = image.resize((224, 224))
         img_array = np.array(image)
         
@@ -277,32 +284,25 @@ async def predict(file: UploadFile = File(...)):
         is_valid_crop = validate_is_crop(img_array, analysis, file.filename)
         
         if not is_valid_crop:
-            print(f"--- VALIDATION REJECTED: {file.filename} ---")
             disease_key = "not_a_crop"
             confidence = 0.0
+            detected_crop_name = "Unknown Object"
         else:
-            # 3. Vision-Based Crop Identification (The Key Fix)
+            # 3. Vision-Based Crop Identification
             detected_crop_name = determine_crop(analysis)
             
             # 4. Disease Determination
             disease_key, confidence = determine_disease(analysis)
             
-            # 5. DEMO ENHANCEMENT: Filename Context Awareness (Optional Override)
+            # 5. Filename Context (Optional)
             filename = file.filename.lower()
             if "healthy" in filename:
                 disease_key = "healthy"
                 confidence = 0.98
-            elif "cotton" in filename: # Hint for crop name
-                detected_crop_name = "Cotton"
-
-            # LOGGING
-            print(f"--- PREDICTION LOG ---")
-            print(f"Detected Crop: {detected_crop_name} | Disease: {disease_key}")
-            print(f"----------------------")
 
         # Fetch data
         disease_info = DISEASE_DATABASE.get(disease_key, DISEASE_DATABASE["healthy"])
-        final_crop = detected_crop_name if disease_key != "not_a_crop" else "Unknown Object"
+        final_crop = detected_crop_name
 
         return {
             "disease": disease_info["name"],
@@ -311,15 +311,16 @@ async def predict(file: UploadFile = File(...)):
             "confidence": round(confidence, 4),
             "recommendations": disease_info["recommendations"],
             "analysis": {
-                "health_index": round(analysis["green_ratio"] * 100, 1),
-                "chlorosis_index": round(analysis["yellow_indicator"] / 5, 1),
-                "necrosis_index": round(analysis["brown_indicator"] / 5, 1)
+                "health_index": round(analysis.get("pixel_healthy_ratio", 0) * 100, 1),
+                "chlorosis_index": round(analysis.get("pixel_yellow_ratio", 0) * 100, 1),
+                "necrosis_index": round(analysis.get("pixel_brown_ratio", 0) * 100, 1)
             }
         }
     except Exception as e:
-        print(f"AI ERROR: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
+        print(f"AI ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Analysis Engine Error: {str(e)}")
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.environ.get("PORT", 10000)) # Default to 10000 for Render
+    uvicorn.run(app, host="0.0.0.0", port=port)

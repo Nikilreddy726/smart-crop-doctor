@@ -89,6 +89,7 @@ app.get('/api/health', async (req, res) => {
 
     res.json({
         server: 'online',
+        version: '1.2.5', // Track deployment
         ai: aiStatus,
         aiDetail: aiError,
         aiUrl: AI_SERVICE_URL,

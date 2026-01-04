@@ -64,17 +64,30 @@ if (process.env.PORT) {
 app.get('/api/health', async (req, res) => {
     const start = Date.now();
     let aiStatus = 'offline';
+    let aiError = null;
+
     try {
         // A success here means the container is fully up
         await axios.get(AI_SERVICE_URL, { timeout: 8000 });
         aiStatus = 'online';
     } catch (e) {
+        // Log specifically what's happening
+        aiError = e.response ? `HTTP ${e.response.status}` : e.message;
+
         // If it's a 502/503/timeout, it's booting
-        aiStatus = 'booting';
+        // If it's a 404 or connection refused, it's misconfigured/dead
+        if (e.response?.status === 502 || e.response?.status === 503 || e.code === 'ECONNABORTED') {
+            aiStatus = 'booting';
+        } else {
+            aiStatus = 'offline';
+        }
     }
+
     res.json({
         server: 'online',
         ai: aiStatus,
+        aiDetail: aiError,
+        aiUrl: AI_SERVICE_URL,
         firebase: firebaseInitialized,
         latency: Date.now() - start
     });

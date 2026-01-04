@@ -317,6 +317,8 @@ async def predict(file: UploadFile = File(...)):
 
         return {
             "disease": disease_info["name"],
+            "scientific_name": disease_info.get("scientific_name", ""),
+            "pathogen": disease_info.get("pathogen", "Biological"),
             "crop": final_crop,
             "severity": disease_info["severity"],
             "confidence": round(confidence, 4),

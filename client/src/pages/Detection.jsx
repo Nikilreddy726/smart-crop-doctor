@@ -205,14 +205,10 @@ const Detection = () => {
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             onClick={handleUpload}
-                                            disabled={aiStatus !== 'online'}
-                                            className={`w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all ${aiStatus === 'online'
-                                                ? 'bg-primary text-white shadow-primary/20 hover:scale-[1.02] active:scale-95'
-                                                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                                                }`}
+                                            className="w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all bg-primary text-white shadow-primary/20 hover:scale-[1.02] active:scale-95"
                                         >
                                             <Sparkles size={24} />
-                                            {aiStatus === 'online' ? t('analyzeInfection') : 'Engine Warming...'}
+                                            {t('analyzeInfection')}
                                         </motion.button>
 
                                         {aiStatus !== 'online' && (

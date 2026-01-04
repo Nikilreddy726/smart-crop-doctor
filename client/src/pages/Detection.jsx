@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Camera, ImageIcon } from 'lucide-react';
+import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Camera, ImageIcon, Leaf } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import api, { detectDisease, getHealth } from '../services/api';
 import { motion, AnimatePresence } from 'framer-motion';

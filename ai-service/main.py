@@ -203,18 +203,34 @@ def analyze_image_colors(img_array):
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    SECURITY GATE: Blocks screenshots and faces.
+    SECURITY GATE: Blocks screenshots, app UI, and human faces.
     """
-    # Digital check
-    if analysis["unique_colors_ratio"] < 0.05 or analysis["pure_pixel_ratio"] > 0.25:
+    # 1. Digital/Screenshot Detection
+    # Real natural photos have high entropy (many shades of green). 
+    # App UI uses gradients and flat colors with very low unique color counts.
+    if analysis["unique_colors_ratio"] < 0.08:
         return False
-    # Human check
+        
+    # 2. Pure Digital Pixel Check
+    # Natural photos aren't "perfect". Screenshots have large blocks of 255,255,255 or 0,0,0.
+    if analysis["pure_pixel_ratio"] > 0.30:
+        return False
+
+    # 3. Texture/Variance Check
+    # Real plant material has high color variance (Std Dev) due to cell structure.
+    # UI gradients are too smooth.
+    if analysis["variance"] < 15.0:
+        return False
+
+    # 4. Human Guard
     if analysis["skin_ratio"] > 0.12:
         return False
-    # Plant material check (Lowered to 5% to be safer for real photos)
+
+    # 5. Plant Material Check
     total_bio = analysis["pixel_healthy_ratio"] + analysis["pixel_brown_ratio"] + analysis["pixel_yellow_ratio"]
     if total_bio < 0.05: 
         return False
+        
     return True
 
 def determine_crop(analysis):

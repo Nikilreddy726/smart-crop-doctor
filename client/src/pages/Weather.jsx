@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CloudSun, Droplets, Wind, Thermometer, MapPin, Search, Loader2, Navigation } from 'lucide-react';
+import { CloudSun, Droplets, Wind, Thermometer, MapPin, Search, Loader2, Navigation, CheckCircle } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
 import { getWeather } from '../services/api';
 
@@ -288,14 +288,14 @@ const Weather = () => {
                             <div className="space-y-1">
                                 <span className="text-[10px] font-black uppercase text-slate-400">Current Rating</span>
                                 <h5 className={`text-2xl font-black ${(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'text-red-600' :
-                                        (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'text-orange-500' : 'text-emerald-600'
+                                    (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'text-orange-500' : 'text-emerald-600'
                                     }`}>
                                     {(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'FORBIDDEN' :
                                         (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'RISKY' : 'OPTIMAL'}
                                 </h5>
                             </div>
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'bg-red-600' :
-                                    (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'bg-orange-500' : 'bg-emerald-600'
+                                (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'bg-orange-500' : 'bg-emerald-600'
                                 }`}>
                                 <CheckCircle size={24} />
                             </div>

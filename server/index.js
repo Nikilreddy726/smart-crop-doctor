@@ -186,7 +186,11 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                             ...aiResult,
                             imageUrl,
                             timestamp: admin.firestore.FieldValue.serverTimestamp(),
-                            userId: req.body.userId || 'anonymous'
+                            userId: req.body.userId || 'anonymous',
+                            location: {
+                                lat: req.body.lat ? parseFloat(req.body.lat) : null,
+                                lon: req.body.lon ? parseFloat(req.body.lon) : null
+                            }
                         });
                         docId = docSnapshot.id;
                     } catch (e) { console.log("DB error:", e.message); }
@@ -242,6 +246,66 @@ app.get('/api/weather', async (req, res) => {
 
         const data = response.data;
         const current = data.current;
+
+        // Regional Outbreaks API (Phase 8 of Plantix Workflow)
+        app.get('/api/outbreaks', async (req, res) => {
+            try {
+                let outbreaks = [];
+                if (firebaseInitialized && db) {
+                    // Get last 14 days of data
+                    const fourteenDaysAgo = new Date();
+                    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+                    const snapshot = await db.collection('predictions')
+                        .where('timestamp', '>=', fourteenDaysAgo)
+                        .orderBy('timestamp', 'desc')
+                        .limit(100)
+                        .get();
+
+                    const scans = [];
+                    snapshot.forEach(doc => scans.push(doc.data()));
+
+                    // Logic: Group by disease and rough location (1 decimal place = ~11km)
+                    const map = new Map();
+                    scans.forEach(s => {
+                        if (s.disease === 'Healthy' || s.disease === 'Not a Crop') return;
+                        const locKey = s.location?.lat ? `${s.location.lat.toFixed(1)},${s.location.lon.toFixed(1)}` : 'global';
+                        const key = `${s.disease}_${locKey}`;
+                        if (map.has(key)) {
+                            map.get(key).count += 1;
+                        } else {
+                            map.set(key, { disease: s.disease, crop: s.crop, count: 1, lat: s.location?.lat, lon: s.location?.lon });
+                        }
+                    });
+
+                    outbreaks = Array.from(map.values())
+                        .sort((a, b) => b.count - a.count)
+                        .slice(0, 5)
+                        .map(o => ({
+                            crop: o.crop || 'General',
+                            disease: o.disease,
+                            status: o.count > 5 ? 'Critical Outbreak' : o.count > 2 ? 'High Risk' : 'Monitoring',
+                            color: o.count > 2 ? 'bg-red-500' : 'bg-orange-500',
+                            trend: 'rising'
+                        }));
+                }
+
+                // Fallback: If no real outbreaks, show regional simulated data based on season
+                if (outbreaks.length < 3) {
+                    const simulated = [
+                        { crop: 'Wheat', disease: 'Leaf Rust', status: 'Rising', color: 'bg-orange-500', trend: 'rising' },
+                        { crop: 'Cotton', disease: 'Bacterial Blight', status: 'Alert', color: 'bg-red-500', trend: 'stable' },
+                        { crop: 'Tomato', disease: 'Early Blight', status: 'Warning', color: 'bg-yellow-500', trend: 'rising' }
+                    ];
+                    outbreaks = [...outbreaks, ...simulated.slice(0, 4 - outbreaks.length)];
+                }
+
+                res.json(outbreaks);
+            } catch (e) {
+                console.error("Outbreak API failed:", e.message);
+                res.status(500).json({ error: e.message });
+            }
+        });
 
         // WMO Weather Code Mapping (Simplified for brevity, same as before)
         const weatherCodes = {

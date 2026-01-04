@@ -64,9 +64,20 @@ const Detection = () => {
         setResult(null);
         setSaved(false);
 
+        // Get Location Coords for Outbreak Mapping (Plantix Workflow Step 6)
+        let location = null;
         try {
-            // 1. Submit the Job (Prevent 30s timeout)
-            const initialResponse = await detectDisease(selectedFile);
+            const pos = await new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+            });
+            location = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+        } catch (e) {
+            console.log("Location tagging skipped:", e.message);
+        }
+
+        try {
+            // 1. Submit the Job with Location Metadata
+            const initialResponse = await detectDisease(selectedFile, location);
             const { jobId } = initialResponse;
 
             if (!jobId) {

@@ -8,138 +8,187 @@ const AgriShops = () => {
 
     const shops = [
         {
-            name: "Patel Krishi Seva Kendra",
+            name: "Krishi Seva Kendra",
             owner: "Rajesh Patel",
-            distance: "2.4 km",
-            rating: 4.8,
-            tags: ["Seeds", "Pesticides"],
-            image: "https://images.unsplash.com/photo-1592417817098-8fd3d9eb14a5?auto=format&fit=crop&q=80&w=200",
-            verified: true
+            distance: "1.2 km",
+            rating: 4.9,
+            tags: ["Certified Seeds", "Expert Advice"],
+            image: "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=400",
+            verified: true,
+            status: "Open Now"
         },
         {
-            name: "Sai Ram Agriculture",
-            owner: "V. Sai Ram",
-            distance: "4.1 km",
-            rating: 4.5,
-            tags: ["Fertilizers", "Tools"],
-            image: "https://images.unsplash.com/photo-1622383563227-04401ab4e5ea?auto=format&fit=crop&q=80&w=200",
-            verified: true
+            name: "Modern Farmer's Hub",
+            owner: "Dr. Ananya Reddy",
+            distance: "3.5 km",
+            rating: 4.7,
+            tags: ["NPK Specialized", "Smart Tools"],
+            image: "https://images.unsplash.com/photo-1530507629858-e4977d30e9e0?auto=format&fit=crop&q=80&w=400",
+            verified: true,
+            status: "Fast Moving"
         },
         {
-            name: "Kumar Agri Shop",
-            owner: "Satish Kumar",
-            distance: "7.8 km",
-            rating: 4.2,
-            tags: ["Irrigation", "Pumps"],
-            image: "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?auto=format&fit=crop&q=80&w=200",
-            verified: true
+            name: "Apex Agri Solutions",
+            owner: "Vikram Shah",
+            distance: "6.8 km",
+            rating: 4.4,
+            tags: ["Bulk Fertilizers", "Pumps"],
+            image: "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&q=80&w=400",
+            verified: true,
+            status: "High Stock"
         }
     ];
 
     const products = [
-        { name: "Organic Urea 46%", price: "₹266", unit: "45kg Bag", img: "📦" },
-        { name: "Hybrid Paddy Seeds", price: "₹850", unit: "10kg", img: "🌾" },
-        { name: "Potash MOP", price: "₹1,700", unit: "50kg Bag", img: "🧱" },
-        { name: "Neem Pesticide", price: "₹450", unit: "1 Liter", img: "🧴" }
+        { name: "Micro-Nutrient Urea", price: "₹266", unit: "45kg Bag", img: "📦", stock: "In Stock", color: "from-emerald-500 to-green-600" },
+        { name: "Hybrid Paddy V2", price: "₹850", unit: "10kg", img: "🌾", stock: "High Demand", color: "from-amber-500 to-orange-600" },
+        { name: "Super Potash MOP", price: "₹1,700", unit: "50kg Bag", img: "🧱", stock: "Limited", color: "from-indigo-500 to-blue-600" },
+        { name: "Bio-Neem Power", price: "₹450", unit: "1 Liter", img: "🧴", stock: "In Stock", color: "from-rose-500 to-pink-600" }
     ];
 
     return (
-        <div className="max-w-6xl mx-auto pb-20">
-            <div className="mb-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
+            {/* Header Section */}
+            <div className="relative mb-20">
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex justify-between items-end"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-indigo-900 rounded-[4rem] p-12 md:p-20 text-white overflow-hidden shadow-[0_40px_100px_-20px_rgba(49,46,129,0.3)]"
                 >
-                    <div>
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="p-3 bg-amber-500 rounded-2xl shadow-lg shadow-amber-100 text-white">
-                                <Store size={32} />
-                            </div>
-                            <h1 className="text-4xl font-black text-slate-900 tracking-tight">{t('agriShops')}</h1>
+                    <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none" />
+                    <div className="relative z-10 max-w-2xl">
+                        <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 mb-8">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-xs font-black uppercase tracking-widest text-emerald-200">Verified Marketplace</span>
                         </div>
-                        <p className="text-slate-500 font-medium">{t('nearbyShops')}</p>
+                        <h1 className="text-5xl md:text-7xl font-black mb-6 leading-[0.9] tracking-tighter">
+                            Your Local <span className="text-amber-400">Agri-Hub.</span>
+                        </h1>
+                        <p className="text-lg md:text-xl font-medium text-indigo-100 opacity-80 leading-relaxed mb-10">
+                            Connect with verified dealers, check live stock, and source professional-grade inputs for your farm.
+                        </p>
+                        <div className="flex flex-wrap gap-4">
+                            <button className="px-8 py-4 bg-amber-400 text-indigo-950 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-xl shadow-amber-900/20">
+                                Find Nearest Shop
+                            </button>
+                            <button className="px-8 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/20 transition-all">
+                                Price Trends
+                            </button>
+                        </div>
                     </div>
                 </motion.div>
             </div>
 
-            {/* Shop Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
-                {shops.map((shop, i) => (
-                    <motion.div
-                        key={i}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.1 }}
-                        className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl shadow-slate-100 border border-slate-50 group hover:shadow-2xl transition-all duration-500"
-                    >
-                        <div className="relative h-48 overflow-hidden">
-                            <img src={shop.image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                            <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-lg">
-                                <Star size={14} className="text-amber-500 fill-amber-500" />
-                                <span className="text-xs font-black text-slate-900">{shop.rating}</span>
-                            </div>
-                        </div>
-                        <div className="p-8">
-                            <div className="flex justify-between items-start mb-4">
-                                <h3 className="text-xl font-black text-slate-900 leading-tight">{shop.name}</h3>
-                                {shop.verified && (
-                                    <div className="bg-blue-50 text-blue-600 p-1.5 rounded-full" title="Verified Seller">
-                                        <ShieldCheck size={18} />
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex items-center gap-2 text-slate-400 font-bold text-xs mb-6">
-                                <MapPin size={14} />
-                                <span>{shop.distance} • {shop.owner}</span>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2 mb-8">
-                                {shop.tags.map(tag => (
-                                    <span key={tag} className="bg-slate-50 text-slate-500 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest leading-none">
-                                        {tag}
-                                    </span>
-                                ))}
-                            </div>
-
-                            <button className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center justify-center gap-3 hover:bg-amber-600 transition-all shadow-lg">
-                                <Phone size={16} />
-                                Contact Shop
-                            </button>
-                        </div>
-                    </motion.div>
-                ))}
-            </div>
-
-            {/* Browse Products Mini-Section */}
-            <div className="bg-slate-900 rounded-[3rem] p-12 text-white overflow-hidden relative">
-                <div className="absolute top-0 right-0 p-12 opacity-10 rotate-12">
-                    <Package size={200} />
+            {/* Shop Cards Grid */}
+            <div className="mb-24">
+                <div className="flex items-center justify-between mb-12">
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Verified Partners Nearby</h2>
+                    <div className="h-px bg-slate-100 grow mx-8 hidden md:block" />
                 </div>
 
-                <div className="relative z-10 space-y-10">
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-3xl font-black tracking-tight">{t('browseProducts')}</h2>
-                        <button className="text-xs font-black uppercase tracking-widest bg-white/10 hover:bg-white/20 px-6 py-3 rounded-xl transition-all border border-white/20">
-                            View All Items
-                        </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        {products.map((p, i) => (
-                            <div key={i} className="bg-white/5 backdrop-blur-lg border border-white/10 p-6 rounded-3xl hover:bg-white/10 transition-all cursor-pointer">
-                                <div className="text-4xl mb-4">{p.img}</div>
-                                <h4 className="font-bold text-lg mb-1">{p.name}</h4>
-                                <p className="text-xs font-medium text-white/50 mb-4">{p.unit}</p>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xl font-black">{p.price}</span>
-                                    <div className="w-8 h-8 rounded-full bg-amber-500 flex items-center justify-center">
-                                        <Navigation size={14} className="fill-white" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                    {shops.map((shop, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, y: 30 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            transition={{ delay: i * 0.1 }}
+                            viewport={{ once: true }}
+                            className="bg-white rounded-[3rem] p-4 shadow-2xl shadow-slate-200/50 border border-slate-100 group hover:-translate-y-2 transition-all duration-500"
+                        >
+                            <div className="relative h-64 rounded-[2.5rem] overflow-hidden mb-8">
+                                <img src={shop.image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
+                                <div className="absolute top-6 left-6 flex gap-2">
+                                    <div className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-2xl flex items-center gap-2 shadow-xl">
+                                        <Star size={14} className="text-amber-500 fill-amber-500" />
+                                        <span className="text-sm font-black text-slate-900">{shop.rating}</span>
+                                    </div>
+                                    <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-xl ${shop.status === 'Open Now' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
+                                        }`}>
+                                        {shop.status}
                                     </div>
                                 </div>
                             </div>
-                        ))}
+
+                            <div className="px-6 pb-6 space-y-6">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h3 className="text-2xl font-black text-slate-900 tracking-tight">{shop.name}</h3>
+                                        {shop.verified && <ShieldCheck className="text-blue-500" size={24} />}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-slate-400 font-bold text-xs">
+                                        <MapPin size={14} />
+                                        <span>{shop.distance} • Owned by {shop.owner}</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    {shop.tags.map(tag => (
+                                        <span key={tag} className="bg-slate-50 text-slate-500 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest">
+                                            {tag}
+                                        </span>
+                                    ))}
+                                </div>
+
+                                <button className="w-full py-5 bg-indigo-50 text-indigo-600 rounded-[2rem] font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-indigo-100 group-hover:shadow-indigo-200 shadow-xl">
+                                    <Phone size={20} />
+                                    Instant Contact
+                                </button>
+                            </div>
+                        </motion.div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Premium Product Browser */}
+            <div className="relative">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
+                    <div>
+                        <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Live Stock Explorer</h2>
+                        <p className="text-slate-500 font-medium">Real-time inventory from your regional distributors</p>
                     </div>
+                    <button className="px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-2xl">
+                        Full Product Catalogue
+                    </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {products.map((p, i) => (
+                        <motion.div
+                            key={i}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: i * 0.1 }}
+                            viewport={{ once: true }}
+                            className="bg-white p-8 rounded-[3.5rem] border border-slate-100 shadow-xl shadow-slate-100 hover:shadow-2xl hover:border-indigo-100 group transition-all"
+                        >
+                            <div className={`w-20 h-20 rounded-[2rem] bg-gradient-to-br ${p.color} flex items-center justify-center text-4xl shadow-xl mb-8 group-hover:scale-110 transition-transform`}>
+                                {p.img}
+                            </div>
+
+                            <div className="space-y-2 mb-8">
+                                <div className="flex items-center justify-between">
+                                    <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full ${p.stock === 'Limited' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'
+                                        }`}>
+                                        ● {p.stock}
+                                    </span>
+                                    <span className="text-slate-400 font-bold text-[10px]">{p.unit}</span>
+                                </div>
+                                <h4 className="text-xl font-black text-slate-900 leading-snug">{p.name}</h4>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                                <div>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Price</p>
+                                    <p className="text-2xl font-black text-slate-900 tracking-tight">{p.price}</p>
+                                </div>
+                                <div className="w-14 h-14 bg-slate-900 text-white rounded-3xl flex items-center justify-center hover:bg-indigo-600 transition-all cursor-pointer shadow-lg group-hover:rotate-12">
+                                    <Package size={24} />
+                                </div>
+                            </div>
+                        </motion.div>
+                    ))}
                 </div>
             </div>
         </div>

@@ -11,9 +11,13 @@ const api = axios.create({
     },
 });
 
-export const detectDisease = async (imageFile) => {
+export const detectDisease = async (imageFile, location = null) => {
     const formData = new FormData();
     formData.append('image', imageFile);
+    if (location) {
+        formData.append('lat', location.lat);
+        formData.append('lon', location.lon);
+    }
 
     const performDetection = async () => {
         try {
@@ -73,6 +77,11 @@ export const getWeather = async (lat, lon) => {
 
 export const getMandiPrices = async () => {
     const response = await api.get('/mandi');
+    return response.data;
+};
+
+export const getOutbreaks = async () => {
+    const response = await api.get('/outbreaks');
     return response.data;
 };
 

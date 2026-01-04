@@ -15,7 +15,7 @@ import { Calendar, TrendingUp, AlertCircle, CheckCircle2, ArrowUpRight, CloudSun
 import { motion } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
-import { getHistory, getWeather } from '../services/api';
+import { getHistory, getWeather, getOutbreaks } from '../services/api';
 import { Link } from 'react-router-dom';
 
 ChartJS.register(
@@ -51,6 +51,20 @@ const Dashboard = () => {
         return () => clearInterval(timer);
     }, []);
 
+
+    const [outbreaks, setOutbreaks] = useState([]);
+
+    useEffect(() => {
+        const fetchOutbreakData = async () => {
+            try {
+                const data = await getOutbreaks();
+                setOutbreaks(data);
+            } catch (e) {
+                console.error("Failed to fetch outbreak data");
+            }
+        };
+        fetchOutbreakData();
+    }, []);
 
     useEffect(() => {
         const hour = new Date().getHours();
@@ -252,18 +266,13 @@ const Dashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
-                    {[
-                        { crop: 'Wheat', disease: 'Fusarium Head Blight', status: 'Alert', color: 'bg-red-500', trend: 'rising' },
-                        { crop: 'Tomato', disease: 'Early Blight', status: 'Rising', color: 'bg-orange-500', trend: 'rising' },
-                        { crop: 'Maize', disease: 'Fall Armyworm', status: 'Warning', color: 'bg-yellow-500', trend: 'stable' },
-                        { crop: 'Bean', disease: 'Leaf Rust', status: 'Alert', color: 'bg-red-500', trend: 'rising' },
-                    ].map((alert, i) => (
+                    {outbreaks.map((alert, i) => (
                         <div key={i} className="bg-slate-50 rounded-3xl p-6 border border-slate-100 relative group hover:bg-white hover:shadow-xl transition-all duration-300">
                             <div className={`absolute top-4 right-4 ${alert.color} text-white px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest`}>
                                 {alert.status}
                             </div>
                             <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
-                                {alert.crop === 'Wheat' ? '🌾' : alert.crop === 'Tomato' ? '🍅' : alert.crop === 'Maize' ? '🌽' : '🌱'}
+                                {alert.crop.includes('Wheat') ? '🌾' : alert.crop.includes('Tomato') ? '🍅' : alert.crop.includes('Maize') ? '🌽' : alert.crop.includes('Cotton') ? '☁️' : '🌱'}
                             </div>
                             <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-widest">{alert.crop}</h4>
                             <h5 className="font-black text-slate-800 text-base mt-1 leading-tight">{alert.disease}</h5>

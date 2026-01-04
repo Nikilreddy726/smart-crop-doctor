@@ -119,9 +119,8 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         (async () => {
             try {
                 let aiResult;
-                const maxRetries = 90; // Wait up to 3 minutes for Render to spin up
+                const maxRetries = 90;
                 let attempt = 0;
-
                 while (attempt <= maxRetries) {
                     try {
                         const FormData = require('form-data');
@@ -133,23 +132,20 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
 
                         const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
                             headers: formData.getHeaders(),
-                            timeout: 12000 // 12s timeout per request
+                            timeout: 15000
                         });
 
                         aiResult = aiRes.data;
                         console.log(`[JOB ${jobId}] Engine Responded Successfully!`);
                         break;
                     } catch (e) {
-                        // CRITICAL: If the server responded with an actual error (4xx, 5xx), 
-                        // it means it's AWAKE. Stop retrying and report the error.
-                        if (e.response) {
-                            console.error(`[JOB ${jobId}] AI Engine is awake but returned error ${e.response.status}`);
-                            throw new Error(`AI Engine Error: ${e.response.data?.error || e.message}`);
+                        const isBooting = !e.response || [502, 503, 504].includes(e.response.status);
+                        if (!isBooting) {
+                            console.error(`[JOB ${jobId}] AI Engine returned REAL error ${e.response?.status}`);
+                            throw new Error(`AI Engine Error: ${e.response?.data?.error || e.message}`);
                         }
-
-                        // Otherwise, it's a network timeout/connection refused (Still Booting)
                         attempt++;
-                        if (attempt % 5 === 0) console.log(`[JOB ${jobId}] Still waiting for engine to boot... (Attempt ${attempt}/90)`);
+                        if (attempt % 5 === 0) console.log(`[JOB ${jobId}] Engine is waking up... (Attempt ${attempt}/90)`);
                         await new Promise(r => setTimeout(r, 2000));
                     }
                 }

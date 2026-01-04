@@ -24,6 +24,7 @@ const Navbar = () => {
         { name: t('dashboard'), path: '/dashboard', icon: '📊' },
         { name: t('fertilizerCalc'), path: '/fertilizer', icon: '⚖️' },
         { name: t('financialTracker'), path: '/profit', icon: '📈' },
+        { name: t('agriShops'), path: '/shops', icon: '🏢' },
         { name: t('history'), path: '/history', icon: '📜' },
         { name: t('weather'), path: '/weather', icon: '🌤️' },
         { name: t('mandi'), path: '/mandi', icon: '💰' },

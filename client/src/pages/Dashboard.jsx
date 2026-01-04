@@ -236,6 +236,47 @@ const Dashboard = () => {
                 ))}
             </section>
 
+            {/* Disease Alerts Section (New Plantix Feature) */}
+            <section className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-8 overflow-hidden relative">
+                <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12 translate-x-1/4 translate-y-1/4">
+                    <AlertCircle size={200} />
+                </div>
+                <div className="flex justify-between items-center relative z-10">
+                    <div>
+                        <h3 className="font-black text-2xl text-slate-900">{t('alerts')}</h3>
+                        <p className="text-slate-400 text-sm font-bold mt-1">Disease activity monitoring in your region</p>
+                    </div>
+                    <span className="bg-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest animate-pulse">
+                        Live Tracking
+                    </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+                    {[
+                        { crop: 'Wheat', disease: 'Fusarium Head Blight', status: 'Alert', color: 'bg-red-500', trend: 'rising' },
+                        { crop: 'Tomato', disease: 'Early Blight', status: 'Rising', color: 'bg-orange-500', trend: 'rising' },
+                        { crop: 'Maize', disease: 'Fall Armyworm', status: 'Warning', color: 'bg-yellow-500', trend: 'stable' },
+                        { crop: 'Bean', disease: 'Leaf Rust', status: 'Alert', color: 'bg-red-500', trend: 'rising' },
+                    ].map((alert, i) => (
+                        <div key={i} className="bg-slate-50 rounded-3xl p-6 border border-slate-100 relative group hover:bg-white hover:shadow-xl transition-all duration-300">
+                            <div className={`absolute top-4 right-4 ${alert.color} text-white px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest`}>
+                                {alert.status}
+                            </div>
+                            <div className="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-xl mb-4 group-hover:scale-110 transition-transform">
+                                {alert.crop === 'Wheat' ? '🌾' : alert.crop === 'Tomato' ? '🍅' : alert.crop === 'Maize' ? '🌽' : '🌱'}
+                            </div>
+                            <h4 className="font-black text-slate-400 text-[10px] uppercase tracking-widest">{alert.crop}</h4>
+                            <h5 className="font-black text-slate-800 text-base mt-1 leading-tight">{alert.disease}</h5>
+
+                            <Link to="/detect" className="mt-6 flex items-center justify-between text-[10px] font-black uppercase text-primary tracking-widest group-hover:gap-4 transition-all">
+                                <span>Preventive Measures</span>
+                                <ArrowUpRight size={14} />
+                            </Link>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
             {/* Weather & Chart */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-8">

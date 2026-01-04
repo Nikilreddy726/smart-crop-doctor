@@ -10,6 +10,9 @@ import History from './pages/History';
 import MandiPrices from './pages/MandiPrices';
 import GovernmentSchemes from './pages/GovernmentSchemes';
 import Community from './pages/Community';
+import FertilizerCalculator from './pages/FertilizerCalculator';
+import FinancialTracker from './pages/FinancialTracker';
+import AgriShops from './pages/AgriShops';
 import { LanguageProvider } from './services/LanguageContext';
 import { AuthProvider } from './services/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
@@ -52,6 +55,9 @@ function App() {
                 <Route path="/mandi" element={<MandiPrices />} />
                 <Route path="/schemes" element={<GovernmentSchemes />} />
                 <Route path="/community" element={<Community />} />
+                <Route path="/fertilizer" element={<FertilizerCalculator />} />
+                <Route path="/profit" element={<FinancialTracker />} />
+                <Route path="/shops" element={<AgriShops />} />
               </Route>
             </Route>
           </Routes>

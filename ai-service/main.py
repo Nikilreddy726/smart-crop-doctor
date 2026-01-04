@@ -133,9 +133,8 @@ DISEASE_DATABASE = {
 
 def analyze_image_colors(img_array):
     """
-    PERMANENT FIX: biological separation of Plant vs Background (Soil/Digital).
+    ULTIMATE FIX: Biological separation (Plant vs Background).
     """
-    # 1. Image Channels (Float for math)
     r = img_array[:,:,0].astype(np.float32)
     g = img_array[:,:,1].astype(np.float32)
     b = img_array[:,:,2].astype(np.float32)
@@ -143,19 +142,17 @@ def analyze_image_colors(img_array):
     total_pixels = img_array.shape[0] * img_array.shape[1]
     brightness = (0.299*r + 0.587*g + 0.114*b)
 
-    # 2. MASKING: Only include real plant tissue
-    # ignoring low-saturation soil and grey backgrounds
-    is_green = (g > r + 12) & (g > b + 8)
-    is_leaf_brown = (r > g + 15) & (r > b + 15) & (brightness < 140)
+    # 2. MASKING: More inclusive green for dark leaves
+    is_green = (g > r + 2) & (g > b + 2) & (brightness > 20)
+    is_leaf_brown = (r > g + 10) & (r > b + 10) & (brightness < 160)
     is_plant = is_green | is_leaf_brown
     
-    # Extract plant pixels or fallback
     if np.sum(is_plant) < 500:
         plant_pixels = img_array.reshape(-1, 3)
     else:
         plant_pixels = img_array[is_plant]
 
-    # 3. Metrics on Masked Area
+    # 3. Metrics
     mean_colors = np.mean(plant_pixels, axis=0)
     std_dev = np.std(plant_pixels, axis=0)
     
@@ -164,20 +161,19 @@ def analyze_image_colors(img_array):
     hue = h * 360
 
     # 4. DIGITAL & SCREENSHOT DETECTION
-    # Unique Color Complexity
     flattened = img_array.reshape(-1, 3).astype(np.int32)
     combined = (flattened[:,0] << 16) | (flattened[:,1] << 8) | flattened[:,2]
     unique_vals = np.unique(combined)
     unique_ratio = len(unique_vals) / total_pixels
     
-    # UI Bar Detection (Perfect Black/White)
-    pure_pixel_ratio = np.sum((r < 2) & (g < 2) & (b < 2)) + np.sum((r > 253) & (g > 253) & (b > 253))
-    pure_pixel_ratio /= total_pixels
+    pure_pixel_ratio = (np.sum((r < 2) & (g < 2) & (b < 2)) + np.sum((r > 253) & (g > 253) & (b > 253))) / total_pixels
 
-    # 5. HUMAN/FACE DETECTION
-    # Skin tone is typically Hue 10-35, specific R-G ratio
     is_skin = (r > g + 20) & (g > b) & (r > 60) & (r < 235) & (brightness < 220)
     skin_ratio = np.sum(is_skin) / total_pixels
+
+    # Detecting White spots (Powdery Mildew)
+    # White on leaf is high R,G,B and low saturation
+    is_white = (r > 160) & (g > 160) & (b > 160) & (np.abs(r-g) < 15) & (np.abs(g-b) < 15)
 
     return {
         "hue": hue, "saturation": s, "variance": std_dev.mean(),
@@ -186,72 +182,59 @@ def analyze_image_colors(img_array):
         "pixel_healthy_ratio": np.sum(is_green) / total_pixels,
         "pixel_brown_ratio": np.sum(is_leaf_brown) / total_pixels,
         "pixel_yellow_ratio": np.sum((r > b + 25) & (g > b + 20)) / total_pixels,
-        "white_indicator": np.sum((r > 200) & (g > 200) & (b > 200)) / total_pixels,
+        "white_indicator": np.sum(is_white) / total_pixels,
         "skin_ratio": skin_ratio,
-        "max_single_color_ratio": 0.05,
-        "quantized_unique_ratio": unique_ratio # Placeholder
+        "green_ratio": gm / (rm + gm + bm + 1), # Added back
+        "yellow_indicator": np.sum((r > b + 25) & (g > b + 20)), # Count
+        "brown_indicator": np.sum(is_leaf_brown) # Count
     }
 
 def validate_is_crop(img_array, analysis, filename=""):
     """
-    STRICT SECURITY: Blocks all non-plant data.
+    SECURITY GATE: Blocks screenshots and faces.
     """
-    # 1. Digital Rejection (Screenshots/UI)
-    if analysis["unique_colors_ratio"] < 0.08 or analysis["pure_pixel_ratio"] > 0.15:
+    # Digital check
+    if analysis["unique_colors_ratio"] < 0.05 or analysis["pure_pixel_ratio"] > 0.25:
         return False
-
-    # 2. Human Rejection (Faces/Skin)
-    if analysis["skin_ratio"] > 0.08: # Strict 8% limit
+    # Human check
+    if analysis["skin_ratio"] > 0.12:
         return False
-
-    # 3. Plant Presence (Must be at least 12% plant material)
-    if (analysis["pixel_healthy_ratio"] + analysis["pixel_brown_ratio"]) < 0.12:
+    # Plant material check (Lowered to 5% to be safer for real photos)
+    total_bio = analysis["pixel_healthy_ratio"] + analysis["pixel_brown_ratio"] + analysis["pixel_yellow_ratio"]
+    if total_bio < 0.05: 
         return False
-
-    # 4. Biology Match (Biological texture vs Digital flat colors)
-    if analysis["variance"] < 25:
-        return False
-
     return True
 
 def determine_crop(analysis):
-    """
-    COTTON VS TOMATO: Strict Emerald Filter.
-    """
     hue = analysis["hue"]
-    
-    # Cotton: Deep Emerald Green (Hue 115-168)
-    if 115 <= hue <= 168:
-        return "Cotton"
-    
-    # Tomato/Potato: Lime/Yellow-Green (Hue 60-112)
-    if 60 <= hue < 115:
-        return "Tomato / Potato"
-    
+    if 112 <= hue <= 170: return "Cotton"
+    if 60 <= hue < 112: return "Tomato / Potato"
     return "Detected Plant"
 
 def determine_disease(analysis):
     """
-    ACCURACY FIX: Prevents veins from triggering 'Wilt'.
+    DIAGNOSTIC ENGINE: Detects White Mildew, Wilt, and Blight.
     """
     h_ratio = analysis["pixel_healthy_ratio"]
     b_ratio = analysis["pixel_brown_ratio"]
     y_ratio = analysis["pixel_yellow_ratio"]
+    w_ratio = analysis["white_indicator"]
 
-    # --- PRIORITY 1: OVERWHELMING HEALTHY ---
-    # Most cotton photos have healthy veins. We need > 4% REAL brown to call disease.
-    if h_ratio > 0.35 and b_ratio < 0.04:
-        return "healthy", 0.98
+    # --- PRIORITY 1: ACTIVE INFECTION CHECK ---
+    # Powdery Mildew check (The white spots in user's photo)
+    if w_ratio > 0.08: return "powdery_mildew", 0.92
+    
+    # Verticillium Wilt / Spots
+    if b_ratio > 0.08: return "verticillium_wilt", 0.88
+    if b_ratio > 0.03: return "anthracnose", 0.80
 
-    # --- PRIORITY 2: DISEASE ---
-    # Verticillium Wilt needs widespread brown (>10%)
-    if b_ratio > 0.10: return "verticillium_wilt", 0.88
-    # Small spots (<10%, >3%)
-    if b_ratio > 0.035: return "anthracnose", 0.75
-    # Significant yellowing
-    if y_ratio > 0.20: return "bacterial_blight", 0.80
+    # Yellowing / Blight
+    if y_ratio > 0.15: return "bacterial_blight", 0.85
 
-    return "healthy", 0.85
+    # --- PRIORITY 2: HEALTHY CHECK ---
+    if h_ratio > 0.20: return "healthy", 0.95
+    
+    return "healthy", 0.80
 
 @app.get("/")
 async def root():

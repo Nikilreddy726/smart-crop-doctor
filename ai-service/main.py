@@ -31,6 +31,8 @@ DISEASE_DATABASE = {
     },
     "powdery_mildew": {
         "name": "Powdery Mildew",
+        "scientific_name": "Podosphaera xanthii / Erysiphe cichoracearum",
+        "pathogen": "Fungal",
         "crop": "Multiple Crops",
         "severity": "Medium",
         "recommendations": {
@@ -41,6 +43,8 @@ DISEASE_DATABASE = {
     },
     "bacterial_blight": {
         "name": "Bacterial Blight",
+        "scientific_name": "Xanthomonas axonopodis pv. malvacearum",
+        "pathogen": "Bacterial",
         "crop": "Cotton / Beans",
         "severity": "High",
         "recommendations": {
@@ -51,6 +55,8 @@ DISEASE_DATABASE = {
     },
     "verticillium_wilt": {
         "name": "Verticillium Wilt",
+        "scientific_name": "Verticillium dahliae",
+        "pathogen": "Soil-borne Fungal",
         "crop": "Cotton / Tomato / Potato",
         "severity": "High",
         "recommendations": {
@@ -61,6 +67,8 @@ DISEASE_DATABASE = {
     },
     "leaf_rust": {
         "name": "Leaf Rust",
+        "scientific_name": "Puccinia graminis / Puccinia triticina",
+        "pathogen": "Fungal (Biotrophic)",
         "crop": "Cotton / Corn / Wheat",
         "severity": "Medium",
         "recommendations": {
@@ -90,7 +98,9 @@ DISEASE_DATABASE = {
         }
     },
     "anthracnose": {
-        "name": "Anthracnose (Bird's Eye Spot)",
+        "name": "Anthracnose",
+        "scientific_name": "Colletotrichum gloeosporioides",
+        "pathogen": "Fungal",
         "crop": "Berries / Beans",
         "severity": "Medium",
         "recommendations": {
@@ -110,7 +120,9 @@ DISEASE_DATABASE = {
         }
     },
     "potato_late_blight": {
-        "name": "Potato Late Blight",
+        "name": "Late Blight",
+        "scientific_name": "Phytophthora infestans",
+        "pathogen": "Oomycete (Fungal-like)",
         "crop": "Potato",
         "severity": "Critical",
         "recommendations": {

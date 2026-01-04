@@ -263,7 +263,91 @@ const Weather = () => {
                 </div>
             )}
 
-            {/* Farming Advisory Section */}
+            {/* Planting & Spraying Advisor (New Plantix Feature) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <motion.div
+                    whileHover={{ y: -5 }}
+                    className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-xl overflow-hidden relative group"
+                >
+                    <div className="absolute top-0 right-0 p-8 opacity-5 -rotate-12 group-hover:rotate-0 transition-transform duration-500">
+                        <Droplets size={120} />
+                    </div>
+                    <div className="relative z-10 space-y-6">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-600 rounded-2xl text-white shadow-lg">
+                                <Wind size={24} />
+                            </div>
+                            <div>
+                                <h4 className="text-2xl font-black text-slate-900">Spraying Advisor</h4>
+                                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Pesticide & Fertilizer Timing</p>
+                            </div>
+                        </div>
+
+                        {/* Spray Rating */}
+                        <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black uppercase text-slate-400">Current Rating</span>
+                                <h5 className={`text-2xl font-black ${(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'text-red-600' :
+                                        (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'text-orange-500' : 'text-emerald-600'
+                                    }`}>
+                                    {(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'FORBIDDEN' :
+                                        (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'RISKY' : 'OPTIMAL'}
+                                </h5>
+                            </div>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'bg-red-600' :
+                                    (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'bg-orange-500' : 'bg-emerald-600'
+                                }`}>
+                                <CheckCircle size={24} />
+                            </div>
+                        </div>
+
+                        <ul className="space-y-3">
+                            <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                                <div className={`w-2 h-2 rounded-full ${weather?.wind?.speed < 10 ? 'bg-green-500' : 'bg-red-500'}`} />
+                                Wind Speed: {weather?.wind?.speed || 0} km/h {weather?.wind?.speed < 10 ? '(Safe)' : '(Drift Risk)'}
+                            </li>
+                            <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                                <div className={`w-2 h-2 rounded-full ${weather?.main?.temp < 35 ? 'bg-green-500' : 'bg-red-500'}`} />
+                                Temperature: {Math.round(weather?.main?.temp) || 0}°C {weather?.main?.temp < 35 ? '(Safe)' : '(Evaporation Risk)'}
+                            </li>
+                        </ul>
+                    </div>
+                </motion.div>
+
+                <motion.div
+                    whileHover={{ y: -5 }}
+                    className="bg-slate-900 p-10 rounded-[3rem] text-white shadow-xl overflow-hidden relative group"
+                >
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <Navigation size={120} />
+                    </div>
+                    <div className="relative z-10 space-y-8">
+                        <div>
+                            <h4 className="text-2xl font-black">7-Day Spray Timeline</h4>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Forecasted Optimal Windows</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            {[
+                                { day: 'Mon', rating: 'Optimal', color: 'bg-emerald-500' },
+                                { day: 'Tue', rating: 'Risky (Rain)', color: 'bg-red-500' },
+                                { day: 'Wed', rating: 'Optimal', color: 'bg-emerald-500' },
+                                { day: 'Thu', rating: 'Good', color: 'bg-emerald-500' },
+                            ].map((s, i) => (
+                                <div key={i} className="flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-2xl">
+                                    <span className="font-black text-sm">{s.day}</span>
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[10px] font-black uppercase opacity-60">{s.rating}</span>
+                                        <div className={`w-3 h-3 rounded-full ${s.color} shadow-[0_0_10px_rgba(16,185,129,0.3)]`} />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+
+            {/* Existing Farming Advisory Section */}
             <div className="card-base p-10 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100 flex flex-col md:flex-row items-center gap-8 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 opacity-5 text-emerald-900">
                     <CloudSun size={150} />

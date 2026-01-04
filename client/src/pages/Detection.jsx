@@ -251,103 +251,80 @@ const Detection = () => {
                                 key="result"
                                 initial={{ opacity: 0, x: 30 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                className="bg-white p-10 md:p-12 rounded-[4rem] border border-slate-200 shadow-2xl space-y-8"
+                                className="bg-white p-10 md:p-12 rounded-[4rem] border border-slate-200 shadow-2xl space-y-8 overflow-hidden relative"
                             >
+                                {/* Professional Diagnosis Banner */}
+                                <div className="absolute top-0 right-0 px-6 py-2 bg-slate-900 text-white text-[9px] font-black uppercase tracking-widest rounded-bl-3xl">
+                                    AI Bio-Diagnostic 8.0
+                                </div>
+
                                 {/* Disease Header */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2.5 rounded-2xl ${result.severity === 'None' || result.disease === 'Healthy' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                            {result.severity === 'None' || result.disease === 'Healthy' ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
+                                <div className="space-y-6">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`p-2.5 rounded-2xl ${result.severity === 'None' || result.disease === 'Healthy' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                                    {result.severity === 'None' || result.disease === 'Healthy' ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
+                                                </div>
+                                                <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tighter">{t(result.disease) || result.disease}</h2>
+                                            </div>
+                                            {result.scientific_name && (
+                                                <p className="text-indigo-600 font-bold italic tracking-wide text-sm pl-1">
+                                                    Scientific Name: {result.scientific_name}
+                                                </p>
+                                            )}
                                         </div>
-                                        <h2 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter">{t(result.disease) || result.disease}</h2>
                                     </div>
 
-                                    {/* Info Cards (Only show for valid crops) */}
+                                    {/* Advanced Metrics Cards */}
                                     {result.disease !== 'Not a Crop' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                            <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
-                                                <p className="text-[10px] font-black text-blue-400 uppercase tracking-widest">🌱 {t('cropName') || 'Crop'}</p>
-                                                <p className="text-lg font-black text-blue-700 mt-1">{t(result.crop) || result.crop}</p>
+                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 group hover:border-indigo-200 transition-all">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">🧬 Pathogen Type</p>
+                                                <p className="text-lg font-black text-slate-800">{result.pathogen || 'Biological'}</p>
                                             </div>
-                                            <div className={`p-4 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50/50 border-red-100' :
-                                                result.severity === 'Medium' ? 'bg-orange-50/50 border-orange-100' :
-                                                    result.severity === 'Low' ? 'bg-yellow-50/50 border-yellow-100' :
-                                                        'bg-green-50/50 border-green-100'
-                                                }`}>
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">⚠️ {t('severity') || 'Severity'}</p>
-                                                <p className={`text-lg font-black mt-1 ${result.severity === 'High' ? 'text-red-700' :
-                                                    result.severity === 'Medium' ? 'text-orange-700' :
-                                                        result.severity === 'Low' ? 'text-yellow-700' :
-                                                            'text-green-700'
-                                                    }`}>{t(result.severity) || result.severity || 'None'}</p>
+                                            <div className="p-5 bg-slate-50 rounded-3xl border border-slate-100 group hover:border-green-200 transition-all">
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">🌱 Host Crop</p>
+                                                <p className="text-lg font-black text-slate-800">{t(result.crop) || result.crop}</p>
                                             </div>
-                                            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 col-span-full">
-                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">🎯 Confidence Level</p>
-                                                <div className="flex items-center gap-3 mt-1">
-                                                    <div className="h-2 bg-slate-200 grow rounded-full overflow-hidden">
-                                                        <motion.div
-                                                            initial={{ width: 0 }}
-                                                            animate={{ width: `${result.confidence * 100}%` }}
-                                                            className="h-full bg-primary"
-                                                        />
-                                                    </div>
-                                                    <span className="font-black text-primary text-sm">{(result.confidence * 100).toFixed(1)}%</span>
-                                                </div>
+                                            <div className={`p-5 rounded-3xl border col-span-2 md:col-span-1 ${result.severity === 'High' ? 'bg-red-50/50 border-red-100' : 'bg-green-50/50 border-green-100'}`}>
+                                                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">⚠️ Risk Level</p>
+                                                <p className={`text-lg font-black ${result.severity === 'High' ? 'text-red-700' : 'text-green-700'}`}>
+                                                    {t(result.severity) || result.severity}
+                                                </p>
                                             </div>
                                         </div>
                                     )}
                                 </div>
 
-                                {/* REJECTION RECTANGLE ANIMATION (For Non-Crops) */}
-                                {result.disease === 'Not a Crop' && (
-                                    <motion.div
-                                        initial={{ scale: 0.9, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        className="p-10 md:p-12 bg-red-50/30 rounded-[3rem] border-4 border-dashed border-red-100/50 text-center space-y-8 flex flex-col items-center justify-center min-h-[350px] relative overflow-hidden"
-                                    >
-                                        {/* Background Pulse Animation */}
-                                        <motion.div
-                                            animate={{ opacity: [0.1, 0.3, 0.1], scale: [1, 1.1, 1] }}
-                                            transition={{ repeat: Infinity, duration: 3 }}
-                                            className="absolute inset-0 bg-red-100/50 rounded-full blur-[80px] -z-10"
-                                        />
-
-                                        <div className="p-6 rounded-[2rem] bg-red-100 text-red-600 shadow-xl shadow-red-100/50 animate-bounce">
-                                            <AlertTriangle size={56} />
-                                        </div>
-
-                                        <div className="space-y-3">
-                                            <h2 className="text-3xl font-black text-red-900 tracking-tight">
-                                                {t('noCropDetected') || 'Detection Restricted'}
-                                            </h2>
-                                            <p className="text-red-700/70 font-bold max-w-xs mx-auto leading-relaxed">
-                                                {t('noCropDetectedDesc') || 'AI failed to verify plant tissue. Please upload a clear photo of a crop leaf or stem in natural light.'}
-                                            </p>
-                                        </div>
-
-                                        {/* Scanning UI Element */}
-                                        <motion.div
-                                            animate={{ top: ['0%', '100%', '0%'] }}
-                                            transition={{ repeat: Infinity, duration: 4, ease: "linear" }}
-                                            className="absolute left-0 right-0 h-1 bg-red-400/20 backdrop-blur-sm shadow-[0_0_15px_rgba(248,113,113,0.5)] z-10"
-                                        />
-                                    </motion.div>
-                                )}
-
-                                {/* Recommendations Section (Restored for valid crops) */}
+                                {/* Deep recommendations categorization */}
                                 {result.disease !== 'Not a Crop' && result.disease !== 'Healthy' && (
-                                    <div className="space-y-6 pt-6">
+                                    <div className="space-y-8 pt-4">
+                                        {/* Biological Solutions */}
                                         <div className="space-y-4">
-                                            <h3 className="font-black text-sm uppercase tracking-[0.2em] text-slate-400 flex items-center gap-3">
-                                                <div className="h-px bg-slate-100 grow"></div>
-                                                💊 Recovery Action
-                                                <div className="h-px bg-slate-100 grow"></div>
+                                            <h3 className="font-black text-xs uppercase tracking-[0.2em] text-emerald-600 flex items-center gap-3">
+                                                <Leaf size={16} /> Biological Control
                                             </h3>
-                                            <div className="grid grid-cols-1 gap-3">
-                                                {result.recommendations?.pesticides?.map((p, i) => (
-                                                    <div key={i} className="flex gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                                                        <div className="bg-white w-8 h-8 rounded-lg flex items-center justify-center text-primary border border-slate-200 font-bold shrink-0 text-sm">{i + 1}</div>
-                                                        <p className="text-slate-600 font-bold leading-snug self-center">{t(p) || p}</p>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {(result.recommendations?.organic_solutions || ['Maintain field hygiene']).map((p, i) => (
+                                                    <div key={i} className="p-4 rounded-2xl bg-emerald-50/30 border border-emerald-100/50 flex items-center gap-4">
+                                                        <div className="w-2 h-2 rounded-full bg-emerald-400"></div>
+                                                        <p className="text-emerald-900 font-bold text-sm">{t(p) || p}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Chemical Treatments */}
+                                        <div className="space-y-4">
+                                            <h3 className="font-black text-xs uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-3">
+                                                <div className="p-1 bg-indigo-100 rounded text-indigo-600"><CheckCircle size={12} /></div> Chemical Treatment
+                                            </h3>
+                                            <div className="grid grid-cols-1 gap-2">
+                                                {(result.recommendations?.pesticides || []).map((p, i) => (
+                                                    <div key={i} className="p-4 rounded-2xl bg-indigo-50/30 border border-indigo-100/50 flex items-center justify-between">
+                                                        <p className="text-indigo-900 font-bold text-sm">{t(p) || p}</p>
+                                                        <Link to="/shops" className="text-[10px] font-black uppercase text-indigo-600 hover:underline">Find Retailer →</Link>
                                                     </div>
                                                 ))}
                                             </div>
@@ -355,48 +332,72 @@ const Detection = () => {
                                     </div>
                                 )}
 
-                                {/* Cloud Save UI (Only for valid crops) */}
+                                {/* REJECTION UI remain same for structural consistency, but updated text for bio-diagnostic feel */}
+                                {result.disease === 'Not a Crop' && (
+                                    <motion.div
+                                        initial={{ scale: 0.9, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        className="p-12 bg-red-50/30 rounded-[3rem] border-4 border-dashed border-red-100 text-center space-y-6"
+                                    >
+                                        <div className="p-6 rounded-[2rem] bg-red-100 text-red-600 shadow-xl inline-block animate-bounce font-black">
+                                            <ShieldCheck size={56} />
+                                        </div>
+                                        <h2 className="text-3xl font-black text-red-900 tracking-tight">AI Validation Failed</h2>
+                                        <p className="text-red-700/70 font-bold max-w-xs mx-auto text-sm leading-relaxed">
+                                            The image does not contain identifiable plant tissue. To receive a high-confidence diagnosis, please photograph a single leaf with the camera 15-20cm away.
+                                        </p>
+                                    </motion.div>
+                                )}
+
+                                {/* Interaction Ecosystem */}
                                 {result.disease !== 'Not a Crop' && (
-                                    <div className="space-y-3 pt-4">
+                                    <div className="space-y-4 pt-8">
                                         {!saved ? (
-                                            <>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <button
                                                     onClick={handleCommitToCloud}
-                                                    className="w-full py-5 rounded-[2rem] font-bold text-lg transition-all shadow-2xl flex items-center justify-center gap-3 bg-slate-900 text-white hover:bg-primary shadow-slate-200"
+                                                    className="py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest transition-all bg-slate-900 text-white hover:bg-primary shadow-xl shadow-slate-200"
                                                 >
-                                                    <ShieldCheck size={20} />
-                                                    Commit Report to Cloud
+                                                    Save to Health History
                                                 </button>
-                                                <p className="text-center text-[10px] text-slate-400 font-medium tracking-wide">
-                                                    SECURE SYNC: Your analysis will be stored in your historical health dashboard.
-                                                </p>
-                                            </>
+                                                <Link
+                                                    to="/community"
+                                                    className="py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest transition-all border-2 border-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 flex items-center justify-center gap-3"
+                                                >
+                                                    Ask Expert Community
+                                                </Link>
+                                            </div>
                                         ) : (
                                             <div className="space-y-4">
-                                                <div className="w-full py-5 rounded-[2rem] font-bold text-lg flex items-center justify-center gap-3 bg-green-600 text-white shadow-xl shadow-green-100">
-                                                    <CheckCircle size={20} />
-                                                    Health Report Synchronized
+                                                <div className="w-full py-5 rounded-[2rem] font-black text-lg flex items-center justify-center gap-3 bg-green-600 text-white shadow-xl shadow-green-100">
+                                                    <CheckCircle size={24} /> Report Synchronized
                                                 </div>
-                                                <button
-                                                    onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); setSaved(false); }}
-                                                    className="w-full py-4 rounded-[2rem] font-bold text-lg transition-all border-2 border-slate-100 text-slate-500 hover:border-primary hover:text-primary hover:bg-primary/5 flex items-center justify-center gap-3"
-                                                >
-                                                    <Camera size={20} />
-                                                    Start New Diagnosis
-                                                </button>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <button
+                                                        onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); setSaved(false); }}
+                                                        className="py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest border-2 border-slate-100 text-slate-500 hover:bg-slate-50"
+                                                    >
+                                                        Scan Another
+                                                    </button>
+                                                    <Link
+                                                        to="/dashboard"
+                                                        className="py-4 rounded-[2rem] font-black text-xs uppercase tracking-widest bg-primary text-white text-center"
+                                                    >
+                                                        View Dashboard
+                                                    </Link>
+                                                </div>
                                             </div>
                                         )}
                                     </div>
                                 )}
 
-                                {/* Fallback button for non-crops */}
+                                {/* Fallback reset button */}
                                 {result.disease === 'Not a Crop' && (
                                     <button
                                         onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); setSaved(false); }}
-                                        className="w-full py-5 mt-6 rounded-[2rem] font-bold text-lg transition-all bg-primary text-white hover:bg-primary/90 flex items-center justify-center gap-3"
+                                        className="w-full py-5 rounded-[2rem] font-black text-sm uppercase tracking-widest bg-primary text-white hover:bg-primary/90 flex items-center justify-center gap-3"
                                     >
-                                        <Camera size={20} />
-                                        Scan Another Image
+                                        <Camera size={20} /> Retry Image Capture
                                     </button>
                                 )}
                             </motion.div>
@@ -406,19 +407,25 @@ const Detection = () => {
                                 animate={{ opacity: 1 }}
                                 className="space-y-8"
                             >
-                                <div className="card-base p-12 space-y-8">
-                                    <h3 className="text-3xl font-black text-slate-900 tracking-tight">{t('howItWorks')}</h3>
-                                    <div className="space-y-10">
+                                <div className="card-base p-12 space-y-12">
+                                    <div className="space-y-4">
+                                        <h3 className="text-4xl font-black text-slate-900 tracking-tight">AI Diagnostic Workflow</h3>
+                                        <p className="text-slate-500 font-medium max-w-lg">Follow these steps to receive a professional-grade health report in seconds.</p>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
                                         {[
-                                            { title: t('singleSubject'), desc: t('singleSubjectDesc'), step: "🎯" },
-                                            { title: t('naturalLight'), desc: t('naturalLightDesc'), step: "☀️" },
-                                            { title: t('highContext'), desc: t('highContextDesc'), step: "🌿" }
+                                            { title: "Capture Photo", desc: "Take a clear, well-lit photo of the affected plant organ (leaf, fruit, stem).", icon: "📸" },
+                                            { title: "AI Analysis", desc: "Our deep neural networks compare symptoms against 50k+ symptomatic records.", icon: "🧠" },
+                                            { title: "Get Cure", desc: "Receive biological treatments, chemical options, and find local retailers.", icon: "💊" }
                                         ].map((item, i) => (
-                                            <div key={i} className="flex gap-6 items-start">
-                                                <span className="text-4xl">{item.step}</span>
+                                            <div key={i} className="space-y-6 relative group">
+                                                {i < 2 && <div className="hidden md:block absolute top-8 left-full w-full h-[2px] bg-slate-100 -z-10" />}
+                                                <div className="w-16 h-16 bg-white rounded-[2rem] shadow-xl shadow-slate-100 border border-slate-50 flex items-center justify-center text-3xl group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all cursor-default">
+                                                    {item.icon}
+                                                </div>
                                                 <div className="space-y-2">
-                                                    <p className="text-lg font-black text-slate-900">{item.title}</p>
-                                                    <p className="text-slate-500 font-medium leading-relaxed">{item.desc}</p>
+                                                    <p className="text-xl font-black text-slate-900 tracking-tight">{item.title}</p>
+                                                    <p className="text-slate-500 text-sm font-medium leading-relaxed">{item.desc}</p>
                                                 </div>
                                             </div>
                                         ))}

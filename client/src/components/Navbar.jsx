@@ -60,7 +60,7 @@ const Navbar = () => {
                             <Leaf className="text-white w-6 h-6" />
                         </motion.div>
                         <motion.span
-                            className="text-xl font-black bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent"
+                            className="text-lg sm:text-xl font-black bg-gradient-to-r from-green-600 to-green-500 bg-clip-text text-transparent"
                             initial={{ x: -20, opacity: 0 }}
                             animate={{ x: 0, opacity: 1 }}
                         >
@@ -173,7 +173,7 @@ const Navbar = () => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="lg:hidden bg-white border-t border-slate-100 overflow-hidden"
+                        className="lg:hidden bg-white border-t border-slate-100 overflow-y-auto max-h-[calc(100vh-80px)]"
                     >
                         <div className="p-4 flex flex-col gap-1">
                             {navLinks.map((link) => (
@@ -190,15 +190,15 @@ const Navbar = () => {
                                     <span className="text-xs font-black uppercase tracking-widest">{link.name}</span>
                                 </Link>
                             ))}
-                            <div className="grid grid-cols-3 gap-2 mt-4 pt-4 border-t border-slate-50">
+                            <div className="grid grid-cols-2 gap-2 mt-4 pt-6 border-t border-slate-100">
                                 {languages.map(l => (
                                     <button
                                         key={l.code}
                                         onClick={() => { setLang(l.code); setIsOpen(false); }}
-                                        className={`py-2 rounded-xl text-[10px] font-black uppercase ${lang === l.code ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-400'
+                                        className={`py-3 px-4 rounded-xl text-xs font-black transition-all ${lang === l.code ? 'bg-green-600 text-white shadow-lg shadow-green-200' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                                             }`}
                                     >
-                                        {l.code}
+                                        {l.name}
                                     </button>
                                 ))}
                             </div>

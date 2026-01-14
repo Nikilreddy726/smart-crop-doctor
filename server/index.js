@@ -226,8 +226,29 @@ app.get('/api/status/:jobId', (req, res) => {
 // Weather Route Proxy
 // Weather Route Proxy with Open-Meteo Fallback (No Key Needed)
 app.get('/api/weather', async (req, res) => {
-    const { lat, lon } = req.query;
+    let { lat, lon } = req.query;
     const API_KEY = process.env.OPENWEATHER_API_KEY;
+
+    // --- NEW: IP-Based Location Fallback ---
+    // If lat/lon are missing or seem to be the default Guntur (optional check, but let's just check if they are provided)
+    if (!lat || !lon) {
+        try {
+            console.log("No coordinates provided, detecting via IP...");
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+            // Use ip-api.com for free geolocation (limit 45 req/min)
+            const ipRes = await axios.get(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city,regionName`);
+            if (ipRes.data && ipRes.data.status === 'success') {
+                lat = ipRes.data.lat;
+                lon = ipRes.data.lon;
+                console.log(`IP Detected: ${ipRes.data.city}, ${ipRes.data.regionName} (${lat}, ${lon})`);
+            }
+        } catch (e) {
+            console.log("IP-based location failed:", e.message);
+            // Default to Guntur if IP detection also fails
+            if (!lat) lat = 16.3067;
+            if (!lon) lon = 80.4365;
+        }
+    }
 
     if (API_KEY) {
         try {
@@ -247,67 +268,7 @@ app.get('/api/weather', async (req, res) => {
         const data = response.data;
         const current = data.current;
 
-        // Regional Outbreaks API (Phase 8 of Plantix Workflow)
-        app.get('/api/outbreaks', async (req, res) => {
-            try {
-                let outbreaks = [];
-                if (firebaseInitialized && db) {
-                    // Get last 14 days of data
-                    const fourteenDaysAgo = new Date();
-                    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-                    const snapshot = await db.collection('predictions')
-                        .where('timestamp', '>=', fourteenDaysAgo)
-                        .orderBy('timestamp', 'desc')
-                        .limit(100)
-                        .get();
-
-                    const scans = [];
-                    snapshot.forEach(doc => scans.push(doc.data()));
-
-                    // Logic: Group by disease and rough location (1 decimal place = ~11km)
-                    const map = new Map();
-                    scans.forEach(s => {
-                        if (s.disease === 'Healthy' || s.disease === 'Not a Crop') return;
-                        const locKey = s.location?.lat ? `${s.location.lat.toFixed(1)},${s.location.lon.toFixed(1)}` : 'global';
-                        const key = `${s.disease}_${locKey}`;
-                        if (map.has(key)) {
-                            map.get(key).count += 1;
-                        } else {
-                            map.set(key, { disease: s.disease, crop: s.crop, count: 1, lat: s.location?.lat, lon: s.location?.lon });
-                        }
-                    });
-
-                    outbreaks = Array.from(map.values())
-                        .sort((a, b) => b.count - a.count)
-                        .slice(0, 5)
-                        .map(o => ({
-                            crop: o.crop || 'General',
-                            disease: o.disease,
-                            status: o.count > 5 ? 'Critical Outbreak' : o.count > 2 ? 'High Risk' : 'Monitoring',
-                            color: o.count > 2 ? 'bg-red-500' : 'bg-orange-500',
-                            trend: 'rising'
-                        }));
-                }
-
-                // Fallback: If no real outbreaks, show regional simulated data based on season
-                if (outbreaks.length < 3) {
-                    const simulated = [
-                        { crop: 'Wheat', disease: 'Leaf Rust', status: 'Rising', color: 'bg-orange-500', trend: 'rising' },
-                        { crop: 'Cotton', disease: 'Bacterial Blight', status: 'Alert', color: 'bg-red-500', trend: 'stable' },
-                        { crop: 'Tomato', disease: 'Early Blight', status: 'Warning', color: 'bg-yellow-500', trend: 'rising' }
-                    ];
-                    outbreaks = [...outbreaks, ...simulated.slice(0, 4 - outbreaks.length)];
-                }
-
-                res.json(outbreaks);
-            } catch (e) {
-                console.error("Outbreak API failed:", e.message);
-                res.status(500).json({ error: e.message });
-            }
-        });
-
-        // WMO Weather Code Mapping (Simplified for brevity, same as before)
+        // WMO Weather Code Mapping
         const weatherCodes = {
             0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
             45: "Fog", 48: "Depositing rime fog",
@@ -321,7 +282,6 @@ app.get('/api/weather', async (req, res) => {
         // Reverse Geocoding for City Name
         let locationName = "Your Location";
         try {
-            // Nominatim requires a valid User-Agent with contact info
             const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`, {
                 headers: {
                     'User-Agent': 'SmartCropDoctor/1.0 (nikilreddy726@gmail.com)',
@@ -343,7 +303,7 @@ app.get('/api/weather', async (req, res) => {
             main: {
                 temp: current.temperature_2m,
                 humidity: current.relative_humidity_2m,
-                feels_like: current.apparent_temperature, // Added Feels Like
+                feels_like: current.apparent_temperature,
                 temp_min: data.daily.temperature_2m_min[0],
                 temp_max: data.daily.temperature_2m_max[0]
             },
@@ -361,6 +321,68 @@ app.get('/api/weather', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch weather data" });
     }
 });
+
+// Regional Outbreaks API (Phase 8 of Plantix Workflow)
+app.get('/api/outbreaks', async (req, res) => {
+    try {
+        let outbreaks = [];
+        if (firebaseInitialized && db) {
+            // Get last 14 days of data
+            const fourteenDaysAgo = new Date();
+            fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+            const snapshot = await db.collection('predictions')
+                .where('timestamp', '>=', fourteenDaysAgo)
+                .orderBy('timestamp', 'desc')
+                .limit(100)
+                .get();
+
+            const scans = [];
+            snapshot.forEach(doc => scans.push(doc.data()));
+
+            // Logic: Group by disease and rough location (1 decimal place = ~11km)
+            const map = new Map();
+            scans.forEach(s => {
+                if (s.disease === 'Healthy' || s.disease === 'Not a Crop') return;
+                const locKey = s.location?.lat ? `${s.location.lat.toFixed(1)},${s.location.lon.toFixed(1)}` : 'global';
+                const key = `${s.disease}_${locKey}`;
+                if (map.has(key)) {
+                    map.get(key).count += 1;
+                } else {
+                    map.set(key, { disease: s.disease, crop: s.crop, count: 1, lat: s.location?.lat, lon: s.location?.lon });
+                }
+            });
+
+            outbreaks = Array.from(map.values())
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5)
+                .map(o => ({
+                    crop: o.crop || 'General',
+                    disease: o.disease,
+                    status: o.count > 5 ? 'Critical Outbreak' : o.count > 2 ? 'High Risk' : 'Monitoring',
+                    color: o.count > 2 ? 'bg-red-500' : 'bg-orange-500',
+                    trend: 'rising'
+                }));
+        }
+
+        // Fallback: If no real outbreaks, show regional simulated data based on season
+        if (outbreaks.length < 3) {
+            const simulated = [
+                { crop: 'Wheat', disease: 'Leaf Rust', status: 'Rising', color: 'bg-orange-500', trend: 'rising' },
+                { crop: 'Cotton', disease: 'Bacterial Blight', status: 'Alert', color: 'bg-red-500', trend: 'stable' },
+                { crop: 'Tomato', disease: 'Early Blight', status: 'Warning', color: 'bg-yellow-500', trend: 'rising' }
+            ];
+            outbreaks = [...outbreaks, ...simulated.slice(0, 4 - outbreaks.length)];
+        }
+
+        res.json(outbreaks);
+    } catch (e) {
+        console.error("Outbreak API failed:", e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 
 // History / Predictions Routes
 app.get('/api/predictions', async (req, res) => {
@@ -391,6 +413,11 @@ app.delete('/api/predictions/:id', async (req, res) => {
 // Community Routes
 app.get('/api/community', async (req, res) => {
     try {
+        if (!firebaseInitialized || !db) {
+            return res.json([
+                { id: 'c1', author: 'Team SmartCrop', content: 'Welcome to the Smart Crop Community! Share your farming journey here.', timestamp: new Date(), likes: 10, replies: 0 }
+            ]);
+        }
         const snapshot = await db.collection('posts').orderBy('timestamp', 'desc').get();
         const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         res.json(posts);
@@ -431,6 +458,7 @@ app.delete('/api/community/:id', async (req, res) => {
 // Like a post
 app.post('/api/community/:id/like', async (req, res) => {
     try {
+        if (!firebaseInitialized || !db) return res.json({ success: true });
         const postRef = db.collection('posts').doc(req.params.id);
         await postRef.update({
             likes: admin.firestore.FieldValue.increment(1)
@@ -444,6 +472,7 @@ app.post('/api/community/:id/like', async (req, res) => {
 // Comment on a post
 app.post('/api/community/:id/comment', async (req, res) => {
     try {
+        if (!firebaseInitialized || !db) return res.json({ success: true });
         const { text, author } = req.body;
         const postRef = db.collection('posts').doc(req.params.id);
 
@@ -532,6 +561,59 @@ app.get('/api/mandi', (req, res) => {
         updated_at: timestamp,
         data: marketData
     });
+});
+
+// Agri-Marketplace Routes
+app.get('/api/shops', (req, res) => {
+    const shops = [
+        {
+            id: "shop-001",
+            name: "Krishi Seva Kendra",
+            owner: "Rajesh Patel",
+            distance: "1.2 km",
+            rating: 4.9,
+            tags: ["Certified Seeds", "Expert Advice"],
+            image: "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=400",
+            verified: true,
+            status: "Open Now",
+            phone: "+91 98765 43210"
+        },
+        {
+            id: "shop-002",
+            name: "Modern Farmer's Hub",
+            owner: "Dr. Ananya Reddy",
+            distance: "3.5 km",
+            rating: 4.7,
+            tags: ["NPK Specialized", "Smart Tools"],
+            image: "https://images.unsplash.com/photo-1530507629858-e4977d30e9e0?auto=format&fit=crop&q=80&w=400",
+            verified: true,
+            status: "Fast Moving",
+            phone: "+91 87654 32109"
+        },
+        {
+            id: "shop-003",
+            name: "Apex Agri Solutions",
+            owner: "Vikram Shah",
+            distance: "6.8 km",
+            rating: 4.4,
+            tags: ["Bulk Fertilizers", "Pumps"],
+            image: "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&q=80&w=400",
+            verified: true,
+            status: "High Stock",
+            phone: "+91 76543 21098"
+        }
+    ];
+    res.json(shops);
+});
+
+app.get('/api/products', (req, res) => {
+    const products = [
+        { id: "p-001", name: "Micro-Nutrient Urea", price: "₹266", unit: "45kg Bag", img: "📦", stock: "In Stock", color: "from-emerald-500 to-green-600" },
+        { id: "p-002", name: "Hybrid Paddy V2", price: "₹850", unit: "10kg", img: "🌾", stock: "High Demand", color: "from-amber-500 to-orange-600" },
+        { id: "p-003", name: "Super Potash MOP", price: "₹1,700", unit: "50kg Bag", img: "🧱", stock: "Limited", color: "from-indigo-500 to-blue-600" },
+        { id: "p-004", name: "Bio-Neem Power", price: "₹450", unit: "1 Liter", img: "🧴", stock: "In Stock", color: "from-rose-500 to-pink-600" }
+    ];
+    res.json(products);
 });
 
 app.listen(port, () => {

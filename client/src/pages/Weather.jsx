@@ -31,19 +31,23 @@ const Weather = () => {
                     await fetchWeather(latitude, longitude);
                 },
                 async (error) => {
-                    console.log("Geolocation error, using default:", error);
-                    await fetchWeather(16.3067, 80.4365);
-                }
+                    console.log("Geolocation error, searching via IP (server-side):", error);
+                    // Passing nulls to fetchWeather so it calls backend without lat/lon
+                    // Our updated backend will then detect location via IP
+                    await fetchWeather();
+                },
+                { timeout: 10000, enableHighAccuracy: false } // Add timeout to prevent hanging
             );
         } else {
-            fetchWeather(16.3067, 80.4365);
+            fetchWeather();
         }
     }, []);
 
     const fetchWeather = async (lat, lon, locationOverride = null) => {
         try {
             setLoading(true);
-            const data = await getWeather(parseFloat(lat), parseFloat(lon));
+            // If lat/lon are missing, the server will use IP-based detection
+            const data = await getWeather(lat, lon);
             setWeather(data);
 
             if (locationOverride) {
@@ -157,7 +161,7 @@ const Weather = () => {
                     <div className="flex items-center gap-2 text-primary font-bold">
                         <MapPin size={18} /> {location.city}{location.region ? `, ${location.region}` : ''}
                     </div>
-                    <h1 className="text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
+                    <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
                     <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Farm-specific localized forecasting</p>
                 </div>
                 <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-stretch md:items-center">
@@ -200,7 +204,7 @@ const Weather = () => {
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="lg:col-span-2 bg-gradient-to-br from-primary to-primary-dark p-12 rounded-[4rem] text-white shadow-2xl relative overflow-hidden"
+                        className="lg:col-span-2 bg-gradient-to-br from-primary to-primary-dark p-8 sm:p-12 rounded-[2.5rem] sm:rounded-[4rem] text-white shadow-2xl relative overflow-hidden"
                     >
                         <div className="absolute top-0 right-0 p-12 opacity-10">
                             <CloudSun size={300} />
@@ -208,7 +212,7 @@ const Weather = () => {
                         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
                             <div className="space-y-4">
                                 <p className="text-xl font-bold opacity-80">{t('today')}, {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                                <h2 className="text-9xl font-black">{weather?.main?.temp ? Math.round(weather.main.temp) : '--'}°C</h2>
+                                <h2 className="text-7xl sm:text-9xl font-black">{weather?.main?.temp ? Math.round(weather.main.temp) : '--'}°C</h2>
                                 <p className="text-2xl font-medium">{weather?.weather?.[0]?.main || 'Loading...'}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-8 bg-white/10 backdrop-blur-md p-8 rounded-[3rem] border border-white/10">

@@ -18,7 +18,7 @@ const GovernmentSchemes = () => {
                 <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">{t('schemesSubtitle')}</p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
                 {schemes.map((item, idx) => (
                     <motion.div
                         key={idx}

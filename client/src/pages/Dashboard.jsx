@@ -118,38 +118,46 @@ const Dashboard = () => {
 
         // 2. Background Cloud Sync
         const syncData = async () => {
+            // 1. Sync History Data
             try {
                 const cloudData = await getHistory();
-                processHistory(initialLocal, Array.isArray(cloudData) ? cloudData : []);
-
-                // Background Weather Fetch
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        async (pos) => {
-                            try {
-                                const w = await getWeather(pos.coords.latitude, pos.coords.longitude);
-                                setWeather(w);
-                                const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
-                                localStorage.setItem(weatherKey, JSON.stringify(w));
-                            } catch (e) {
-                                console.log("Weather fetch error:", e);
-                            }
-                        },
-                        async () => {
-                            // Default to Guntur if geolocation fails
-                            try {
-                                const w = await getWeather(16.3067, 80.4365);
-                                setWeather(w);
-                                const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
-                                localStorage.setItem(weatherKey, JSON.stringify(w));
-                            } catch (e) {
-                                console.log("Default weather fetch error:", e);
-                            }
-                        }
-                    );
-                }
+                processHistory(localData, Array.isArray(cloudData) ? cloudData : []);
             } catch (err) {
-                console.log("Background sync slowed down by server wake-up...", err);
+                console.log("History sync failed, using local only", err);
+            }
+
+            // 2. Sync Weather Data
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (pos) => {
+                        try {
+                            const w = await getWeather(pos.coords.latitude, pos.coords.longitude);
+                            setWeather(w);
+                            const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
+                            localStorage.setItem(weatherKey, JSON.stringify(w));
+                        } catch (e) {
+                            console.log("Weather fetch error:", e);
+                        }
+                    },
+                    async () => {
+                        // Use IP-based detection if geolocation fails
+                        try {
+                            const w = await getWeather(); // No params = IP detection
+                            setWeather(w);
+                            const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
+                            localStorage.setItem(weatherKey, JSON.stringify(w));
+                        } catch (e) {
+                            console.log("IP-based weather fallback error:", e);
+                        }
+                    },
+                    { timeout: 10000 }
+                );
+            } else {
+                // Geo not supported - try IP via server
+                try {
+                    const w = await getWeather();
+                    setWeather(w);
+                } catch (e) { console.log("Final weather fallback error:", e); }
             }
         };
 
@@ -197,12 +205,12 @@ const Dashboard = () => {
         <div className="space-y-10 pb-12">
             {/* Header */}
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-                    <h1 className="text-4xl font-black text-slate-900 tracking-tight">{greeting}, {user?.displayName || user?.email?.split('@')[0] || 'Farmer'}! 🌾</h1>
-                    <p className="text-slate-500 font-medium mt-1">{t('dashboardSubtitle')}</p>
+                <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 w-full text-center md:text-left">
+                    <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">{greeting}, {user?.displayName || user?.email?.split('@')[0] || 'Farmer'}! 🌾</h1>
+                    <p className="text-slate-500 font-medium mt-1 text-xs sm:text-base opacity-80">{t('dashboardSubtitle')}</p>
                 </motion.div>
-                <div className="bg-white px-6 py-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 font-bold text-primary">
-                    <Calendar size={20} />
+                <div className="bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 font-bold text-primary text-xs sm:text-sm w-full md:w-auto justify-center md:justify-start">
+                    <Calendar size={18} />
                     <span>{currentTime.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     <span className="text-slate-300">|</span>
                     <span>{currentTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</span>
@@ -237,9 +245,9 @@ const Dashboard = () => {
                         bg: 'bg-blue-50'
                     },
                 ].map((stat, i) => (
-                    <motion.div key={i} whileHover={{ y: -5 }} className="card-base p-8 space-y-4">
-                        <div className={`${stat.bg} ${stat.color} w-12 h-12 rounded-2xl flex items-center justify-center`}>
-                            {stat.icon}
+                    <motion.div key={i} whileHover={{ y: -5 }} className="card-base p-6 sm:p-8 space-y-3 sm:space-y-4">
+                        <div className={`${stat.bg} ${stat.color} w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center`}>
+                            {React.cloneElement(stat.icon, { size: 20 })}
                         </div>
                         <div>
                             <p className="text-xs font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>

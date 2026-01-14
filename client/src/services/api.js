@@ -85,6 +85,16 @@ export const getOutbreaks = async () => {
     return response.data;
 };
 
+export const getShops = async () => {
+    const response = await api.get('/shops');
+    return response.data;
+};
+
+export const getProducts = async () => {
+    const response = await api.get('/products');
+    return response.data;
+};
+
 export const getHealth = async () => {
     try {
         const response = await api.get('/health');

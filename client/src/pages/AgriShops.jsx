@@ -1,12 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Store, MapPin, ShieldCheck, Phone, Navigation, Package, Star } from 'lucide-react';
+import { Store, MapPin, ShieldCheck, Phone, Navigation, Package, Star, Loader2 } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
+import { getShops, getProducts } from '../services/api';
 
 const AgriShops = () => {
     const { t } = useLanguage();
-
-    const shops = [
+    const [shops, setShops] = useState([
         {
             name: "Krishi Seva Kendra",
             owner: "Rajesh Patel",
@@ -16,35 +16,39 @@ const AgriShops = () => {
             image: "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=400",
             verified: true,
             status: "Open Now"
-        },
-        {
-            name: "Modern Farmer's Hub",
-            owner: "Dr. Ananya Reddy",
-            distance: "3.5 km",
-            rating: 4.7,
-            tags: ["NPK Specialized", "Smart Tools"],
-            image: "https://images.unsplash.com/photo-1530507629858-e4977d30e9e0?auto=format&fit=crop&q=80&w=400",
-            verified: true,
-            status: "Fast Moving"
-        },
-        {
-            name: "Apex Agri Solutions",
-            owner: "Vikram Shah",
-            distance: "6.8 km",
-            rating: 4.4,
-            tags: ["Bulk Fertilizers", "Pumps"],
-            image: "https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&q=80&w=400",
-            verified: true,
-            status: "High Stock"
         }
-    ];
-
-    const products = [
+    ]);
+    const [products, setProducts] = useState([
         { name: "Micro-Nutrient Urea", price: "₹266", unit: "45kg Bag", img: "📦", stock: "In Stock", color: "from-emerald-500 to-green-600" },
-        { name: "Hybrid Paddy V2", price: "₹850", unit: "10kg", img: "🌾", stock: "High Demand", color: "from-amber-500 to-orange-600" },
-        { name: "Super Potash MOP", price: "₹1,700", unit: "50kg Bag", img: "🧱", stock: "Limited", color: "from-indigo-500 to-blue-600" },
-        { name: "Bio-Neem Power", price: "₹450", unit: "1 Liter", img: "🧴", stock: "In Stock", color: "from-rose-500 to-pink-600" }
-    ];
+        { name: "Hybrid Paddy V2", price: "₹850", unit: "10kg", img: "🌾", stock: "High Demand", color: "from-amber-500 to-orange-600" }
+    ]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [shopsData, productsData] = await Promise.all([
+                    getShops(),
+                    getProducts()
+                ]);
+                if (shopsData?.length > 0) setShops(shopsData);
+                if (productsData?.length > 0) setProducts(productsData);
+            } catch (error) {
+                console.log("Marketplace API not reachable, using localized fallbacks");
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[60vh]">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+            </div>
+        );
+    }
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
@@ -53,7 +57,7 @@ const AgriShops = () => {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-indigo-900 rounded-[4rem] p-12 md:p-20 text-white overflow-hidden shadow-[0_40px_100px_-20px_rgba(49,46,129,0.3)]"
+                    className="bg-indigo-900 rounded-[2.5rem] md:rounded-[4rem] p-8 md:p-20 text-white overflow-hidden shadow-[0_40px_100px_-20px_rgba(49,46,129,0.3)]"
                 >
                     <div className="absolute top-0 right-0 w-1/3 h-full bg-gradient-to-l from-white/10 to-transparent pointer-events-none" />
                     <div className="relative z-10 max-w-2xl">
@@ -61,17 +65,17 @@ const AgriShops = () => {
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                             <span className="text-xs font-black uppercase tracking-widest text-emerald-200">Verified Marketplace</span>
                         </div>
-                        <h1 className="text-5xl md:text-7xl font-black mb-6 leading-[0.9] tracking-tighter">
+                        <h1 className="text-3xl sm:text-5xl md:text-7xl font-black mb-4 sm:mb-6 leading-[0.9] tracking-tighter">
                             Your Local <span className="text-amber-400">Agri-Hub.</span>
                         </h1>
                         <p className="text-lg md:text-xl font-medium text-indigo-100 opacity-80 leading-relaxed mb-10">
                             Connect with verified dealers, check live stock, and source professional-grade inputs for your farm.
                         </p>
                         <div className="flex flex-wrap gap-4">
-                            <button className="px-8 py-4 bg-amber-400 text-indigo-950 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-xl shadow-amber-900/20">
+                            <button className="px-8 py-4 bg-amber-400 text-indigo-950 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-xl shadow-amber-900/20 w-full sm:w-auto md:max-w-xs">
                                 Find Nearest Shop
                             </button>
-                            <button className="px-8 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/20 transition-all">
+                            <button className="px-8 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/20 transition-all w-full sm:w-auto md:max-w-xs">
                                 Price Trends
                             </button>
                         </div>
@@ -86,7 +90,7 @@ const AgriShops = () => {
                     <div className="h-px bg-slate-100 grow mx-8 hidden md:block" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-10">
                     {shops.map((shop, i) => (
                         <motion.div
                             key={i}
@@ -96,10 +100,10 @@ const AgriShops = () => {
                             viewport={{ once: true }}
                             className="bg-white rounded-[3rem] p-4 shadow-2xl shadow-slate-200/50 border border-slate-100 group hover:-translate-y-2 transition-all duration-500"
                         >
-                            <div className="relative h-64 rounded-[2.5rem] overflow-hidden mb-8">
+                            <div className="relative h-48 sm:h-64 rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden mb-6 sm:mb-8">
                                 <img src={shop.image} alt={shop.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
-                                <div className="absolute top-6 left-6 flex gap-2">
+                                <div className="absolute top-4 sm:top-6 left-4 sm:left-6 flex gap-2">
                                     <div className="px-4 py-2 bg-white/90 backdrop-blur-md rounded-2xl flex items-center gap-2 shadow-xl">
                                         <Star size={14} className="text-amber-500 fill-amber-500" />
                                         <span className="text-sm font-black text-slate-900">{shop.rating}</span>
@@ -131,8 +135,8 @@ const AgriShops = () => {
                                     ))}
                                 </div>
 
-                                <button className="w-full py-5 bg-indigo-50 text-indigo-600 rounded-[2rem] font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-indigo-100 group-hover:shadow-indigo-200 shadow-xl">
-                                    <Phone size={20} />
+                                <button className="w-full py-4 md:py-5 bg-indigo-50 text-indigo-600 rounded-[2rem] font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-indigo-100 group-hover:shadow-indigo-200 shadow-xl">
+                                    <Phone size={18} />
                                     Instant Contact
                                 </button>
                             </div>
@@ -148,7 +152,7 @@ const AgriShops = () => {
                         <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Live Stock Explorer</h2>
                         <p className="text-slate-500 font-medium">Real-time inventory from your regional distributors</p>
                     </div>
-                    <button className="px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-2xl">
+                    <button className="px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-2xl w-full sm:w-auto md:max-w-md">
                         Full Product Catalogue
                     </button>
                 </div>

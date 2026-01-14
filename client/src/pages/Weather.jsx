@@ -16,10 +16,15 @@ const Weather = () => {
         try {
             const cachedW = localStorage.getItem('cached_weather');
             const cachedL = localStorage.getItem('cached_location');
-            if (cachedW) {
-                setWeather(JSON.parse(cachedW));
-                if (cachedL) setLocation(JSON.parse(cachedL));
-                setLoading(false); // Show UI immediately if we have a cache
+            if (cachedW && cachedL) {
+                const loc = JSON.parse(cachedL);
+                // If it's the old default 'Guntur', don't use it as 'instant' load
+                // so the user sees the loader while we get the REAL location
+                if (loc.city !== 'Guntur') {
+                    setWeather(JSON.parse(cachedW));
+                    setLocation(loc);
+                    setLoading(false);
+                }
             }
         } catch (e) { console.error("Cache load failed", e); }
 
@@ -31,12 +36,10 @@ const Weather = () => {
                     await fetchWeather(latitude, longitude);
                 },
                 async (error) => {
-                    console.log("Geolocation error, searching via IP (server-side):", error);
-                    // Passing nulls to fetchWeather so it calls backend without lat/lon
-                    // Our updated backend will then detect location via IP
+                    console.log("Geolocation error, searching via IP:", error);
                     await fetchWeather();
                 },
-                { timeout: 10000, enableHighAccuracy: false } // Add timeout to prevent hanging
+                { timeout: 10000, enableHighAccuracy: false }
             );
         } else {
             fetchWeather();
@@ -46,8 +49,7 @@ const Weather = () => {
     const fetchWeather = async (lat, lon, locationOverride = null) => {
         try {
             setLoading(true);
-            // If lat/lon are missing, the server will use IP-based detection
-            const data = await getWeather(lat, lon);
+            const data = await getWeather(lat, lon, Date.now());
             setWeather(data);
 
             if (locationOverride) {
@@ -68,8 +70,6 @@ const Weather = () => {
                 // If this was a specific search that failed to get weather data
                 alert("Could not fetch weather data for this location. Please try again later.");
                 // We keep the previous weather or Mock it but do NOT reset location to Guntur
-                // Ideally we shouldn't show partial state, but showing last known good state is better than lying about location.
-                // However, for now let's set a mock data but with the SEARCHED location name to avoid confusion
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
                     weather: [{ main: 'Cloudy', description: 'Data Unavailable' }],

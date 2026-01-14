@@ -70,8 +70,10 @@ export const commentPost = async (id, text, author) => {
     return response.data;
 };
 
-export const getWeather = async (lat, lon) => {
-    const response = await api.get('/weather', { params: { lat, lon } });
+export const getWeather = async (lat, lon, cb = null) => {
+    const params = { lat, lon };
+    if (cb) params.cb = cb;
+    const response = await api.get('/weather', { params });
     return response.data;
 };
 

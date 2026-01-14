@@ -108,7 +108,13 @@ const Dashboard = () => {
         try {
             const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
             const cachedWeather = localStorage.getItem(weatherKey);
-            if (cachedWeather) setWeather(JSON.parse(cachedWeather));
+            if (cachedWeather) {
+                const w = JSON.parse(cachedWeather);
+                // Skip 'Guntur' cache to force a fresh lookup if location was inaccurate
+                if (w.name !== 'Guntur') {
+                    setWeather(w);
+                }
+            }
         } catch (e) {
             console.error("Local Load Error", e);
         }
@@ -131,7 +137,7 @@ const Dashboard = () => {
                 navigator.geolocation.getCurrentPosition(
                     async (pos) => {
                         try {
-                            const w = await getWeather(pos.coords.latitude, pos.coords.longitude);
+                            const w = await getWeather(pos.coords.latitude, pos.coords.longitude, Date.now());
                             setWeather(w);
                             const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
                             localStorage.setItem(weatherKey, JSON.stringify(w));
@@ -142,7 +148,7 @@ const Dashboard = () => {
                     async () => {
                         // Use IP-based detection if geolocation fails
                         try {
-                            const w = await getWeather(); // No params = IP detection
+                            const w = await getWeather(undefined, undefined, Date.now());
                             setWeather(w);
                             const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
                             localStorage.setItem(weatherKey, JSON.stringify(w));
@@ -155,7 +161,7 @@ const Dashboard = () => {
             } else {
                 // Geo not supported - try IP via server
                 try {
-                    const w = await getWeather();
+                    const w = await getWeather(undefined, undefined, Date.now());
                     setWeather(w);
                 } catch (e) { console.log("Final weather fallback error:", e); }
             }

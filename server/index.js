@@ -229,25 +229,32 @@ app.get('/api/weather', async (req, res) => {
     let { lat, lon } = req.query;
     const API_KEY = process.env.OPENWEATHER_API_KEY;
 
-    // --- NEW: IP-Based Location Fallback ---
-    // If lat/lon are missing or seem to be the default Guntur (optional check, but let's just check if they are provided)
-    if (!lat || !lon) {
+    // --- REFINED: IP-Based Location Detection ---
+    if (!lat || !lon || lat === 'null' || lon === 'null' || lat === 'undefined' || lon === 'undefined') {
         try {
-            console.log("No coordinates provided, detecting via IP...");
-            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-            // Use ip-api.com for free geolocation (limit 45 req/min)
+            // Get the first IP in the list (if behind a proxy like Render/Cloudflare)
+            const xForwardedFor = req.headers['x-forwarded-for'];
+            const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : req.socket.remoteAddress;
+
+            console.log(`[WEATHER] No coords. Detecting IP: ${ip}`);
+
+            // Use ip-api.com for free geolocation
             const ipRes = await axios.get(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city,regionName`);
+
             if (ipRes.data && ipRes.data.status === 'success') {
                 lat = ipRes.data.lat;
                 lon = ipRes.data.lon;
-                console.log(`IP Detected: ${ipRes.data.city}, ${ipRes.data.regionName} (${lat}, ${lon})`);
+                console.log(`[WEATHER] IP Detected: ${ipRes.data.city}, ${ipRes.data.regionName} (${lat}, ${lon})`);
             }
         } catch (e) {
-            console.log("IP-based location failed:", e.message);
-            // Default to Guntur if IP detection also fails
-            if (!lat) lat = 16.3067;
-            if (!lon) lon = 80.4365;
+            console.log("[WEATHER] IP-based detection error:", e.message);
         }
+    }
+
+    // Ultimate Fallback if everything fails
+    if (!lat || !lon) {
+        lat = 16.3067;
+        lon = 80.4365;
     }
 
     if (API_KEY) {

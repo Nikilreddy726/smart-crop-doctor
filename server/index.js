@@ -229,27 +229,22 @@ app.get('/api/weather', async (req, res) => {
     let { lat, lon } = req.query;
     const API_KEY = process.env.OPENWEATHER_API_KEY;
 
-    // --- REFINED: IP-Based Location Detection ---
-    if (!lat || !lon || lat === 'null' || lon === 'null' || lat === 'undefined' || lon === 'undefined') {
-        try {
-            // Get the first IP in the list (if behind a proxy like Render/Cloudflare)
-            const xForwardedFor = req.headers['x-forwarded-for'];
-            const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : req.socket.remoteAddress;
-
-            console.log(`[WEATHER] No coords. Detecting IP: ${ip}`);
-
-            // Use ip-api.com for free geolocation
-            const ipRes = await axios.get(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city,regionName`);
-
-            if (ipRes.data && ipRes.data.status === 'success') {
+    // --- REFINED: IP-Based Location Detection & Fallback Name ---
+    let ipCityName = null;
+    try {
+        const xForwardedFor = req.headers['x-forwarded-for'];
+        const ip = xForwardedFor ? xForwardedFor.split(',')[0].trim() : req.socket.remoteAddress;
+        const ipRes = await axios.get(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city`);
+        if (ipRes.data && ipRes.data.status === 'success') {
+            ipCityName = ipRes.data.city;
+            // Only overwrite coords if none provided
+            if (!lat || !lon || lat === 'null' || lon === 'null' || lat === 'undefined' || lon === 'undefined') {
                 lat = ipRes.data.lat;
                 lon = ipRes.data.lon;
-                console.log(`[WEATHER] IP Detected: ${ipRes.data.city}, ${ipRes.data.regionName} (${lat}, ${lon})`);
+                console.log(`[WEATHER] Using IP Coords: ${lat}, ${lon}`);
             }
-        } catch (e) {
-            console.log("[WEATHER] IP-based detection error:", e.message);
         }
-    }
+    } catch (e) { console.log("[WEATHER] IP detection error:", e.message); }
 
     // Ultimate Fallback if everything fails
     if (!lat || !lon) {
@@ -287,7 +282,7 @@ app.get('/api/weather', async (req, res) => {
         const weatherDesc = weatherCodes[current.weather_code] || "Variable";
 
         // Reverse Geocoding for City Name
-        let locationName = "Your Location";
+        let locationName = ipCityName || "Your Location";
         try {
             // zoom=12 focuses on City/Town/Mandal names
             const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12`, {

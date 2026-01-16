@@ -61,13 +61,18 @@ const Weather = () => {
             setWeather(data);
 
             if (locationOverride) {
-                // If this is a manual search, we tag it
                 const finalLoc = { ...locationOverride, isManual: !!locationOverride.isManual };
                 setLocation(finalLoc);
                 localStorage.setItem('cached_location', JSON.stringify(finalLoc));
             } else {
+                // If the server failed to get a good name, don't show "Your Location" if we have a better one cached
+                // unless we are specifically resetting.
+                const cityName = data.name && data.name !== 'Your Location' && data.name !== 'Unknown'
+                    ? data.name
+                    : (location.city !== 'Loading...' ? location.city : 'Detecting...');
+
                 const loc = {
-                    city: data.name || 'Unknown',
+                    city: cityName,
                     region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || '',
                     isManual: false
                 };

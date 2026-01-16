@@ -120,14 +120,18 @@ const Weather = () => {
                 const result = data[0];
                 const { lat, lon, address } = result;
 
-                // Village, Mandal, District
-                const village = address.village || address.hamlet || address.suburb || address.town || address.city || "";
-                const mandal = address.subdistrict || address.municipality || address.city_district || "";
+                // Village, Mandal, District (High Precision Parsing)
+                const village = address.village || address.hamlet || address.neighbourhood || address.suburb || address.residential || address.town || address.city || "";
+                const mandal = address.subdistrict || address.municipality || address.city_district || address.district || "";
                 const district = address.state_district || address.county || "";
                 const state = address.state || "";
 
-                const locationParts = [village, mandal, district].filter(p => p && p.length > 0);
-                const localName = locationParts.length > 0 ? locationParts.join(", ") : result.name;
+                const parts = [];
+                if (village) parts.push(village);
+                if (mandal && !village.includes(mandal)) parts.push(mandal);
+                if (district && !mandal.includes(district) && !village.includes(district)) parts.push(district);
+
+                const localName = parts.length > 0 ? parts.join(", ") : result.name;
                 const regionLabel = state || address.country || "";
 
                 await fetchWeather(lat, lon, { city: localName, region: regionLabel, isManual: true });

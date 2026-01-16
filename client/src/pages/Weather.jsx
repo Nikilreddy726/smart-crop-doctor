@@ -12,23 +12,31 @@ const Weather = () => {
     const [searchCity, setSearchCity] = useState('');
 
     useEffect(() => {
+        let isManual = false;
         // 1. Instant Load from Cache
         try {
             const cachedW = localStorage.getItem('cached_weather');
             const cachedL = localStorage.getItem('cached_location');
             if (cachedW && cachedL) {
                 const loc = JSON.parse(cachedL);
-                // If it's the old default 'Guntur', don't use it as 'instant' load
-                // so the user sees the loader while we get the REAL location
                 if (loc.city !== 'Guntur') {
                     setWeather(JSON.parse(cachedW));
                     setLocation(loc);
                     setLoading(false);
+                    if (loc.isManual) isManual = true;
                 }
             }
         } catch (e) { console.error("Cache load failed", e); }
 
         // 2. Refresh in background
+        // CRITICAL FIX: If user has a "Manual" location set, DON'T use geolocation
+        // because it keeps putting them in the wrong place on Desktop.
+        if (isManual) {
+            // Just refresh weather for the pinned manual location
+            fetchWeather(undefined, undefined, JSON.parse(localStorage.getItem('cached_location')));
+            return;
+        }
+
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
@@ -53,12 +61,15 @@ const Weather = () => {
             setWeather(data);
 
             if (locationOverride) {
-                setLocation(locationOverride);
-                localStorage.setItem('cached_location', JSON.stringify(locationOverride));
+                // If this is a manual search, we tag it
+                const finalLoc = { ...locationOverride, isManual: !!locationOverride.isManual };
+                setLocation(finalLoc);
+                localStorage.setItem('cached_location', JSON.stringify(finalLoc));
             } else {
                 const loc = {
                     city: data.name || 'Unknown',
-                    region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || ''
+                    region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || '',
+                    isManual: false
                 };
                 setLocation(loc);
                 localStorage.setItem('cached_location', JSON.stringify(loc));
@@ -67,25 +78,24 @@ const Weather = () => {
         } catch (error) {
             console.error("Weather fetch error:", error);
             if (locationOverride) {
-                // If this was a specific search that failed to get weather data
                 alert("Could not fetch weather data for this location. Please try again later.");
-                // We keep the previous weather or Mock it but do NOT reset location to Guntur
+                const fallback = { ...locationOverride, isManual: true };
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
                     weather: [{ main: 'Cloudy', description: 'Data Unavailable' }],
                     wind: { speed: 12 },
                     name: locationOverride.city
                 });
-                setLocation(locationOverride);
+                setLocation(fallback);
+                localStorage.setItem('cached_location', JSON.stringify(fallback));
             } else {
-                // Default fallback for initial load failure
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
                     weather: [{ main: 'Cloudy', description: 'partly cloudy' }],
                     wind: { speed: 12 },
                     name: 'Guntur'
                 });
-                setLocation({ city: 'Guntur', region: 'Andhra Pradesh' });
+                setLocation({ city: 'Guntur', region: 'Andhra Pradesh', isManual: false });
             }
         } finally {
             setLoading(false);
@@ -98,43 +108,26 @@ const Weather = () => {
 
         try {
             setLoading(true);
-            // Geocoding via OpenStreetMap with address details
-            // 'addressdetails=1' ensures we get village, county, state breakdown
             const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&q=${encodeURIComponent(searchCity)}`);
             const data = await response.json();
 
             if (data && data.length > 0) {
                 const result = data[0];
                 const { lat, lon, address, name } = result;
-
-                // 1. Extract the most specific local name (Village > Town > City > etc.)
                 const localName = address.village || address.town || address.city || address.hamlet || address.suburb || address.municipality || address.neighbourhood || address.residential || name;
-
-                // 2. Extract District / County
-                // In India, 'state_district' is often the district, or 'county'
                 const district = address.state_district || address.county || '';
-
-                // 3. Extract State
                 const state = address.state || '';
-
-                // Construct a detailed region string: "District, State"
-                // Only add district if it's different from the local name (e.g. don't show "Guntur, Guntur, AP")
                 let regionLabel = state;
-                if (district && !localName.includes(district)) {
-                    regionLabel = `${district}, ${state}`;
-                }
-
-                // Fallback if state is missing
+                if (district && !localName.includes(district)) regionLabel = `${district}, ${state}`;
                 if (!regionLabel && address.country) regionLabel = address.country;
 
-                await fetchWeather(lat, lon, { city: localName, region: regionLabel });
+                await fetchWeather(lat, lon, { city: localName, region: regionLabel, isManual: true });
             } else {
-                alert('Location not found. Please check the spelling and try format: Village, District, State');
+                alert('Location not found. Please check the spelling.');
                 setLoading(false);
             }
         } catch (err) {
             console.error("Geocoding failed:", err);
-            alert('Unable to find location. Please try again.');
             setLoading(false);
         }
     };
@@ -144,13 +137,16 @@ const Weather = () => {
             setLoading(true);
             navigator.geolocation.getCurrentPosition(
                 async (position) => {
+                    // This explicitly resets to automatic (isManual = false)
                     await fetchWeather(position.coords.latitude, position.coords.longitude);
                 },
-                (error) => {
-                    alert('Could not get your location. Please allow location access.');
-                    setLoading(false);
+                async (error) => {
+                    console.log("Geolocation error, using IP fallback:", error);
+                    await fetchWeather(); // Server-side IP fallback
                 }
             );
+        } else {
+            fetchWeather();
         }
     };
 

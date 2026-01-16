@@ -110,14 +110,9 @@ const Dashboard = () => {
             const cachedWeather = localStorage.getItem(weatherKey);
             if (cachedWeather) {
                 const w = JSON.parse(cachedWeather);
-                // Skip 'Guntur' cache to force a fresh lookup if location was inaccurate
-                if (w.name !== 'Guntur') {
-                    setWeather(w);
-                }
+                if (w.name !== 'Guntur') setWeather(w);
             }
-        } catch (e) {
-            console.error("Local Load Error", e);
-        }
+        } catch (e) { console.error("Local Load Error", e); }
 
         processHistory(localData);
         setLoading(false); // Stop blocking UI early
@@ -128,11 +123,23 @@ const Dashboard = () => {
             try {
                 const cloudData = await getHistory();
                 processHistory(localData, Array.isArray(cloudData) ? cloudData : []);
-            } catch (err) {
-                console.log("History sync failed, using local only", err);
+            } catch (err) { console.log("History sync failed", err); }
+
+            // 2. Sync Weather Data (Respect Manual pinned location)
+            let isManual = false;
+            try {
+                const cachedL = localStorage.getItem('cached_location');
+                if (cachedL && JSON.parse(cachedL).isManual) isManual = true;
+            } catch (e) { }
+
+            if (isManual) {
+                try {
+                    const w = await getWeather(undefined, undefined, Date.now());
+                    setWeather(w);
+                } catch (e) { }
+                return;
             }
 
-            // 2. Sync Weather Data
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     async (pos) => {
@@ -146,24 +153,18 @@ const Dashboard = () => {
                         }
                     },
                     async () => {
-                        // Use IP-based detection if geolocation fails
                         try {
                             const w = await getWeather(undefined, undefined, Date.now());
                             setWeather(w);
-                            const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
-                            localStorage.setItem(weatherKey, JSON.stringify(w));
-                        } catch (e) {
-                            console.log("IP-based weather fallback error:", e);
-                        }
+                        } catch (e) { }
                     },
                     { timeout: 10000 }
                 );
             } else {
-                // Geo not supported - try IP via server
                 try {
                     const w = await getWeather(undefined, undefined, Date.now());
                     setWeather(w);
-                } catch (e) { console.log("Final weather fallback error:", e); }
+                } catch (e) { }
             }
         };
 

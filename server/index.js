@@ -289,7 +289,8 @@ app.get('/api/weather', async (req, res) => {
         // Reverse Geocoding for City Name
         let locationName = "Your Location";
         try {
-            const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10`, {
+            // zoom=12 focuses on City/Town/Mandal names
+            const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12`, {
                 headers: {
                     'User-Agent': 'SmartCropDoctor/1.0 (nikilreddy726@gmail.com)',
                     'Referer': 'https://smart-crop-doctor.web.app/'
@@ -298,7 +299,8 @@ app.get('/api/weather', async (req, res) => {
 
             if (geoResponse.data && geoResponse.data.address) {
                 const a = geoResponse.data.address;
-                locationName = a.city || a.town || a.village || a.suburb || a.county || a.state_district || a.municipality || locationName;
+                // Priority: City > Town > Village > Mandal/District
+                locationName = a.city || a.town || a.village || a.municipality || a.city_district || a.suburb || a.county || a.state_district || locationName;
             }
         } catch (e) {
             console.log("Reverse geo failed:", e.message);

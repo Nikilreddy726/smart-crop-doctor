@@ -282,10 +282,11 @@ app.get('/api/weather', async (req, res) => {
         const weatherDesc = weatherCodes[current.weather_code] || "Variable";
 
         // Reverse Geocoding for City Name
+        // Reverse Geocoding for Granular City/Village Name
         let locationName = ipCityName || "Your Location";
         try {
-            // zoom=12 focuses on City/Town/Mandal names
-            const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=12`, {
+            // zoom=14 targets Village/Mandal level details in India
+            const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
                 headers: {
                     'User-Agent': 'SmartCropDoctor/1.0 (nikilreddy726@gmail.com)',
                     'Referer': 'https://smart-crop-doctor.web.app/'
@@ -294,8 +295,21 @@ app.get('/api/weather', async (req, res) => {
 
             if (geoResponse.data && geoResponse.data.address) {
                 const a = geoResponse.data.address;
-                // Priority: City > Town > Village > Mandal/District
-                locationName = a.city || a.town || a.village || a.municipality || a.city_district || a.suburb || a.county || a.state_district || locationName;
+
+                // Components for Indian structure: Village, Mandal, District
+                const village = a.village || a.hamlet || a.suburb || a.town || a.city || "";
+                const mandal = a.subdistrict || a.municipality || a.city_district || "";
+                const district = a.county || a.state_district || "";
+
+                // Construct structured string
+                const parts = [village, mandal, district].filter(p => p && p.length > 0);
+
+                // If we found specific components, use them, otherwise fallback
+                if (parts.length > 0) {
+                    locationName = parts.join(", ");
+                } else {
+                    locationName = a.display_name.split(',').slice(0, 3).join(', ');
+                }
             }
         } catch (e) {
             console.log("Reverse geo failed:", e.message);

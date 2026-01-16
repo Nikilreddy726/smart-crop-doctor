@@ -118,13 +118,17 @@ const Weather = () => {
 
             if (data && data.length > 0) {
                 const result = data[0];
-                const { lat, lon, address, name } = result;
-                const localName = address.village || address.town || address.city || address.hamlet || address.suburb || address.municipality || address.neighbourhood || address.residential || name;
-                const district = address.state_district || address.county || '';
-                const state = address.state || '';
-                let regionLabel = state;
-                if (district && !localName.includes(district)) regionLabel = `${district}, ${state}`;
-                if (!regionLabel && address.country) regionLabel = address.country;
+                const { lat, lon, address } = result;
+
+                // Village, Mandal, District
+                const village = address.village || address.hamlet || address.suburb || address.town || address.city || "";
+                const mandal = address.subdistrict || address.municipality || address.city_district || "";
+                const district = address.state_district || address.county || "";
+                const state = address.state || "";
+
+                const locationParts = [village, mandal, district].filter(p => p && p.length > 0);
+                const localName = locationParts.length > 0 ? locationParts.join(", ") : result.name;
+                const regionLabel = state || address.country || "";
 
                 await fetchWeather(lat, lon, { city: localName, region: regionLabel, isManual: true });
             } else {

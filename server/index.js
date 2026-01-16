@@ -252,10 +252,37 @@ app.get('/api/weather', async (req, res) => {
         lon = 80.4365;
     }
 
+    // --- NEW: Granular Reverse Geocoding (Runs for both providers) ---
+    let locationName = ipCityName || "Your Location";
+    try {
+        const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
+            headers: {
+                'User-Agent': 'SmartCropDoctor/1.0 (nikilreddy726@gmail.com)',
+                'Referer': 'https://smart-crop-doctor.web.app/'
+            }
+        });
+
+        if (geoResponse.data && geoResponse.data.address) {
+            const a = geoResponse.data.address;
+            const village = a.village || a.hamlet || a.suburb || a.town || a.city || "";
+            const mandal = a.subdistrict || a.municipality || a.city_district || "";
+            const district = a.county || a.state_district || "";
+            const parts = [village, mandal, district].filter(p => p && p.length > 0);
+            if (parts.length > 0) {
+                locationName = parts.join(", ");
+            } else {
+                locationName = a.display_name.split(',').slice(0, 3).join(', ');
+            }
+        }
+    } catch (e) { console.log("[WEATHER] Reverse geo failed:", e.message); }
+
     if (API_KEY) {
         try {
             const response = await axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
-            return res.json(response.data);
+            const data = response.data;
+            // Overwrite with granular name
+            data.name = locationName;
+            return res.json(data);
         } catch (error) {
             console.log("OpenWeatherMap failed, falling back to Open-Meteo...");
         }
@@ -264,13 +291,11 @@ app.get('/api/weather', async (req, res) => {
     // Fallback: Open-Meteo (Free, No Key)
     try {
         console.log(`Fetching weather for ${lat}, ${lon} from Open-Meteo`);
-        // Added apparent_temperature for 'Feels Like'
         const response = await axios.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,apparent_temperature&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
 
         const data = response.data;
         const current = data.current;
 
-        // WMO Weather Code Mapping
         const weatherCodes = {
             0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast",
             45: "Fog", 48: "Depositing rime fog",
@@ -280,40 +305,6 @@ app.get('/api/weather', async (req, res) => {
             95: "Thunderstorm"
         };
         const weatherDesc = weatherCodes[current.weather_code] || "Variable";
-
-        // Reverse Geocoding for City Name
-        // Reverse Geocoding for Granular City/Village Name
-        let locationName = ipCityName || "Your Location";
-        try {
-            // zoom=14 targets Village/Mandal level details in India
-            const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
-                headers: {
-                    'User-Agent': 'SmartCropDoctor/1.0 (nikilreddy726@gmail.com)',
-                    'Referer': 'https://smart-crop-doctor.web.app/'
-                }
-            });
-
-            if (geoResponse.data && geoResponse.data.address) {
-                const a = geoResponse.data.address;
-
-                // Components for Indian structure: Village, Mandal, District
-                const village = a.village || a.hamlet || a.suburb || a.town || a.city || "";
-                const mandal = a.subdistrict || a.municipality || a.city_district || "";
-                const district = a.county || a.state_district || "";
-
-                // Construct structured string
-                const parts = [village, mandal, district].filter(p => p && p.length > 0);
-
-                // If we found specific components, use them, otherwise fallback
-                if (parts.length > 0) {
-                    locationName = parts.join(", ");
-                } else {
-                    locationName = a.display_name.split(',').slice(0, 3).join(', ');
-                }
-            }
-        } catch (e) {
-            console.log("Reverse geo failed:", e.message);
-        }
 
         // Transform to OpenWeatherMap format for frontend compatibility
         const transformedData = {

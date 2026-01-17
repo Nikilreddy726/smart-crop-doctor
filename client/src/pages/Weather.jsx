@@ -134,42 +134,39 @@ const Weather = () => {
                 const result = data[0];
                 const { lat, lon, address } = result;
 
-                // 1. Village Slot (Most Specific)
-                const vName = address.village || address.hamlet || address.suburb || address.neighbourhood || address.residential || "";
-
-                // 2. Mandal Slot (Sub-District)
-                const mName = address.subdistrict || address.municipality || address.city_district || address.city || "";
-
-                // 3. District Slot (Administrative)
-                const dName = address.state_district || address.county || address.district || "";
+                // Improved categorization for Indian addresses (Manual Search)
+                let v = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || address.residential || "";
+                let m = address.subdistrict || address.municipality || address.city_district || "";
+                let d = address.state_district || address.county || address.district || address.city || "";
                 const state = address.state || "";
 
+                // Keyword correction
+                const allF = [address.village, address.hamlet, address.town, address.subdistrict, address.municipality, address.city_district, address.county, address.state_district, address.district, address.city].filter(Boolean);
+                allF.forEach(field => {
+                    const low = field.toLowerCase();
+                    if (low.includes('district') || low.includes('dist')) d = field;
+                    else if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) m = field;
+                });
+
                 const parts = [];
-                if (vName) parts.push(vName);
+                if (v) parts.push(v);
+                if (m && !parts.some(p => p.toLowerCase() === m.toLowerCase())) parts.push(m);
+                if (d && !parts.some(p => p.toLowerCase() === d.toLowerCase())) parts.push(d);
 
-                if (mName && !parts.some(p => p.toLowerCase() === mName.toLowerCase())) {
-                    parts.push(mName);
-                }
-
-                if (dName && !parts.some(p => p.toLowerCase() === dName.toLowerCase())) {
-                    parts.push(dName);
-                }
-
-                // Fallback to harvest extra segments if needed while keeping Village-first order
+                // Fallback harvesting
                 if (parts.length < 3) {
-                    const rawSegments = result.display_name.split(',').map(s => s.trim());
-                    for (const seg of rawSegments) {
+                    const segments = result.display_name.split(',').map(s => s.trim());
+                    for (const seg of segments) {
                         if (parts.length >= 3) break;
-                        const broader = [state, address.country, address.postcode, "India"];
+                        const broader = [state, address.country, address.postcode, "India", "Andhra Pradesh", "Telangana"];
                         if (broader.some(b => b && b.toLowerCase() === seg.toLowerCase())) continue;
-
                         if (!parts.some(p => p.toLowerCase().includes(seg.toLowerCase()) || seg.toLowerCase().includes(p.toLowerCase()))) {
                             parts.push(seg);
                         }
                     }
                 }
 
-                const localName = parts.join(", ");
+                const localName = parts.slice(0, 3).join(", ");
                 const regionLabel = state || address.country || "";
 
                 if (parts.length < 2 && localName.toLowerCase().includes("hyderabad")) {

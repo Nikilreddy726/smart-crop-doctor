@@ -134,44 +134,59 @@ const Weather = () => {
                 const result = data[0];
                 const { lat, lon, address } = result;
 
-                const chunks = (result.display_name || "").split(',').map(c => c.trim());
+                const displayChunks = (result.display_name || "").split(',').map(c => c.trim()).filter(Boolean);
 
-                // --- FINAL ULTRA PERMANENT SOLUTION: STRICT 4-PART SLOTS ---
-                let v = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || chunks[0] || "";
-                let m = address.subdistrict || address.municipality || address.city_district || address.tehsil || "";
-                let d = address.state_district || address.district || address.county || address.city || "";
-                let s = address.state || "";
-
-                // Keyword scan for markers
-                chunks.forEach(chunk => {
-                    const low = chunk.toLowerCase();
-                    if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) m = chunk;
-                    else if (low.includes('district') || low.includes('dist')) d = chunk;
+                // Aggressive filter for India context
+                const useful = displayChunks.filter(c => {
+                    const low = c.toLowerCase();
+                    return low !== 'india' && !/^\d{5,6}$/.test(low);
                 });
 
-                // Build and aggressive de-dup
-                const ordered = [v, m, d, s];
-                const finalParts = [];
-                const addedNormal = new Set();
+                // --- ULTRA ROBUST HIERARCHY HARVESTER ---
+                let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
 
-                ordered.forEach(part => {
-                    if (!part) return;
-                    const normal = part.toLowerCase().replace(/\s/g, '');
-                    if (normal === 'india' || /^\d{5,6}$/.test(normal)) return;
+                // 1. Identify State
+                sFinal = address.state || (useful.length > 0 ? useful[useful.length - 1] : "");
 
+                // 2. Identify District 
+                dFinal = address.state_district || address.district || address.county || "";
+                if (!dFinal) {
+                    for (let i = useful.length - 1; i >= 0; i--) {
+                        if (useful[i].toLowerCase().includes('district') || useful.length - 2 === i) {
+                            if (useful[i] !== sFinal) { dFinal = useful[i]; break; }
+                        }
+                    }
+                }
+
+                // 3. Identify Mandal
+                mFinal = address.subdistrict || address.municipality || address.city_district || address.tehsil || "";
+                if (!mFinal || mFinal === dFinal) {
+                    const distIdx = useful.indexOf(dFinal);
+                    if (distIdx > 0) mFinal = useful[distIdx - 1];
+                }
+
+                // 4. Identify Village
+                vFinal = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || useful[0] || "";
+
+                // 5. Final Strict Assembly & aggressive de-dup
+                const slots = [vFinal, mFinal, dFinal, sFinal];
+                const out = [];
+                const seen = new Set();
+                slots.forEach(val => {
+                    if (!val || val === "undefined") return;
+                    const norm = val.toLowerCase().replace(/\s/g, '');
                     let isDup = false;
-                    addedNormal.forEach(existing => {
-                        if (normal.includes(existing) || existing.includes(normal)) isDup = true;
+                    seen.forEach(s => {
+                        if (norm.includes(s) || s.includes(norm)) isDup = true;
                     });
-
                     if (!isDup) {
-                        finalParts.push(part);
-                        addedNormal.add(normal);
+                        out.push(val);
+                        seen.add(norm);
                     }
                 });
 
-                const localName = finalParts.slice(0, 4).join(", ");
-                const regionLabel = s || address.country || "";
+                const localName = out.slice(0, 4).join(", ");
+                const regionLabel = sFinal || address.country || "";
 
                 if (localName.split(",").length < 2 && localName.toLowerCase().includes("hyderabad")) {
                     alert("Showing general city center. For farm-specific weather, please search for your specific Village name.");

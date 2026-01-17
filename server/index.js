@@ -21,7 +21,7 @@ try {
     firebaseInitialized = true;
     console.log("Firebase initialized successfully");
 } catch (e) {
-    console.error("Firebase Service Account not found or invalid - Storage features will be disabled.");
+    console.error("Firebase Service Account not found or invalid.");
 }
 
 const db = firebaseInitialized ? admin.firestore() : null;
@@ -42,9 +42,7 @@ const upload = multer({
 const AI_SERVICE_URL = 'https://smart-crop-doctor.onrender.com';
 
 const keepAIWarm = async () => {
-    try {
-        await axios.get(AI_SERVICE_URL, { timeout: 15000 });
-    } catch (e) { }
+    try { await axios.get(AI_SERVICE_URL, { timeout: 15000 }); } catch (e) { }
 };
 
 if (process.env.PORT) {
@@ -62,7 +60,7 @@ app.get('/api/health', async (req, res) => {
     } catch (e) {
         if (e.response?.status === 502 || e.response?.status === 503 || e.code === 'ECONNABORTED') aiStatus = 'booting';
     }
-    res.json({ server: 'online', version: '1.2.7', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
+    res.json({ server: 'online', version: '1.2.8', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
 });
 
 const jobs = new Map();
@@ -166,46 +164,64 @@ app.get('/api/weather', async (req, res) => {
                     headers: { 'User-Agent': 'SmartCropDoctor/1.2 (nikilreddy726@gmail.com)', 'Referer': 'https://smart-doctor-crop.web.app/' }
                 });
 
-                if (geoResponse.data && geoResponse.data.address) {
-                    const a = geoResponse.data.address;
-                    const chunks = (geoResponse.data.display_name || "").split(',').map(c => c.trim());
+                if (geoResponse.data) {
+                    const a = geoResponse.data.address || {};
+                    const displayChunks = (geoResponse.data.display_name || "").split(',').map(c => c.trim()).filter(Boolean);
 
-                    // --- FINAL ULTRA PERMANENT SOLUTION: STRICT 4-PART SLOTS ---
-                    let v = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || chunks[0] || "";
-                    let m = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
-                    let d = a.state_district || a.district || a.county || a.city || "";
-                    let s = a.state || "";
-
-                    // Keyword scan for markers (e.g. "Sri Avadhutha Kasinayana")
-                    chunks.forEach(chunk => {
-                        const low = chunk.toLowerCase();
-                        if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) m = chunk;
-                        else if (low.includes('district') || low.includes('dist')) d = chunk;
+                    // Aggressive filter for India context
+                    const useful = displayChunks.filter(c => {
+                        const low = c.toLowerCase();
+                        return low !== 'india' && !/^\d{5,6}$/.test(low);
                     });
 
-                    // Build and aggressive de-dup
-                    const ordered = [v, m, d, s];
-                    const finalParts = [];
-                    const addedNormal = new Set();
+                    // --- ULTRA ROBUST HIERARCHY HARVESTER ---
+                    let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
 
-                    ordered.forEach(part => {
-                        if (!part) return;
-                        const normal = part.toLowerCase().replace(/\s/g, '');
-                        // Broad filter (Don't allow India or PIN codes into these specific slots)
-                        if (normal === 'india' || /^\d{5,6}$/.test(normal)) return;
+                    // 1. Identify State (Always last item in useful)
+                    sFinal = a.state || (useful.length > 0 ? useful[useful.length - 1] : "");
 
+                    // 2. Identify District 
+                    // Search for "District" keyword or take segment before state
+                    dFinal = a.state_district || a.district || a.county || "";
+                    if (!dFinal) {
+                        for (let i = useful.length - 1; i >= 0; i--) {
+                            if (useful[i].toLowerCase().includes('district') || useful.length - 2 === i) {
+                                if (useful[i] !== sFinal) { dFinal = useful[i]; break; }
+                            }
+                        }
+                    }
+
+                    // 3. Identify Mandal
+                    // Search for Mandal keywords or take segment before district
+                    mFinal = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
+                    if (!mFinal || mFinal === dFinal) {
+                        const distIdx = useful.indexOf(dFinal);
+                        if (distIdx > 0) mFinal = useful[distIdx - 1];
+                    }
+
+                    // 4. Identify Village
+                    // Always the very first segment (most specific)
+                    vFinal = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || useful[0] || "";
+
+                    // 5. Final Strict Assembly & De-duplication
+                    const slots = [vFinal, mFinal, dFinal, sFinal];
+                    const out = [];
+                    const seen = new Set();
+                    slots.forEach(val => {
+                        if (!val || val === "undefined") return;
+                        const norm = val.toLowerCase().replace(/\s/g, '');
+                        // Check if this slot is a sub-string or super-string of what's already added
                         let isDup = false;
-                        addedNormal.forEach(existing => {
-                            if (normal.includes(existing) || existing.includes(normal)) isDup = true;
+                        seen.forEach(s => {
+                            if (norm.includes(s) || s.includes(norm)) isDup = true;
                         });
-
                         if (!isDup) {
-                            finalParts.push(part);
-                            addedNormal.add(normal);
+                            out.push(val);
+                            seen.add(norm);
                         }
                     });
 
-                    locationName = finalParts.slice(0, 4).join(", ");
+                    locationName = out.slice(0, 4).join(", ");
                     break;
                 }
             } catch (e) { if (attempt < 2) await new Promise(r => setTimeout(r, 1000)); }

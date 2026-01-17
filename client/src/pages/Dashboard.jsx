@@ -159,7 +159,7 @@ const Dashboard = () => {
                             setWeather(w);
                         } catch (e) { }
                     },
-                    { timeout: 10000 }
+                    { timeout: 15000, enableHighAccuracy: true, maximumAge: 30000 }
                 );
             } else {
                 try {

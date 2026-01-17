@@ -58,7 +58,7 @@ const Weather = () => {
                         console.log("Geolocation error, using IP fallback:", error);
                         await fetchWeather();
                     },
-                    { timeout: 8000, enableHighAccuracy: true }
+                    { timeout: 15000, enableHighAccuracy: true, maximumAge: 30000 }
                 );
             } else {
                 fetchWeather();
@@ -145,31 +145,43 @@ const Weather = () => {
                     return low !== 'india' && !/^\d{5,6}$/.test(low);
                 });
 
-                // --- ULTRA ROBUST HIERARCHY HARVESTER ---
+                // --- ULTIMATE 4-PART HIERARCHY ---
                 let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
 
-                // 1. Identify State
+                // 1. Identifying State
                 sFinal = address.state || (useful.length > 0 ? useful[useful.length - 1] : "");
 
-                // 2. Identify District 
+                // 2. Identifying District
                 dFinal = address.state_district || address.district || address.county || "";
                 if (!dFinal) {
-                    for (let i = useful.length - 1; i >= 0; i--) {
-                        if (useful[i].toLowerCase().includes('district') || useful.length - 2 === i) {
-                            if (useful[i] !== sFinal) { dFinal = useful[i]; break; }
-                        }
-                    }
+                    const sIdx = useful.lastIndexOf(sFinal);
+                    if (sIdx > 0) dFinal = useful[sIdx - 1];
                 }
 
-                // 3. Identify Mandal
-                mFinal = address.subdistrict || address.municipality || address.city_district || address.tehsil || "";
+                // 3. Identifying Mandal
+                useful.forEach(c => {
+                    const low = c.toLowerCase();
+                    if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) mFinal = c;
+                });
+                if (!mFinal || mFinal === dFinal) {
+                    mFinal = address.subdistrict || address.municipality || address.city_district || "";
+                }
                 if (!mFinal || mFinal === dFinal) {
                     const distIdx = useful.indexOf(dFinal);
                     if (distIdx > 0) mFinal = useful[distIdx - 1];
                 }
 
-                // 4. Identify Village
-                vFinal = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || useful[0] || "";
+                // 4. Identifying Village (Deep Search)
+                vFinal = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || "";
+                if (!vFinal) {
+                    for (const chunk of useful) {
+                        if (chunk !== mFinal && chunk !== dFinal && chunk !== sFinal) {
+                            vFinal = chunk;
+                            break;
+                        }
+                    }
+                }
+                if (!vFinal) vFinal = useful[0] || "";
 
                 // 5. Final Strict Assembly & aggressive de-dup
                 const ordered = [vFinal, mFinal, dFinal, sFinal];
@@ -217,7 +229,8 @@ const Weather = () => {
                 async (error) => {
                     console.log("Geolocation error, using IP fallback:", error);
                     await fetchWeather(); // Server-side IP fallback
-                }
+                },
+                { timeout: 15000, enableHighAccuracy: true, maximumAge: 30000 }
             );
         } else {
             fetchWeather();

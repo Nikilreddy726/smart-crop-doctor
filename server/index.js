@@ -159,7 +159,8 @@ app.get('/api/weather', async (req, res) => {
     if (lat && lon) {
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
-                const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
+                // Use zoom=16 for better village granularity
+                const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16`, {
                     timeout: 5000,
                     headers: { 'User-Agent': 'SmartCropDoctor/1.2 (nikilreddy726@gmail.com)', 'Referer': 'https://smart-doctor-crop.web.app/' }
                 });
@@ -168,39 +169,52 @@ app.get('/api/weather', async (req, res) => {
                     const a = geoResponse.data.address || {};
                     const displayChunks = (geoResponse.data.display_name || "").split(',').map(c => c.trim()).filter(Boolean);
 
-                    // Aggressive filter for India context
                     const useful = displayChunks.filter(c => {
                         const low = c.toLowerCase();
                         return low !== 'india' && !/^\d{5,6}$/.test(low);
                     });
 
-                    // --- ULTRA ROBUST HIERARCHY HARVESTER ---
+                    // --- ULTIMATE 4-PART HIERARCHY ---
                     let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
 
-                    // 1. Identify State
+                    // 1. Identifying State (Standard)
                     sFinal = a.state || (useful.length > 0 ? useful[useful.length - 1] : "");
 
-                    // 2. Identify District 
+                    // 2. Identifying District
                     dFinal = a.state_district || a.district || a.county || "";
                     if (!dFinal) {
-                        for (let i = useful.length - 1; i >= 0; i--) {
-                            if (useful[i].toLowerCase().includes('district') || useful.length - 2 === i) {
-                                if (useful[i] !== sFinal) { dFinal = useful[i]; break; }
-                            }
-                        }
+                        const sIdx = useful.lastIndexOf(sFinal);
+                        if (sIdx > 0) dFinal = useful[sIdx - 1];
                     }
 
-                    // 3. Identify Mandal
-                    mFinal = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
+                    // 3. Identifying Mandal (Mandal/Tehsil/Taluk keyword priority)
+                    useful.forEach(c => {
+                        const low = c.toLowerCase();
+                        if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) mFinal = c;
+                    });
+                    if (!mFinal || mFinal === dFinal) {
+                        mFinal = a.subdistrict || a.municipality || a.city_district || "";
+                    }
                     if (!mFinal || mFinal === dFinal) {
                         const distIdx = useful.indexOf(dFinal);
                         if (distIdx > 0) mFinal = useful[distIdx - 1];
                     }
 
-                    // 4. Identify Village
-                    vFinal = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || useful[0] || "";
+                    // 4. Identifying Village (Deep Search)
+                    // Priority: explicit village/hamlet labels, then the very first chunk, then sub-district fallbacks
+                    vFinal = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || "";
+                    if (!vFinal) {
+                        // Pick the first chunky that isn't already assigned to M, D, or S
+                        for (const chunk of useful) {
+                            if (chunk !== mFinal && chunk !== dFinal && chunk !== sFinal) {
+                                vFinal = chunk;
+                                break;
+                            }
+                        }
+                    }
+                    if (!vFinal) vFinal = useful[0] || "";
 
-                    // 5. Final Strict Assembly & aggressive de-dup
+                    // 5. Build and aggressive de-dup
                     const ordered = [vFinal, mFinal, dFinal, sFinal];
                     const out = [];
                     const seen = new Set();
@@ -265,23 +279,5 @@ app.get('/api/outbreaks', async (req, res) => {
         res.json(outbreaks);
     } catch (e) { res.json([]); }
 });
-
-app.get('/api/predictions', async (req, res) => {
-    try {
-        if (!firebaseInitialized || !db) return res.json([]);
-        const snaps = await db.collection('predictions').orderBy('timestamp', 'desc').get();
-        res.json(snaps.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/community', async (req, res) => {
-    try {
-        if (!firebaseInitialized || !db) return res.json([]);
-        const snaps = await db.collection('posts').orderBy('timestamp', 'desc').get();
-        res.json(snaps.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/mandi', (req, res) => res.json({ data: [] }));
 
 app.listen(port, () => console.log(`Server port ${port}`));

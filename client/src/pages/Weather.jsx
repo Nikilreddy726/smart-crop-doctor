@@ -134,43 +134,50 @@ const Weather = () => {
                 const result = data[0];
                 const { lat, lon, address } = result;
 
-                // Improved categorization for Indian addresses (Manual Search)
-                let v = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || address.residential || "";
-                let m = address.subdistrict || address.municipality || address.city_district || "";
-                let d = address.state_district || address.county || address.district || address.city || "";
-                const state = address.state || "";
+                const chunks = (result.display_name || "").split(',').map(c => c.trim());
 
-                // Keyword correction
-                const allF = [address.village, address.hamlet, address.town, address.subdistrict, address.municipality, address.city_district, address.county, address.state_district, address.district, address.city].filter(Boolean);
-                allF.forEach(field => {
-                    const low = field.toLowerCase();
-                    if (low.includes('district') || low.includes('dist')) d = field;
-                    else if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) m = field;
+                // Categorization Keys
+                const vKeys = ["village", "hamlet", "town", "suburb", "neighbourhood", "residential"];
+                const mKeys = ["subdistrict", "municipality", "city_district", "tehsil", "mandal", "taluk"];
+                const dKeys = ["state_district", "district", "county", "city"];
+                const sKeys = ["state"];
+
+                const vMatch = vKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
+                const mMatch = mKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
+                const dMatch = dKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
+                const sMatch = sKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
+
+                let bucketV = "", bucketM = "", bucketD = "", bucketS = "";
+
+                // Assign chunks to buckets
+                chunks.forEach(chunk => {
+                    const low = chunk.toLowerCase();
+                    if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) { if (!bucketM) bucketM = chunk; return; }
+                    if (low.includes('district') || low.includes('dist')) { if (!bucketD) bucketD = chunk; return; }
+                    if (sMatch.includes(low) && !bucketS) { bucketS = chunk; return; }
+                    if (dMatch.includes(low) && !bucketD) { bucketD = chunk; return; }
+                    if (mMatch.includes(low) && !bucketM) { bucketM = chunk; return; }
+                    if (vMatch.includes(low) && !bucketV) { bucketV = chunk; return; }
                 });
 
-                const parts = [];
-                if (v) parts.push(v);
-                if (m && !parts.some(p => p.toLowerCase() === m.toLowerCase())) parts.push(m);
-                if (d && !parts.some(p => p.toLowerCase() === d.toLowerCase())) parts.push(d);
-                if (state && !parts.some(p => p.toLowerCase() === state.toLowerCase())) parts.push(state);
+                // Fill empty buckets
+                const used = [bucketV, bucketM, bucketD, bucketS].filter(Boolean).map(u => u.toLowerCase());
+                const leftovers = chunks.filter(c => {
+                    const low = c.toLowerCase();
+                    const broad = ["india", address.postcode, address.country].map(x => x?.toLowerCase());
+                    const isUsed = used.some(u => u === low || low.includes(u));
+                    return !isUsed && !broad.includes(low);
+                });
 
-                // Fallback harvesting
-                if (parts.length < 4) {
-                    const segments = result.display_name.split(',').map(seg => seg.trim());
-                    for (const seg of segments) {
-                        if (parts.length >= 4) break;
-                        const broader = [address.country, address.postcode, "India"];
-                        if (broader.some(b => b && b.toLowerCase() === seg.toLowerCase())) continue;
-                        if (!parts.some(p => p.toLowerCase().includes(seg.toLowerCase()) || seg.toLowerCase().includes(p.toLowerCase()))) {
-                            parts.push(seg);
-                        }
-                    }
-                }
+                if (!bucketV && leftovers.length > 0) bucketV = leftovers.shift();
+                if (!bucketM && leftovers.length > 0) bucketM = leftovers.shift();
+                if (!bucketD && leftovers.length > 0) bucketD = leftovers.shift();
+                if (!bucketS) bucketS = address.state || address.country || "";
 
-                const localName = parts.slice(0, 4).join(", ");
-                const regionLabel = state || address.country || "";
+                const localName = [bucketV, bucketM, bucketD, bucketS].filter(Boolean).slice(0, 4).join(", ");
+                const regionLabel = bucketS;
 
-                if (parts.length < 2 && localName.toLowerCase().includes("hyderabad")) {
+                if (localName.split(",").length < 2 && localName.toLowerCase().includes("hyderabad")) {
                     alert("Showing general city center. For farm-specific weather, please search for your specific Village name.");
                 }
 

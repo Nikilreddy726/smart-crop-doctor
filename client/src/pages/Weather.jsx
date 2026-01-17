@@ -78,9 +78,9 @@ const Weather = () => {
             if (locationOverride) {
                 loc = { ...locationOverride, isManual: !!locationOverride.isManual, lat, lon };
             } else {
-                const cityName = data.name && data.name !== 'Your Location' && data.name !== 'Unknown'
+                const cityName = data.name && data.name !== 'Your Location' && data.name !== 'Unknown' && !data.name.startsWith('Location (')
                     ? data.name
-                    : (location.city !== 'Loading...' && location.city !== 'Detecting...' ? location.city : 'Your Location');
+                    : (location.city !== 'Loading...' && location.city !== 'Detecting...' ? location.city : 'Processing Location...');
 
                 loc = {
                     city: cityName,

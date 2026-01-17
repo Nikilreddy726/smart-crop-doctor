@@ -59,7 +59,7 @@ app.get('/api/health', async (req, res) => {
     } catch (e) {
         if (e.response?.status === 502 || e.response?.status === 503 || e.code === 'ECONNABORTED') aiStatus = 'booting';
     }
-    res.json({ server: 'online', version: '1.3.1', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
+    res.json({ server: 'online', version: '1.3.2', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
 });
 
 const jobs = new Map();
@@ -81,10 +81,7 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                         const formData = new FormData();
                         formData.append('file', req.file.buffer, { filename: req.file.originalname, contentType: req.file.mimetype });
                         const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, { headers: formData.getHeaders(), timeout: 30000 });
-                        if (aiRes.data) {
-                            aiResult = aiRes.data;
-                            break;
-                        }
+                        if (aiRes.data) { aiResult = aiRes.data; break; }
                     } catch (e) {
                         const isBooting = !e.response || [502, 503, 504].includes(e.response.status) || e.code === 'ECONNABORTED';
                         if (!isBooting) throw new Error(`AI Engine Error: ${e.message}`);
@@ -156,25 +153,31 @@ app.get('/api/weather', async (req, res) => {
     let locationName = ipCityName || "Your Location";
     if (isCoordSearch) {
         let foundName = null;
-        for (const z of [18, 14]) {
+        // Search across progressive zoom levels: 18 (Street), 16 (Village), 14 (Mandal), 10 (District)
+        for (const z of [18, 16, 14, 10]) {
             if (foundName) break;
             for (let att = 1; att <= 2; att++) {
                 try {
                     const geo = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=${z}`, {
-                        timeout: 8000, headers: { 'User-Agent': 'SmartCropDoctor/1.3' }
+                        timeout: 8000,
+                        headers: {
+                            'User-Agent': 'SmartCropDoctor/1.3.2 (Support: nikilreddy726@gmail.com)',
+                            'Accept-Language': 'en-US,en;q=0.9'
+                        }
                     });
-                    if (geo.data && geo.data.display_name) {
+                    if (geo.data && (geo.data.display_name || geo.data.address)) {
                         const a = geo.data.address || {};
-                        const chunks = geo.data.display_name.split(',').map(c => c.trim()).filter(c => c.toLowerCase() !== 'india' && !/^\d{5,6}$/.test(c));
+                        const display = geo.data.display_name || "";
+                        const chunks = display.split(',').map(c => c.trim()).filter(c => c.toLowerCase() !== 'india' && !/^\d{5,6}$/.test(c));
                         let v = "", m = "", d = "", s = "";
-                        s = a.state || chunks[chunks.length - 1] || "";
+                        s = a.state || a.region || chunks[chunks.length - 1] || "";
                         d = a.state_district || a.district || a.county || "";
                         if (!d) { for (let i = chunks.length - 1; i >= 0; i--) if (chunks[i].toLowerCase().includes('district') || chunks.length - 2 === i) if (chunks[i] !== s) { d = chunks[i]; break; } }
                         m = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
                         if (!m || m === d) { for (let i = 0; i < chunks.length; i++) if (['mandal', 'tehsil', 'taluk', 'block'].some(x => chunks[i].toLowerCase().includes(x))) { m = chunks[i]; break; } }
                         if (!m || m === d) { const idx = chunks.indexOf(d); if (idx > 0) m = chunks[idx - 1]; }
-                        v = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || "";
-                        if (!v || v === m || v === d) { for (let i = 0; i < Math.min(chunks.length, 3); i++) if (chunks[i] !== m && chunks[i] !== d && chunks[i] !== s && (!/^\d/.test(chunks[i]) || chunks[i].length > 5)) { v = chunks[i]; break; } }
+                        v = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || a.locality || "";
+                        if (!v || v === m || v === d) { for (let i = 0; i < Math.min(chunks.length, 3); i++) if (chunks[i] !== m && chunks[i] !== d && chunks[i] !== s && (!/^\d/.test(chunks[i]) || chunks[i].length > 4)) { v = chunks[i]; break; } }
                         if (!v) v = chunks[0] || "";
                         const ordered = [v, m, d, s].filter(Boolean);
                         const out = []; const seen = new Set();
@@ -190,7 +193,7 @@ app.get('/api/weather', async (req, res) => {
                             });
                             if (!dup) { out.push(val); seen.add(norm); }
                         });
-                        foundName = out.slice(0, 4).join(", "); break;
+                        if (out.length > 0) { foundName = out.slice(0, 4).join(", "); break; }
                     }
                 } catch (e) { if (att < 2) await new Promise(r => setTimeout(r, 1000)); }
             }

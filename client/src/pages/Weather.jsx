@@ -12,46 +12,57 @@ const Weather = () => {
     const [searchCity, setSearchCity] = useState('');
 
     useEffect(() => {
+        const CACHE_EXPIRY = 6 * 60 * 60 * 1000; // 6 Hours
         let isManual = false;
-        // 1. Instant Load from Cache
+
+        // 1. Load from Cache
         try {
             const cachedW = localStorage.getItem('cached_weather');
             const cachedL = localStorage.getItem('cached_location');
+            const cacheTime = localStorage.getItem('weather_cache_time');
+
             if (cachedW && cachedL) {
                 const loc = JSON.parse(cachedL);
-                if (loc.city !== 'Guntur') {
-                    setWeather(JSON.parse(cachedW));
-                    setLocation(loc);
-                    setLoading(false);
-                    if (loc.isManual) isManual = true;
-                }
+                const weatherData = JSON.parse(cachedW);
+                const isStale = !cacheTime || (Date.now() - parseInt(cacheTime)) > CACHE_EXPIRY;
+
+                setWeather(weatherData);
+                setLocation(loc);
+                setLoading(false);
+
+                if (loc.isManual) isManual = true;
+
+                // If data is fresh, don't trigger background refresh immediately
+                if (!isStale) return;
             }
         } catch (e) { console.error("Cache load failed", e); }
 
-        // 2. Refresh in background
-        // CRITICAL FIX: If user has a "Manual" location set, DON'T use geolocation
-        // because it keeps putting them in the wrong place on Desktop.
+        // 2. Background Refresh
         if (isManual) {
-            // Just refresh weather for the pinned manual location
-            fetchWeather(undefined, undefined, JSON.parse(localStorage.getItem('cached_location')));
+            const savedLoc = JSON.parse(localStorage.getItem('cached_location'));
+            // If we have manual coords in the saved loc, use them for refresh
+            fetchWeather(savedLoc.lat, savedLoc.lon, savedLoc);
             return;
         }
 
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    const { latitude, longitude } = position.coords;
-                    await fetchWeather(latitude, longitude);
-                },
-                async (error) => {
-                    console.log("Geolocation error, searching via IP:", error);
-                    await fetchWeather();
-                },
-                { timeout: 10000, enableHighAccuracy: false }
-            );
-        } else {
-            fetchWeather();
-        }
+        const triggerAutoDetect = () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    async (position) => {
+                        await fetchWeather(position.coords.latitude, position.coords.longitude);
+                    },
+                    async (error) => {
+                        console.log("Geolocation error, using IP fallback:", error);
+                        await fetchWeather();
+                    },
+                    { timeout: 8000, enableHighAccuracy: true }
+                );
+            } else {
+                fetchWeather();
+            }
+        };
+
+        triggerAutoDetect();
     }, []);
 
     const fetchWeather = async (lat, lon, locationOverride = null) => {
@@ -60,43 +71,46 @@ const Weather = () => {
             const data = await getWeather(lat, lon, Date.now());
             setWeather(data);
 
+            let loc;
             if (locationOverride) {
-                const finalLoc = { ...locationOverride, isManual: !!locationOverride.isManual };
-                setLocation(finalLoc);
-                localStorage.setItem('cached_location', JSON.stringify(finalLoc));
+                loc = { ...locationOverride, isManual: !!locationOverride.isManual, lat, lon };
             } else {
-                // If the server failed to get a good name, don't show "Your Location" if we have a better one cached
-                // unless we are specifically resetting.
                 const cityName = data.name && data.name !== 'Your Location' && data.name !== 'Unknown'
                     ? data.name
-                    : (location.city !== 'Loading...' ? location.city : 'Detecting...');
+                    : (location.city !== 'Loading...' && location.city !== 'Detecting...' ? location.city : 'Your Location');
 
-                const loc = {
+                loc = {
                     city: cityName,
                     region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || '',
-                    isManual: false
+                    isManual: false,
+                    lat: lat || (data.coord?.lat),
+                    lon: lon || (data.coord?.lon)
                 };
-                setLocation(loc);
-                localStorage.setItem('cached_location', JSON.stringify(loc));
             }
+
+            setLocation(loc);
+            localStorage.setItem('cached_location', JSON.stringify(loc));
             localStorage.setItem('cached_weather', JSON.stringify(data));
+            localStorage.setItem('weather_cache_time', Date.now().toString());
+
         } catch (error) {
             console.error("Weather fetch error:", error);
             if (locationOverride) {
-                alert("Could not fetch weather data for this location. Please try again later.");
+                alert("Could not fetch weather data. Please check your internet connection.");
                 const fallback = { ...locationOverride, isManual: true };
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
-                    weather: [{ main: 'Cloudy', description: 'Data Unavailable' }],
+                    weather: [{ main: 'Cloudy', description: 'Offline' }],
                     wind: { speed: 12 },
                     name: locationOverride.city
                 });
                 setLocation(fallback);
                 localStorage.setItem('cached_location', JSON.stringify(fallback));
             } else {
+                // Initial Load Fail fallback
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
-                    weather: [{ main: 'Cloudy', description: 'partly cloudy' }],
+                    weather: [{ main: 'Cloudy', description: 'Network error' }],
                     wind: { speed: 12 },
                     name: 'Guntur'
                 });
@@ -220,7 +234,14 @@ const Weather = () => {
                         </div>
                         <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-10">
                             <div className="space-y-4">
-                                <p className="text-xl font-bold opacity-80">{t('today')}, {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                                <p className="text-xl font-bold opacity-80">
+                                    {t('today')}, {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                    {localStorage.getItem('weather_cache_time') && (
+                                        <span className="block text-[10px] uppercase tracking-tighter opacity-50 mt-1 font-black">
+                                            Last Updated: {new Date(parseInt(localStorage.getItem('weather_cache_time'))).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    )}
+                                </p>
                                 <h2 className="text-7xl sm:text-9xl font-black">{weather?.main?.temp ? Math.round(weather.main.temp) : '--'}°C</h2>
                                 <p className="text-2xl font-medium">{weather?.weather?.[0]?.main || 'Loading...'}</p>
                             </div>

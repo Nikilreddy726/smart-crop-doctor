@@ -252,45 +252,43 @@ app.get('/api/weather', async (req, res) => {
         lon = 80.4365;
     }
 
-    // --- NEW: Granular Reverse Geocoding (High Precision) ---
+    // --- NEW: Granular Reverse Geocoding (High Precision with Retry) ---
     let locationName = ipCityName || "Your Location";
-    try {
-        // zoom=16 is street/village level for much better accuracy
-        const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16`, {
-            headers: {
-                'User-Agent': 'SmartCropDoctor/1.0 (nikilreddy726@gmail.com)',
-                'Referer': 'https://smart-crop-doctor.web.app/'
+    if (lat && lon) {
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16`, {
+                    timeout: 5000,
+                    headers: {
+                        'User-Agent': 'SmartCropDoctor/1.1 (nikilreddy726@gmail.com)',
+                        'Referer': 'https://smart-doctor-crop.web.app/'
+                    }
+                });
+
+                if (geoResponse.data && geoResponse.data.address) {
+                    const a = geoResponse.data.address;
+                    const village = a.village || a.hamlet || a.neighbourhood || a.suburb || a.residential || a.industrial || a.town || a.city || "";
+                    const mandal = a.subdistrict || a.municipality || a.city_district || a.district || a.quarter || "";
+                    const district = a.county || a.state_district || a.region || "";
+
+                    const parts = [];
+                    if (village) parts.push(village);
+                    if (mandal && !village.includes(mandal)) parts.push(mandal);
+                    if (district && !mandal.includes(district) && !village.includes(district)) parts.push(district);
+
+                    if (parts.length > 0) {
+                        locationName = parts.join(", ");
+                    } else {
+                        locationName = a.display_name.split(',').slice(0, 3).map(s => s.trim()).join(', ');
+                    }
+                    break;
+                }
+            } catch (e) {
+                console.log(`[WEATHER] Reverse geo attempt ${attempt} failed:`, e.message);
+                if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
             }
-        });
-
-        if (geoResponse.data && geoResponse.data.address) {
-            const a = geoResponse.data.address;
-            console.log(`[WEATHER] Found Address:`, JSON.stringify(a));
-
-            // 1. Village / Local Area
-            const village = a.village || a.hamlet || a.neighbourhood || a.suburb || a.residential || a.industrial || a.town || a.city || "";
-
-            // 2. Mandal / Sub-District
-            const mandal = a.subdistrict || a.municipality || a.city_district || a.district || a.quarter || "";
-
-            // 3. District
-            const district = a.county || a.state_district || a.region || "";
-
-            // Build structured parts (Avoid duplicates)
-            const parts = [];
-            if (village) parts.push(village);
-            if (mandal && !village.includes(mandal)) parts.push(mandal);
-            if (district && !mandal.includes(district) && !village.includes(district)) parts.push(district);
-
-            if (parts.length > 0) {
-                locationName = parts.join(", ");
-            } else {
-                // Fallback to the first 3 components of the full name if specific fields missing
-                locationName = a.display_name.split(',').slice(0, 3).map(s => s.trim()).join(', ');
-            }
-            console.log(`[WEATHER] Formatted Name: ${locationName}`);
         }
-    } catch (e) { console.log("[WEATHER] Reverse geo failed:", e.message); }
+    }
 
     if (API_KEY) {
         try {

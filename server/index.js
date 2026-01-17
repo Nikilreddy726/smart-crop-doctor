@@ -60,7 +60,7 @@ app.get('/api/health', async (req, res) => {
     } catch (e) {
         if (e.response?.status === 502 || e.response?.status === 503 || e.code === 'ECONNABORTED') aiStatus = 'booting';
     }
-    res.json({ server: 'online', version: '1.2.9', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
+    res.json({ server: 'online', version: '1.3.0', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
 });
 
 const jobs = new Map();
@@ -139,6 +139,7 @@ app.get('/api/weather', async (req, res) => {
     let { lat, lon } = req.query;
     const API_KEY = process.env.OPENWEATHER_API_KEY;
 
+    // Detect IP City as a weak fallback
     let ipCityName = null;
     try {
         const xForwardedFor = req.headers['x-forwarded-for'];
@@ -146,25 +147,31 @@ app.get('/api/weather', async (req, res) => {
         const ipRes = await axios.get(`http://ip-api.com/json/${ip}?fields=status,lat,lon,city`);
         if (ipRes.data && ipRes.data.status === 'success') {
             ipCityName = ipRes.data.city;
-            if (!lat || !lon || lat === 'null' || lon === 'null' || lat === 'undefined' || lon === 'undefined') {
+            if (!lat || !lon || lat === 'null' || lon === 'undefined') {
                 lat = ipRes.data.lat;
                 lon = ipRes.data.lon;
             }
         }
     } catch (e) { }
 
+    const isCoordSearch = !!(lat && lon && lat !== 'null' && lon !== 'undefined');
     if (!lat || !lon) { lat = 16.3067; lon = 80.4365; }
 
     let locationName = ipCityName || "Your Location";
-    if (lat && lon) {
-        for (let attempt = 1; attempt <= 2; attempt++) {
+
+    // If we have actual coordinates, we force high-precision reverse geocoding
+    if (isCoordSearch) {
+        // Temporary placeholder to indicate we are processing real coords, not IP gibberish
+        locationName = `Detecting... (${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)})`;
+
+        for (let attempt = 1; attempt <= 3; attempt++) {
             try {
                 const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
-                    timeout: 5000,
-                    headers: { 'User-Agent': 'SmartCropDoctor/1.2 (nikilreddy726@gmail.com)', 'Referer': 'https://smart-doctor-crop.web.app/' }
+                    timeout: 8000,
+                    headers: { 'User-Agent': 'SmartCropDoctor/1.3 (nikilreddy726@gmail.com)', 'Referer': 'https://smart-doctor-crop.web.app/' }
                 });
 
-                if (geoResponse.data) {
+                if (geoResponse.data && geoResponse.data.display_name) {
                     const a = geoResponse.data.address || {};
                     const displayChunks = (geoResponse.data.display_name || "").split(',').map(c => c.trim()).filter(Boolean);
 
@@ -175,8 +182,10 @@ app.get('/api/weather', async (req, res) => {
 
                     let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
 
+                    // 1. Identify State (Permanent)
                     sFinal = a.state || (useful.length > 0 ? useful[useful.length - 1] : "");
 
+                    // 2. Identify District 
                     dFinal = a.state_district || a.district || a.county || "";
                     if (!dFinal) {
                         for (let i = useful.length - 1; i >= 0; i--) {
@@ -187,6 +196,7 @@ app.get('/api/weather', async (req, res) => {
                         }
                     }
 
+                    // 3. Identify Mandal (Keyword prioritized)
                     mFinal = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
                     if (!mFinal || mFinal === dFinal) {
                         for (let i = 0; i < useful.length; i++) {
@@ -201,11 +211,16 @@ app.get('/api/weather', async (req, res) => {
                         if (distIdx > 0) mFinal = useful[distIdx - 1];
                     }
 
+                    // 4. Identify Village (ULTRA SPECIFIC)
                     vFinal = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || "";
                     if (!vFinal || vFinal === mFinal || vFinal === dFinal) {
+                        // Scan for the most granular chunk that isn't a higher-level boundary
                         for (let i = 0; i < useful.length; i++) {
                             if (useful[i] !== mFinal && useful[i] !== dFinal && useful[i] !== sFinal) {
-                                vFinal = useful[i]; break;
+                                // Skip house numbers/small numeric segments if possible
+                                if (!/^\d/.test(useful[i]) || useful[i].length > 4) {
+                                    vFinal = useful[i]; break;
+                                }
                             }
                         }
                     }
@@ -230,10 +245,13 @@ app.get('/api/weather', async (req, res) => {
                     locationName = out.slice(0, 4).join(", ");
                     break;
                 }
-            } catch (e) { if (attempt < 2) await new Promise(r => setTimeout(r, 1000)); }
+            } catch (e) {
+                if (attempt < 3) await new Promise(r => setTimeout(r, 1500));
+            }
         }
     }
 
+    // Weather Fetching
     if (API_KEY) {
         try {
             const resp = await axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);

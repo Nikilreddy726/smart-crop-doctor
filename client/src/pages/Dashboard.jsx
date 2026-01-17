@@ -142,25 +142,32 @@ const Dashboard = () => {
             }
 
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    async (pos) => {
-                        try {
-                            const w = await getWeather(pos.coords.latitude, pos.coords.longitude, Date.now());
-                            setWeather(w);
-                            const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
-                            localStorage.setItem(weatherKey, JSON.stringify(w));
-                        } catch (e) {
-                            console.log("Weather fetch error:", e);
-                        }
-                    },
-                    async () => {
-                        try {
-                            const w = await getWeather(undefined, undefined, Date.now());
-                            setWeather(w);
-                        } catch (e) { }
-                    },
-                    { timeout: 15000, enableHighAccuracy: true, maximumAge: 30000 }
-                );
+                const options = { timeout: 20000, enableHighAccuracy: true, maximumAge: 0 };
+
+                const success = async (pos) => {
+                    try {
+                        const w = await getWeather(pos.coords.latitude, pos.coords.longitude, Date.now());
+                        setWeather(w);
+                        const weatherKey = user ? `cached_weather_${user.uid}` : 'cached_weather';
+                        localStorage.setItem(weatherKey, JSON.stringify(w));
+                    } catch (e) { }
+                };
+
+                const error = async () => {
+                    // Try one more time if first fails
+                    navigator.geolocation.getCurrentPosition(
+                        success,
+                        async () => {
+                            try {
+                                const w = await getWeather(undefined, undefined, Date.now());
+                                setWeather(w);
+                            } catch (e) { }
+                        },
+                        { ...options, timeout: 10000 }
+                    );
+                };
+
+                navigator.geolocation.getCurrentPosition(success, error, options);
             } else {
                 try {
                     const w = await getWeather(undefined, undefined, Date.now());

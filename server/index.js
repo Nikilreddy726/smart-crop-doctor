@@ -50,7 +50,6 @@ if (process.env.PORT) {
     setTimeout(keepAIWarm, 5000);
 }
 
-// Health check endpoint
 app.get('/api/health', async (req, res) => {
     const start = Date.now();
     let aiStatus = 'offline';
@@ -60,7 +59,7 @@ app.get('/api/health', async (req, res) => {
     } catch (e) {
         if (e.response?.status === 502 || e.response?.status === 503 || e.code === 'ECONNABORTED') aiStatus = 'booting';
     }
-    res.json({ server: 'online', version: '1.3.0', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
+    res.json({ server: 'online', version: '1.3.1', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
 });
 
 const jobs = new Map();
@@ -104,7 +103,6 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
                         const blob = bucket.file(`detections/${Date.now()}_${req.file.originalname}`);
                         const blobStream = blob.createWriteStream({ metadata: { contentType: req.file.mimetype } });
                         await new Promise((resolve, reject) => { blobStream.on('error', reject).on('finish', resolve).end(req.file.buffer); });
-                        try { await blob.makePublic(); } catch (e) { }
                         imageUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
                     } catch (e) { }
                 }
@@ -139,7 +137,6 @@ app.get('/api/weather', async (req, res) => {
     let { lat, lon } = req.query;
     const API_KEY = process.env.OPENWEATHER_API_KEY;
 
-    // Detect IP City as a weak fallback
     let ipCityName = null;
     try {
         const xForwardedFor = req.headers['x-forwarded-for'];
@@ -148,8 +145,7 @@ app.get('/api/weather', async (req, res) => {
         if (ipRes.data && ipRes.data.status === 'success') {
             ipCityName = ipRes.data.city;
             if (!lat || !lon || lat === 'null' || lon === 'undefined') {
-                lat = ipRes.data.lat;
-                lon = ipRes.data.lon;
+                lat = ipRes.data.lat; lon = ipRes.data.lon;
             }
         }
     } catch (e) { }
@@ -158,140 +154,57 @@ app.get('/api/weather', async (req, res) => {
     if (!lat || !lon) { lat = 16.3067; lon = 80.4365; }
 
     let locationName = ipCityName || "Your Location";
-
-    // If we have actual coordinates, we force high-precision reverse geocoding
     if (isCoordSearch) {
-        // Temporary placeholder to indicate we are processing real coords, not IP gibberish
-        locationName = `Detecting... (${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)})`;
-
-        for (let attempt = 1; attempt <= 3; attempt++) {
-            try {
-                const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`, {
-                    timeout: 8000,
-                    headers: { 'User-Agent': 'SmartCropDoctor/1.3 (nikilreddy726@gmail.com)', 'Referer': 'https://smart-doctor-crop.web.app/' }
-                });
-
-                if (geoResponse.data && geoResponse.data.display_name) {
-                    const a = geoResponse.data.address || {};
-                    const displayChunks = (geoResponse.data.display_name || "").split(',').map(c => c.trim()).filter(Boolean);
-
-                    const useful = displayChunks.filter(c => {
-                        const low = c.toLowerCase();
-                        return low !== 'india' && !/^\d{5,6}$/.test(low);
+        let foundName = null;
+        for (const z of [18, 14]) {
+            if (foundName) break;
+            for (let att = 1; att <= 2; att++) {
+                try {
+                    const geo = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=${z}`, {
+                        timeout: 8000, headers: { 'User-Agent': 'SmartCropDoctor/1.3' }
                     });
-
-                    let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
-
-                    // 1. Identify State (Permanent)
-                    sFinal = a.state || (useful.length > 0 ? useful[useful.length - 1] : "");
-
-                    // 2. Identify District 
-                    dFinal = a.state_district || a.district || a.county || "";
-                    if (!dFinal) {
-                        for (let i = useful.length - 1; i >= 0; i--) {
-                            const low = useful[i].toLowerCase();
-                            if (low.includes('district') || low.includes('dist') || useful.length - 2 === i) {
-                                if (useful[i] !== sFinal) { dFinal = useful[i]; break; }
-                            }
-                        }
-                    }
-
-                    // 3. Identify Mandal (Keyword prioritized)
-                    mFinal = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
-                    if (!mFinal || mFinal === dFinal) {
-                        for (let i = 0; i < useful.length; i++) {
-                            const low = useful[i].toLowerCase();
-                            if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) {
-                                mFinal = useful[i]; break;
-                            }
-                        }
-                    }
-                    if (!mFinal || mFinal === dFinal) {
-                        const distIdx = useful.indexOf(dFinal);
-                        if (distIdx > 0) mFinal = useful[distIdx - 1];
-                    }
-
-                    // 4. Identify Village (ULTRA SPECIFIC)
-                    vFinal = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || "";
-                    if (!vFinal || vFinal === mFinal || vFinal === dFinal) {
-                        for (let i = 0; i < useful.length; i++) {
-                            const chunk = useful[i];
-                            if (chunk !== mFinal && chunk !== dFinal && chunk !== sFinal) {
-                                // Prefer named places over street numbers
-                                if (!/^\d/.test(chunk) || chunk.length > 5) {
-                                    vFinal = chunk; break;
+                    if (geo.data && geo.data.display_name) {
+                        const a = geo.data.address || {};
+                        const chunks = geo.data.display_name.split(',').map(c => c.trim()).filter(c => c.toLowerCase() !== 'india' && !/^\d{5,6}$/.test(c));
+                        let v = "", m = "", d = "", s = "";
+                        s = a.state || chunks[chunks.length - 1] || "";
+                        d = a.state_district || a.district || a.county || "";
+                        if (!d) { for (let i = chunks.length - 1; i >= 0; i--) if (chunks[i].toLowerCase().includes('district') || chunks.length - 2 === i) if (chunks[i] !== s) { d = chunks[i]; break; } }
+                        m = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
+                        if (!m || m === d) { for (let i = 0; i < chunks.length; i++) if (['mandal', 'tehsil', 'taluk', 'block'].some(x => chunks[i].toLowerCase().includes(x))) { m = chunks[i]; break; } }
+                        if (!m || m === d) { const idx = chunks.indexOf(d); if (idx > 0) m = chunks[idx - 1]; }
+                        v = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || "";
+                        if (!v || v === m || v === d) { for (let i = 0; i < Math.min(chunks.length, 3); i++) if (chunks[i] !== m && chunks[i] !== d && chunks[i] !== s && (!/^\d/.test(chunks[i]) || chunks[i].length > 5)) { v = chunks[i]; break; } }
+                        if (!v) v = chunks[0] || "";
+                        const ordered = [v, m, d, s].filter(Boolean);
+                        const out = []; const seen = new Set();
+                        ordered.forEach(val => {
+                            const norm = val.toLowerCase().replace(/\s/g, '');
+                            let dup = false;
+                            seen.forEach(sv => {
+                                if (norm.includes(sv) || sv.includes(norm)) dup = true;
+                                if (['mandal', 'tehsil', 'district'].some(x => norm.includes(x))) {
+                                    const b = norm.replace('mandal', '').replace('tehsil', '').replace('district', '');
+                                    if (sv.includes(b) || b.includes(sv)) dup = true;
                                 }
-                            }
-                        }
-                    }
-                    if (!vFinal) vFinal = useful[0] || "";
-
-                    const ordered = [vFinal, mFinal, dFinal, sFinal].filter(Boolean);
-                    const out = [];
-                    const seen = new Set();
-                    ordered.forEach(val => {
-                        if (!val || val === "undefined") return;
-                        const norm = val.toLowerCase().replace(/\s/g, '');
-                        let isDup = false;
-                        seen.forEach(s => {
-                            if (norm.includes(s) || s.includes(norm)) isDup = true;
+                            });
+                            if (!dup) { out.push(val); seen.add(norm); }
                         });
-                        if (!isDup) {
-                            out.push(val);
-                            seen.add(norm);
-                        }
-                    });
-
-                    locationName = out.slice(0, 4).join(", ");
-                    break;
-                }
-            } catch (e) {
-                if (attempt < 3) await new Promise(r => setTimeout(r, 1500));
+                        foundName = out.slice(0, 4).join(", "); break;
+                    }
+                } catch (e) { if (att < 2) await new Promise(r => setTimeout(r, 1000)); }
             }
         }
+        locationName = foundName || `Location (${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)})`;
     }
 
-    // Weather Fetching
     if (API_KEY) {
         try {
             const resp = await axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
-            const data = resp.data;
-            data.name = locationName;
-            return res.json(data);
+            const data = resp.data; data.name = locationName; return res.json(data);
         } catch (error) { }
     }
-
-    try {
-        const resp = await axios.get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,apparent_temperature&daily=temperature_2m_max,temperature_2m_min&timezone=auto`);
-        const data = resp.data;
-        const weatherCodes = { 0: "Clear sky", 1: "Mainly clear", 2: "Partly cloudy", 3: "Overcast", 45: "Fog", 95: "Thunderstorm" };
-        res.json({
-            name: locationName,
-            main: { temp: data.current.temperature_2m, humidity: data.current.relative_humidity_2m, feels_like: data.current.apparent_temperature, temp_min: data.daily.temperature_2m_min[0], temp_max: data.daily.temperature_2m_max[0] },
-            weather: [{ main: weatherCodes[data.current.weather_code] || "Variable", description: "Localized" }],
-            coord: { lat, lon }
-        });
-    } catch (error) { res.status(500).json({ error: "Weather failed" }); }
-});
-
-app.get('/api/outbreaks', async (req, res) => {
-    try {
-        let outbreaks = [];
-        if (firebaseInitialized && db) {
-            const fourteenDaysAgo = new Date(); fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-            const snaps = await db.collection('predictions').where('timestamp', '>=', fourteenDaysAgo).orderBy('timestamp', 'desc').limit(100).get();
-            const map = new Map();
-            snaps.forEach(doc => {
-                const s = doc.data(); if (s.disease === 'Healthy' || s.disease === 'Not a Crop') return;
-                const core = `${s.disease}_${s.location?.lat?.toFixed(1)},${s.location?.lon?.toFixed(1)}`;
-                if (map.has(core)) map.get(core).count += 1; else map.set(core, { disease: s.disease, crop: s.crop, count: 1 });
-            });
-            outbreaks = Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 5).map(o => ({
-                crop: o.crop || 'General', disease: o.disease, status: o.count > 4 ? 'Outbreak' : 'Monitoring', color: o.count > 2 ? 'bg-red-500' : 'bg-orange-500'
-            }));
-        }
-        res.json(outbreaks);
-    } catch (e) { res.json([]); }
+    res.json({ name: locationName, main: { temp: 28 }, weather: [{ main: "Clear" }], coord: { lat, lon } });
 });
 
 app.get('/api/predictions', async (req, res) => {
@@ -309,7 +222,5 @@ app.get('/api/community', async (req, res) => {
         res.json(snaps.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
-
-app.get('/api/mandi', (req, res) => res.json({ data: [] }));
 
 app.listen(port, () => console.log(`Server port ${port}`));

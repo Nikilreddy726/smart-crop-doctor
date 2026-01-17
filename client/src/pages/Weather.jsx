@@ -226,17 +226,30 @@ const Weather = () => {
     const getCurrentLocation = () => {
         if (navigator.geolocation) {
             setLoading(true);
-            navigator.geolocation.getCurrentPosition(
-                async (position) => {
-                    // This explicitly resets to automatic (isManual = false)
-                    await fetchWeather(position.coords.latitude, position.coords.longitude);
-                },
-                async (error) => {
-                    console.log("Geolocation error, using IP fallback:", error);
-                    await fetchWeather(); // Server-side IP fallback
-                },
-                { timeout: 15000, enableHighAccuracy: true, maximumAge: 30000 }
-            );
+            setLocation(prev => ({ ...prev, city: 'Detecting...', region: '' }));
+
+            const options = { timeout: 20000, enableHighAccuracy: true, maximumAge: 0 };
+
+            const success = async (position) => {
+                // If it's too inaccurate (>2000m), we might want to wait, 
+                // but for now we'll trust the coordinate and let the server handle the zoom.
+                await fetchWeather(position.coords.latitude, position.coords.longitude);
+            };
+
+            const error = async (err) => {
+                console.log("GPS Primary failed, trying persistent fallback:", err);
+                // Second attempt with slightly different settings
+                navigator.geolocation.getCurrentPosition(
+                    success,
+                    async (err2) => {
+                        console.log("GPS Secondary failed:", err2);
+                        await fetchWeather(); // Ultimate IP fallback
+                    },
+                    { ...options, timeout: 10000 }
+                );
+            };
+
+            navigator.geolocation.getCurrentPosition(success, error, options);
         } else {
             fetchWeather();
         }

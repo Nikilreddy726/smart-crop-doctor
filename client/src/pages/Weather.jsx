@@ -152,13 +152,14 @@ const Weather = () => {
                 if (v) parts.push(v);
                 if (m && !parts.some(p => p.toLowerCase() === m.toLowerCase())) parts.push(m);
                 if (d && !parts.some(p => p.toLowerCase() === d.toLowerCase())) parts.push(d);
+                if (state && !parts.some(p => p.toLowerCase() === state.toLowerCase())) parts.push(state);
 
                 // Fallback harvesting
-                if (parts.length < 3) {
-                    const segments = result.display_name.split(',').map(s => s.trim());
+                if (parts.length < 4) {
+                    const segments = result.display_name.split(',').map(seg => seg.trim());
                     for (const seg of segments) {
-                        if (parts.length >= 3) break;
-                        const broader = [state, address.country, address.postcode, "India", "Andhra Pradesh", "Telangana"];
+                        if (parts.length >= 4) break;
+                        const broader = [address.country, address.postcode, "India"];
                         if (broader.some(b => b && b.toLowerCase() === seg.toLowerCase())) continue;
                         if (!parts.some(p => p.toLowerCase().includes(seg.toLowerCase()) || seg.toLowerCase().includes(p.toLowerCase()))) {
                             parts.push(seg);
@@ -166,7 +167,7 @@ const Weather = () => {
                     }
                 }
 
-                const localName = parts.slice(0, 3).join(", ");
+                const localName = parts.slice(0, 4).join(", ");
                 const regionLabel = state || address.country || "";
 
                 if (parts.length < 2 && localName.toLowerCase().includes("hyderabad")) {

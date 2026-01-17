@@ -272,9 +272,10 @@ app.get('/api/weather', async (req, res) => {
                     let v = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || a.residential || "";
                     let m = a.subdistrict || a.municipality || a.city_district || "";
                     let d = a.state_district || a.county || a.district || a.city || "";
+                    let s = a.state || "";
 
                     // Keyword-based correction (if API swapped them)
-                    const allFields = [a.village, a.hamlet, a.town, a.subdistrict, a.municipality, a.city_district, a.county, a.state_district, a.district, a.city].filter(Boolean);
+                    const allFields = [a.village, a.hamlet, a.town, a.subdistrict, a.municipality, a.city_district, a.county, a.state_district, a.district, a.city, a.state].filter(Boolean);
 
                     allFields.forEach(field => {
                         const low = field.toLowerCase();
@@ -286,13 +287,14 @@ app.get('/api/weather', async (req, res) => {
                     if (v) parts.push(v);
                     if (m && !parts.some(p => p.toLowerCase() === m.toLowerCase())) parts.push(m);
                     if (d && !parts.some(p => p.toLowerCase() === d.toLowerCase())) parts.push(d);
+                    if (s && !parts.some(p => p.toLowerCase() === s.toLowerCase())) parts.push(s);
 
                     // Fallback harvesting from full address string
-                    if (parts.length < 3) {
-                        const segments = a.display_name.split(',').map(s => s.trim());
+                    if (parts.length < 4) {
+                        const segments = a.display_name.split(',').map(seg => seg.trim());
                         for (const seg of segments) {
-                            if (parts.length >= 3) break;
-                            const broader = [a.state, a.country, a.postcode, "India", "Andhra Pradesh", "Telangana"];
+                            if (parts.length >= 4) break;
+                            const broader = [a.country, a.postcode, "India"];
                             if (broader.some(b => b && b.toLowerCase() === seg.toLowerCase())) continue;
                             if (!parts.some(p => p.toLowerCase().includes(seg.toLowerCase()) || seg.toLowerCase().includes(p.toLowerCase()))) {
                                 parts.push(seg);
@@ -300,7 +302,7 @@ app.get('/api/weather', async (req, res) => {
                         }
                     }
 
-                    locationName = parts.slice(0, 3).join(", "); // Strictly Village, Mandal, District
+                    locationName = parts.slice(0, 4).join(", "); // Strictly Village, Mandal, District, State
                     break;
                 }
             } catch (e) {

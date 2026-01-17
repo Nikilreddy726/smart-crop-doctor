@@ -142,10 +142,10 @@ const Weather = () => {
 
                 const parts = [];
                 if (village) parts.push(village);
-                if (mandal && (!village || !village.toLowerCase().includes(mandal.toLowerCase()))) {
+                if (mandal && !parts.some(p => p.toLowerCase() === mandal.toLowerCase())) {
                     parts.push(mandal);
                 }
-                if (district && (!mandal || !mandal.toLowerCase().includes(district.toLowerCase())) && (!village || !village.toLowerCase().includes(district.toLowerCase()))) {
+                if (district && !parts.some(p => p.toLowerCase() === district.toLowerCase())) {
                     parts.push(district);
                 }
 

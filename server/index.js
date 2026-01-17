@@ -267,23 +267,34 @@ app.get('/api/weather', async (req, res) => {
 
                 if (geoResponse.data && geoResponse.data.address) {
                     const a = geoResponse.data.address;
-                    const village = a.village || a.hamlet || a.neighbourhood || a.suburb || a.residential || a.industrial || a.town || "";
-                    const mandal = a.subdistrict || a.municipality || a.city_district || a.quarter || a.city || "";
-                    const district = a.county || a.district || a.state_district || a.region || "";
+
+                    // 1. Village / Specific Area
+                    const village = a.village || a.hamlet || a.neighbourhood || a.suburb || a.residential || "";
+
+                    // 2. Mandal / Sub-District (Subdivision)
+                    const mandal = a.subdistrict || a.municipality || a.city_district || a.town || a.city || "";
+
+                    // 3. District (Administrative)
+                    const district = a.county || a.state_district || a.district || "";
 
                     const parts = [];
                     if (village) parts.push(village);
-                    if (mandal && !village.toLowerCase().includes(mandal.toLowerCase())) {
+
+                    // Add Mandal if it's not the exact same as the first part
+                    if (mandal && !parts.some(p => p.toLowerCase() === mandal.toLowerCase())) {
                         parts.push(mandal);
                     }
-                    if (district && !mandal.toLowerCase().includes(district.toLowerCase()) && !village.toLowerCase().includes(district.toLowerCase())) {
+
+                    // Add District if it's not the exact same as any previous part
+                    if (district && !parts.some(p => p.toLowerCase() === district.toLowerCase())) {
                         parts.push(district);
                     }
 
-                    if (parts.length > 0) {
-                        locationName = parts.join(", ");
-                    } else {
+                    // Fallback to display_name segments if we still have nothing
+                    if (parts.length === 0) {
                         locationName = a.display_name.split(',').slice(0, 3).map(s => s.trim()).join(', ');
+                    } else {
+                        locationName = parts.join(", ");
                     }
                     break;
                 }

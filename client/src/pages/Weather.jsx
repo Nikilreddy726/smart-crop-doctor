@@ -305,7 +305,7 @@ const Weather = () => {
                                 <div>
                                     <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Location</p>
                                     <div className="flex items-center gap-2 text-lg font-bold leading-tight">
-                                        {location.city}{location.region ? `, ${location.region}` : ''}
+                                        {location.city}{location.region && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
                                     </div>
                                 </div>
                             </div>

@@ -135,15 +135,19 @@ const Weather = () => {
                 const { lat, lon, address } = result;
 
                 // Village, Mandal, District (High Precision Parsing)
-                const village = address.village || address.hamlet || address.neighbourhood || address.suburb || address.residential || address.town || address.city || "";
-                const mandal = address.subdistrict || address.municipality || address.city_district || address.district || "";
-                const district = address.state_district || address.county || "";
+                const village = address.village || address.hamlet || address.neighbourhood || address.suburb || address.residential || address.town || "";
+                const mandal = address.subdistrict || address.municipality || address.city_district || address.city || "";
+                const district = address.county || address.district || address.state_district || "";
                 const state = address.state || "";
 
                 const parts = [];
                 if (village) parts.push(village);
-                if (mandal && !village.includes(mandal)) parts.push(mandal);
-                if (district && !mandal.includes(district) && !village.includes(district)) parts.push(district);
+                if (mandal && (!village || !village.toLowerCase().includes(mandal.toLowerCase()))) {
+                    parts.push(mandal);
+                }
+                if (district && (!mandal || !mandal.toLowerCase().includes(district.toLowerCase())) && (!village || !village.toLowerCase().includes(district.toLowerCase()))) {
+                    parts.push(district);
+                }
 
                 const localName = parts.length > 0 ? parts.join(", ") : result.name;
                 const regionLabel = state || address.country || "";

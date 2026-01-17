@@ -268,36 +268,38 @@ app.get('/api/weather', async (req, res) => {
                 if (geoResponse.data && geoResponse.data.address) {
                     const a = geoResponse.data.address;
 
-                    // 1. Village / Specific Area
-                    const village = a.village || a.hamlet || a.neighbourhood || a.suburb || a.residential || "";
+                    // 1. Village / Area / Street
+                    const village = a.village || a.hamlet || a.suburb || a.neighbourhood || a.residential || a.road || "";
 
                     // 2. Mandal / Sub-District
                     const mandal = a.subdistrict || a.municipality || a.city_district || a.town || a.city || "";
 
-                    // 3. District (Administrative)
-                    const district = a.state_district || a.county || a.district || a.region || "";
+                    // 3. District
+                    const district = a.state_district || a.county || a.district || "";
 
                     const parts = [];
                     if (village) parts.push(village);
 
-                    // Add Mandal if unique
-                    if (mandal && !parts.some(p => p.toLowerCase() === mandal.toLowerCase())) {
+                    // Add Mandal if it's not exactly the village
+                    if (mandal && !parts.some(p => p.toLowerCase().includes(mandal.toLowerCase()) || mandal.toLowerCase().includes(p.toLowerCase()))) {
                         parts.push(mandal);
                     }
 
-                    // Add District if unique
-                    if (district && !parts.some(p => p.toLowerCase() === district.toLowerCase())) {
+                    // Add District if it's not exactly the mandal or village
+                    if (district && !parts.some(p => p.toLowerCase().includes(district.toLowerCase()) || district.toLowerCase().includes(p.toLowerCase()))) {
                         parts.push(district);
                     }
 
-                    // CRITICAL FALLBACK: If we still don't have 3 pieces, pull extra segments from display_name
+                    // ENSURE AT LEAST 3 SEGMENTS: If structured keys failed, harvest from the raw name
                     if (parts.length < 3) {
-                        const segments = a.display_name.split(',').map(s => s.trim());
-                        for (const seg of segments) {
+                        const rawSegments = a.display_name.split(',').map(s => s.trim());
+                        for (const seg of rawSegments) {
                             if (parts.length >= 3) break;
-                            // Skip state/country/zip
-                            if (seg === a.state || seg === a.country || seg === a.postcode) continue;
-                            if (!parts.some(p => p.toLowerCase() === seg.toLowerCase())) {
+                            // Filter out broader administrative levels
+                            const broader = [a.state, a.country, a.postcode, "India", "Telangana", "Andhra Pradesh"];
+                            if (broader.some(b => b && b.toLowerCase() === seg.toLowerCase())) continue;
+
+                            if (!parts.some(p => p.toLowerCase().includes(seg.toLowerCase()) || seg.toLowerCase().includes(p.toLowerCase()))) {
                                 parts.push(seg);
                             }
                         }

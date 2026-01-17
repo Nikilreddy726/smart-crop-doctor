@@ -135,7 +135,7 @@ const Weather = () => {
                 const { lat, lon, address } = result;
 
                 // Village, Mandal, District (High Precision Parsing)
-                const village = address.village || address.hamlet || address.neighbourhood || address.suburb || address.residential || address.town || "";
+                const village = address.village || address.hamlet || address.suburb || address.neighbourhood || address.residential || address.town || "";
                 const mandal = address.subdistrict || address.municipality || address.city_district || address.city || "";
                 const district = address.state_district || address.county || address.district || "";
                 const state = address.state || "";
@@ -143,21 +143,23 @@ const Weather = () => {
                 const parts = [];
                 if (village) parts.push(village);
 
-                if (mandal && !parts.some(p => p.toLowerCase() === mandal.toLowerCase())) {
+                if (mandal && !parts.some(p => p.toLowerCase().includes(mandal.toLowerCase()) || mandal.toLowerCase().includes(p.toLowerCase()))) {
                     parts.push(mandal);
                 }
 
-                if (district && !parts.some(p => p.toLowerCase() === district.toLowerCase())) {
+                if (district && !parts.some(p => p.toLowerCase().includes(district.toLowerCase()) || district.toLowerCase().includes(p.toLowerCase()))) {
                     parts.push(district);
                 }
 
                 // Harvest extra segments if needed to reach 3 parts
                 if (parts.length < 3) {
-                    const segments = result.display_name.split(',').map(s => s.trim());
-                    for (const seg of segments) {
+                    const rawSegments = result.display_name.split(',').map(s => s.trim());
+                    for (const seg of rawSegments) {
                         if (parts.length >= 3) break;
-                        if (seg === state || seg === address.country || seg === address.postcode) continue;
-                        if (!parts.some(p => p.toLowerCase() === seg.toLowerCase())) {
+                        const broader = [state, address.country, address.postcode, "India", "Telangana", "Andhra Pradesh"];
+                        if (broader.some(b => b && b.toLowerCase() === seg.toLowerCase())) continue;
+
+                        if (!parts.some(p => p.toLowerCase().includes(seg.toLowerCase()) || seg.toLowerCase().includes(p.toLowerCase()))) {
                             parts.push(seg);
                         }
                     }
@@ -165,6 +167,10 @@ const Weather = () => {
 
                 const localName = parts.join(", ");
                 const regionLabel = state || address.country || "";
+
+                if (localName.toLowerCase() === "hyderabad") {
+                    alert("Showing general city center. For farm-specific weather, please search for your specific Village name.");
+                }
 
                 await fetchWeather(lat, lon, { city: localName, region: regionLabel, isManual: true });
             } else {

@@ -77,10 +77,15 @@ export const cleanLocationName = (name) => {
     const final = [];
     parts.forEach(p => {
         const norm = p.toLowerCase().replace(/\s/g, '');
-        if (!norm) return;
+        if (!norm || norm === 'india') return;
         let isDup = false;
         seen.forEach(s => {
             if (norm.includes(s) || s.includes(norm)) isDup = true;
+            // Also dedupe common mandal/district keywords
+            if (norm.includes('mandal') || norm.includes('tehsil') || norm.includes('district')) {
+                const base = norm.replace('mandal', '').replace('tehsil', '').replace('district', '');
+                if (s.includes(base) || base.includes(s)) isDup = true;
+            }
         });
         if (!isDup) {
             final.push(p);

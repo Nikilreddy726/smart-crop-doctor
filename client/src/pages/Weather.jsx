@@ -84,7 +84,7 @@ const Weather = () => {
 
                 loc = {
                     city: cityName,
-                    region: data.sys?.country === 'IN' ? 'India' : data.sys?.country || '',
+                    region: (data.sys?.country === 'IN' && cityName.split(',').length < 3) ? 'India' : (data.sys?.country === 'IN' ? '' : data.sys?.country || ''),
                     isManual: false,
                     lat: lat || (data.coord?.lat),
                     lon: lon || (data.coord?.lon)
@@ -247,7 +247,7 @@ const Weather = () => {
             <header className="flex flex-col md:flex-row justify-between items-end gap-6">
                 <div className="space-y-2">
                     <div className="flex items-center gap-2 text-primary font-bold">
-                        <MapPin size={18} /> {location.city}{location.region && location.city.split(',').length < 3 && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
+                        <MapPin size={18} /> {location.city}{location.region ? `, ${location.region}` : ''}
                     </div>
                     <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
                     <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Farm-specific localized forecasting</p>
@@ -326,7 +326,7 @@ const Weather = () => {
                                 <div>
                                     <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Location</p>
                                     <div className="flex items-center gap-2 text-lg font-bold leading-tight">
-                                        {location.city}{location.region && location.city.split(',').length < 3 && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
+                                        {location.city}{location.region ? `, ${location.region}` : ''}
                                     </div>
                                 </div>
                             </div>

@@ -166,7 +166,7 @@ app.get('/api/weather', async (req, res) => {
 
         for (let attempt = 1; attempt <= 3; attempt++) {
             try {
-                const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14`, {
+                const geoResponse = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18`, {
                     timeout: 8000,
                     headers: { 'User-Agent': 'SmartCropDoctor/1.3 (nikilreddy726@gmail.com)', 'Referer': 'https://smart-doctor-crop.web.app/' }
                 });
@@ -214,19 +214,19 @@ app.get('/api/weather', async (req, res) => {
                     // 4. Identify Village (ULTRA SPECIFIC)
                     vFinal = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || "";
                     if (!vFinal || vFinal === mFinal || vFinal === dFinal) {
-                        // Scan for the most granular chunk that isn't a higher-level boundary
                         for (let i = 0; i < useful.length; i++) {
-                            if (useful[i] !== mFinal && useful[i] !== dFinal && useful[i] !== sFinal) {
-                                // Skip house numbers/small numeric segments if possible
-                                if (!/^\d/.test(useful[i]) || useful[i].length > 4) {
-                                    vFinal = useful[i]; break;
+                            const chunk = useful[i];
+                            if (chunk !== mFinal && chunk !== dFinal && chunk !== sFinal) {
+                                // Prefer named places over street numbers
+                                if (!/^\d/.test(chunk) || chunk.length > 5) {
+                                    vFinal = chunk; break;
                                 }
                             }
                         }
                     }
                     if (!vFinal) vFinal = useful[0] || "";
 
-                    const ordered = [vFinal, mFinal, dFinal, sFinal];
+                    const ordered = [vFinal, mFinal, dFinal, sFinal].filter(Boolean);
                     const out = [];
                     const seen = new Set();
                     ordered.forEach(val => {

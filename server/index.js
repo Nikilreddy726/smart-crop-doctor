@@ -60,7 +60,7 @@ app.get('/api/health', async (req, res) => {
     } catch (e) {
         if (e.response?.status === 502 || e.response?.status === 503 || e.code === 'ECONNABORTED') aiStatus = 'booting';
     }
-    res.json({ server: 'online', version: '1.2.8', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
+    res.json({ server: 'online', version: '1.2.9', ai: aiStatus, firebase: firebaseInitialized, latency: Date.now() - start });
 });
 
 const jobs = new Map();
@@ -177,11 +177,10 @@ app.get('/api/weather', async (req, res) => {
                     // --- ULTRA ROBUST HIERARCHY HARVESTER ---
                     let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
 
-                    // 1. Identify State (Always last item in useful)
+                    // 1. Identify State
                     sFinal = a.state || (useful.length > 0 ? useful[useful.length - 1] : "");
 
                     // 2. Identify District 
-                    // Search for "District" keyword or take segment before state
                     dFinal = a.state_district || a.district || a.county || "";
                     if (!dFinal) {
                         for (let i = useful.length - 1; i >= 0; i--) {
@@ -192,7 +191,6 @@ app.get('/api/weather', async (req, res) => {
                     }
 
                     // 3. Identify Mandal
-                    // Search for Mandal keywords or take segment before district
                     mFinal = a.subdistrict || a.municipality || a.city_district || a.tehsil || "";
                     if (!mFinal || mFinal === dFinal) {
                         const distIdx = useful.indexOf(dFinal);
@@ -200,17 +198,15 @@ app.get('/api/weather', async (req, res) => {
                     }
 
                     // 4. Identify Village
-                    // Always the very first segment (most specific)
                     vFinal = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || useful[0] || "";
 
-                    // 5. Final Strict Assembly & De-duplication
-                    const slots = [vFinal, mFinal, dFinal, sFinal];
+                    // 5. Final Strict Assembly & aggressive de-dup
+                    const ordered = [vFinal, mFinal, dFinal, sFinal];
                     const out = [];
                     const seen = new Set();
-                    slots.forEach(val => {
+                    ordered.forEach(val => {
                         if (!val || val === "undefined") return;
                         const norm = val.toLowerCase().replace(/\s/g, '');
-                        // Check if this slot is a sub-string or super-string of what's already added
                         let isDup = false;
                         seen.forEach(s => {
                             if (norm.includes(s) || s.includes(norm)) isDup = true;

@@ -172,10 +172,10 @@ const Weather = () => {
                 vFinal = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || useful[0] || "";
 
                 // 5. Final Strict Assembly & aggressive de-dup
-                const slots = [vFinal, mFinal, dFinal, sFinal];
+                const ordered = [vFinal, mFinal, dFinal, sFinal];
                 const out = [];
                 const seen = new Set();
-                slots.forEach(val => {
+                ordered.forEach(val => {
                     if (!val || val === "undefined") return;
                     const norm = val.toLowerCase().replace(/\s/g, '');
                     let isDup = false;
@@ -229,7 +229,7 @@ const Weather = () => {
             <header className="flex flex-col md:flex-row justify-between items-end gap-6">
                 <div className="space-y-2">
                     <div className="flex items-center gap-2 text-primary font-bold">
-                        <MapPin size={18} /> {location.city}{location.region && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
+                        <MapPin size={18} /> {location.city}{location.region && location.city.split(',').length < 3 && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
                     </div>
                     <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
                     <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Farm-specific localized forecasting</p>
@@ -308,7 +308,7 @@ const Weather = () => {
                                 <div>
                                     <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Location</p>
                                     <div className="flex items-center gap-2 text-lg font-bold leading-tight">
-                                        {location.city}{location.region && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
+                                        {location.city}{location.region && location.city.split(',').length < 3 && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
                                     </div>
                                 </div>
                             </div>

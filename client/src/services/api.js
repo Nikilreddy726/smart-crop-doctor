@@ -70,11 +70,33 @@ export const commentPost = async (id, text, author) => {
     return response.data;
 };
 
+export const cleanLocationName = (name) => {
+    if (!name || typeof name !== 'string') return name;
+    const parts = name.split(',').map(p => p.trim());
+    const seen = new Set();
+    const final = [];
+    parts.forEach(p => {
+        const norm = p.toLowerCase().replace(/\s/g, '');
+        if (!norm) return;
+        let isDup = false;
+        seen.forEach(s => {
+            if (norm.includes(s) || s.includes(norm)) isDup = true;
+        });
+        if (!isDup) {
+            final.push(p);
+            seen.add(norm);
+        }
+    });
+    return final.slice(0, 4).join(", ");
+};
+
 export const getWeather = async (lat, lon, cb = null) => {
     const params = { lat, lon };
     if (cb) params.cb = cb;
     const response = await api.get('/weather', { params });
-    return response.data;
+    const data = response.data;
+    if (data.name) data.name = cleanLocationName(data.name);
+    return data;
 };
 
 export const getMandiPrices = async () => {

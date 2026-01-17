@@ -15,7 +15,7 @@ import { Calendar, TrendingUp, AlertCircle, CheckCircle2, ArrowUpRight, CloudSun
 import { motion } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
-import { getHistory, getWeather, getOutbreaks } from '../services/api';
+import { getHistory, getWeather, getOutbreaks, cleanLocationName } from '../services/api';
 import { Link } from 'react-router-dom';
 
 ChartJS.register(
@@ -110,6 +110,7 @@ const Dashboard = () => {
             const cachedWeather = localStorage.getItem(weatherKey);
             if (cachedWeather) {
                 const w = JSON.parse(cachedWeather);
+                if (w.name) w.name = cleanLocationName(w.name);
                 if (w.name !== 'Guntur') setWeather(w);
             }
         } catch (e) { console.error("Local Load Error", e); }

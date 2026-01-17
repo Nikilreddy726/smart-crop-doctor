@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CloudSun, Droplets, Wind, Thermometer, MapPin, Search, Loader2, Navigation, CheckCircle } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
-import { getWeather } from '../services/api';
+import { getWeather, cleanLocationName } from '../services/api';
 
 const Weather = () => {
     const { t } = useLanguage();
@@ -25,6 +25,9 @@ const Weather = () => {
                 const loc = JSON.parse(cachedL);
                 const weatherData = JSON.parse(cachedW);
                 const isStale = !cacheTime || (Date.now() - parseInt(cacheTime)) > CACHE_EXPIRY;
+
+                if (loc.city) loc.city = cleanLocationName(loc.city);
+                if (weatherData.name) weatherData.name = cleanLocationName(weatherData.name);
 
                 setWeather(weatherData);
                 setLocation(loc);

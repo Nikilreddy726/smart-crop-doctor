@@ -8,7 +8,6 @@ require('dotenv').config();
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Initialize Firebase Admin
 let firebaseInitialized = false;
 try {
     const serviceAccount = require('./serviceAccountKey.json');
@@ -28,7 +27,7 @@ app.use(express.json());
 
 const AI_SERVICE_URL = 'https://smart-crop-doctor.onrender.com';
 
-app.get('/api/health', (req, res) => res.json({ server: 'online', version: '1.3.4', firebase: firebaseInitialized }));
+app.get('/api/health', (req, res) => res.json({ server: 'online', version: '1.3.5', firebase: firebaseInitialized }));
 
 app.get('/api/weather', async (req, res) => {
     let { lat, lon } = req.query;
@@ -52,16 +51,13 @@ app.get('/api/weather', async (req, res) => {
     let foundName = null;
 
     if (isActualGPS) {
-        // Step 1: Attempt Nominatim (High Detail)
+        // --- LEVEL 1: Nominatim (High Detail) ---
         for (const z of [18, 14, 10]) {
             if (foundName) break;
             try {
                 const geo = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=${z}`, {
                     timeout: 7000,
-                    headers: {
-                        'User-Agent': 'SmartCropDoctor/1.3 (nikilreddy726@gmail.com)',
-                        'Referer': 'https://smart-doctor-crop.web.app/'
-                    }
+                    headers: { 'User-Agent': `SmartCropDoctorApp/2.0 (nikilreddy726@gmail.com)`, 'Referer': 'https://smart-doctor-crop.web.app/' }
                 });
 
                 if (geo.data && geo.data.display_name) {
@@ -99,10 +95,30 @@ app.get('/api/weather', async (req, res) => {
             } catch (e) { }
         }
 
-        // Step 2: Fallback to OWM Geocoding (Very Reliable)
+        // --- LEVEL 2: BigDataCloud (Fast & Persistent) ---
+        if (!foundName) {
+            try {
+                const bdc = await axios.get(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`, { timeout: 4000 });
+                if (bdc.data) {
+                    const b = bdc.data;
+                    const village = b.locality || b.village || "";
+                    const mandal = b.principalSubdivision || "";
+                    const district = b.city || "";
+                    const state = b.principalSubdivision || "";
+                    // Only use if we got at least something better than raw coords
+                    if (village || district) {
+                        foundName = [village, mandal, district, state]
+                            .filter((v, i, a) => v && a.indexOf(v) === i)
+                            .slice(0, 4).join(", ");
+                    }
+                }
+            } catch (e) { }
+        }
+
+        // --- LEVEL 3: OpenWeather Geocoding ---
         if (!foundName && API_KEY) {
             try {
-                const owmGeo = await axios.get(`http://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`, { timeout: 5000 });
+                const owmGeo = await axios.get(`https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`, { timeout: 4000 });
                 if (owmGeo.data?.length > 0) {
                     const g = owmGeo.data[0];
                     foundName = [g.name, g.state].filter(Boolean).join(", ");
@@ -111,7 +127,6 @@ app.get('/api/weather', async (req, res) => {
         }
     }
 
-    // Step 3: Fetch Weather and apply final naming
     if (API_KEY) {
         try {
             const wr = await axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
@@ -121,14 +136,14 @@ app.get('/api/weather', async (req, res) => {
             } else if (data.name && data.name !== "Your Location" && data.name !== "") {
                 locationName = data.name;
             } else if (isActualGPS) {
-                locationName = `Village (Precision Loc), ${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)}`;
+                locationName = `Village Surroundings, ${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)}`;
             }
             data.name = locationName;
             return res.json(data);
         } catch (e) { }
     }
 
-    locationName = foundName || (isActualGPS ? `Village Area, ${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)}` : locationName);
+    locationName = foundName || (isActualGPS ? `Local Village, ${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)}` : locationName);
     res.json({ name: locationName, main: { temp: 28 }, weather: [{ main: "Clear" }], coord: { lat, lon } });
 });
 
@@ -140,12 +155,4 @@ app.get('/api/predictions', async (req, res) => {
     } catch (e) { res.json([]); }
 });
 
-app.get('/api/community', async (req, res) => {
-    if (!db) return res.json([]);
-    try {
-        const snap = await db.collection('posts').orderBy('timestamp', 'desc').get();
-        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    } catch (e) { res.json([]); }
-});
-
-app.listen(port, () => console.log(`Server running on ${port}`));
+app.listen(port, () => console.log(`Server v1.3.5 running on ${port}`));

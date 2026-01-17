@@ -145,39 +145,44 @@ const Weather = () => {
                     return low !== 'india' && !/^\d{5,6}$/.test(low);
                 });
 
-                // --- ULTIMATE 4-PART HIERARCHY ---
+                // --- ULTRA ROBUST HIERARCHY HARVESTER ---
                 let vFinal = "", mFinal = "", dFinal = "", sFinal = "";
 
-                // 1. Identifying State
+                // 1. Identify State
                 sFinal = address.state || (useful.length > 0 ? useful[useful.length - 1] : "");
 
-                // 2. Identifying District
+                // 2. Identify District 
                 dFinal = address.state_district || address.district || address.county || "";
                 if (!dFinal) {
-                    const sIdx = useful.lastIndexOf(sFinal);
-                    if (sIdx > 0) dFinal = useful[sIdx - 1];
+                    for (let i = useful.length - 1; i >= 0; i--) {
+                        if (useful[i].toLowerCase().includes('district') || useful.length - 2 === i) {
+                            if (useful[i] !== sFinal) { dFinal = useful[i]; break; }
+                        }
+                    }
                 }
 
-                // 3. Identifying Mandal
-                useful.forEach(c => {
-                    const low = c.toLowerCase();
-                    if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) mFinal = c;
-                });
+                // 3. Identify Mandal
+                mFinal = address.subdistrict || address.municipality || address.city_district || address.tehsil || "";
+                // Search keywords for mandal in all segments
                 if (!mFinal || mFinal === dFinal) {
-                    mFinal = address.subdistrict || address.municipality || address.city_district || "";
+                    for (let i = 0; i < useful.length; i++) {
+                        const low = useful[i].toLowerCase();
+                        if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) {
+                            mFinal = useful[i]; break;
+                        }
+                    }
                 }
                 if (!mFinal || mFinal === dFinal) {
                     const distIdx = useful.indexOf(dFinal);
                     if (distIdx > 0) mFinal = useful[distIdx - 1];
                 }
 
-                // 4. Identifying Village (Deep Search)
+                // 4. Identify Village
                 vFinal = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || "";
-                if (!vFinal) {
-                    for (const chunk of useful) {
-                        if (chunk !== mFinal && chunk !== dFinal && chunk !== sFinal) {
-                            vFinal = chunk;
-                            break;
+                if (!vFinal || vFinal === mFinal || vFinal === dFinal) {
+                    for (let i = 0; i < useful.length; i++) {
+                        if (useful[i] !== mFinal && useful[i] !== dFinal && useful[i] !== sFinal) {
+                            vFinal = useful[i]; break;
                         }
                     }
                 }

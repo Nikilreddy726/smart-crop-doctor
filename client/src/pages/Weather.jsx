@@ -136,32 +136,37 @@ const Weather = () => {
 
                 const chunks = (result.display_name || "").split(',').map(c => c.trim());
 
-                // --- FINAL PERMANENT SOLUTION: STRICT HIERARCHY ---
-                let v = address.village || address.hamlet || address.town || address.suburb || chunks[0] || "";
-                let m = address.subdistrict || address.municipality || "";
-                let d = address.state_district || address.district || address.county || "";
+                // --- FINAL ULTRA PERMANENT SOLUTION: STRICT 4-PART SLOTS ---
+                let v = address.village || address.hamlet || address.town || address.suburb || address.neighbourhood || chunks[0] || "";
+                let m = address.subdistrict || address.municipality || address.city_district || address.tehsil || "";
+                let d = address.state_district || address.district || address.county || address.city || "";
                 let s = address.state || "";
 
-                // Keyword Scan (Override with direct matches)
+                // Keyword scan for markers
                 chunks.forEach(chunk => {
                     const low = chunk.toLowerCase();
                     if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) m = chunk;
                     else if (low.includes('district') || low.includes('dist')) d = chunk;
                 });
 
-                // De-duplicate and Join in strict [Village, Mandal, District, State] order
+                // Build and aggressive de-dup
+                const ordered = [v, m, d, s];
                 const finalParts = [];
-                const added = new Set();
-                [v, m, d, s].forEach(part => {
+                const addedNormal = new Set();
+
+                ordered.forEach(part => {
                     if (!part) return;
                     const normal = part.toLowerCase().replace(/\s/g, '');
+                    if (normal === 'india' || /^\d{5,6}$/.test(normal)) return;
+
                     let isDup = false;
-                    added.forEach(existing => {
+                    addedNormal.forEach(existing => {
                         if (normal.includes(existing) || existing.includes(normal)) isDup = true;
                     });
+
                     if (!isDup) {
                         finalParts.push(part);
-                        added.add(normal);
+                        addedNormal.add(normal);
                     }
                 });
 
@@ -206,7 +211,7 @@ const Weather = () => {
             <header className="flex flex-col md:flex-row justify-between items-end gap-6">
                 <div className="space-y-2">
                     <div className="flex items-center gap-2 text-primary font-bold">
-                        <MapPin size={18} /> {location.city}{location.region ? `, ${location.region}` : ''}
+                        <MapPin size={18} /> {location.city}{location.region && !location.city.toLowerCase().includes(location.region.toLowerCase()) ? `, ${location.region}` : ''}
                     </div>
                     <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
                     <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Farm-specific localized forecasting</p>

@@ -136,46 +136,37 @@ const Weather = () => {
 
                 const chunks = (result.display_name || "").split(',').map(c => c.trim());
 
-                // Categorization Keys
-                const vKeys = ["village", "hamlet", "town", "suburb", "neighbourhood", "residential"];
-                const mKeys = ["subdistrict", "municipality", "city_district", "tehsil", "mandal", "taluk"];
-                const dKeys = ["state_district", "district", "county", "city"];
-                const sKeys = ["state"];
+                // --- FINAL PERMANENT SOLUTION: STRICT HIERARCHY ---
+                let v = address.village || address.hamlet || address.town || address.suburb || chunks[0] || "";
+                let m = address.subdistrict || address.municipality || "";
+                let d = address.state_district || address.district || address.county || "";
+                let s = address.state || "";
 
-                const vMatch = vKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
-                const mMatch = mKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
-                const dMatch = dKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
-                const sMatch = sKeys.map(k => address[k]?.toLowerCase()).filter(Boolean);
-
-                let bucketV = "", bucketM = "", bucketD = "", bucketS = "";
-
-                // Assign chunks to buckets
+                // Keyword Scan (Override with direct matches)
                 chunks.forEach(chunk => {
                     const low = chunk.toLowerCase();
-                    if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) { if (!bucketM) bucketM = chunk; return; }
-                    if (low.includes('district') || low.includes('dist')) { if (!bucketD) bucketD = chunk; return; }
-                    if (sMatch.includes(low) && !bucketS) { bucketS = chunk; return; }
-                    if (dMatch.includes(low) && !bucketD) { bucketD = chunk; return; }
-                    if (mMatch.includes(low) && !bucketM) { bucketM = chunk; return; }
-                    if (vMatch.includes(low) && !bucketV) { bucketV = chunk; return; }
+                    if (low.includes('mandal') || low.includes('tehsil') || low.includes('taluk') || low.includes('block')) m = chunk;
+                    else if (low.includes('district') || low.includes('dist')) d = chunk;
                 });
 
-                // Fill empty buckets
-                const used = [bucketV, bucketM, bucketD, bucketS].filter(Boolean).map(u => u.toLowerCase());
-                const leftovers = chunks.filter(c => {
-                    const low = c.toLowerCase();
-                    const broad = ["india", address.postcode, address.country].map(x => x?.toLowerCase());
-                    const isUsed = used.some(u => u === low || low.includes(u));
-                    return !isUsed && !broad.includes(low);
+                // De-duplicate and Join in strict [Village, Mandal, District, State] order
+                const finalParts = [];
+                const added = new Set();
+                [v, m, d, s].forEach(part => {
+                    if (!part) return;
+                    const normal = part.toLowerCase().replace(/\s/g, '');
+                    let isDup = false;
+                    added.forEach(existing => {
+                        if (normal.includes(existing) || existing.includes(normal)) isDup = true;
+                    });
+                    if (!isDup) {
+                        finalParts.push(part);
+                        added.add(normal);
+                    }
                 });
 
-                if (!bucketV && leftovers.length > 0) bucketV = leftovers.shift();
-                if (!bucketM && leftovers.length > 0) bucketM = leftovers.shift();
-                if (!bucketD && leftovers.length > 0) bucketD = leftovers.shift();
-                if (!bucketS) bucketS = address.state || address.country || "";
-
-                const localName = [bucketV, bucketM, bucketD, bucketS].filter(Boolean).slice(0, 4).join(", ");
-                const regionLabel = bucketS;
+                const localName = finalParts.slice(0, 4).join(", ");
+                const regionLabel = s || address.country || "";
 
                 if (localName.split(",").length < 2 && localName.toLowerCase().includes("hyderabad")) {
                     alert("Showing general city center. For farm-specific weather, please search for your specific Village name.");

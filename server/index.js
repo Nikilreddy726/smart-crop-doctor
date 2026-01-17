@@ -271,31 +271,39 @@ app.get('/api/weather', async (req, res) => {
                     // 1. Village / Specific Area
                     const village = a.village || a.hamlet || a.neighbourhood || a.suburb || a.residential || "";
 
-                    // 2. Mandal / Sub-District (Subdivision)
+                    // 2. Mandal / Sub-District
                     const mandal = a.subdistrict || a.municipality || a.city_district || a.town || a.city || "";
 
                     // 3. District (Administrative)
-                    const district = a.county || a.state_district || a.district || "";
+                    const district = a.state_district || a.county || a.district || a.region || "";
 
                     const parts = [];
                     if (village) parts.push(village);
 
-                    // Add Mandal if it's not the exact same as the first part
+                    // Add Mandal if unique
                     if (mandal && !parts.some(p => p.toLowerCase() === mandal.toLowerCase())) {
                         parts.push(mandal);
                     }
 
-                    // Add District if it's not the exact same as any previous part
+                    // Add District if unique
                     if (district && !parts.some(p => p.toLowerCase() === district.toLowerCase())) {
                         parts.push(district);
                     }
 
-                    // Fallback to display_name segments if we still have nothing
-                    if (parts.length === 0) {
-                        locationName = a.display_name.split(',').slice(0, 3).map(s => s.trim()).join(', ');
-                    } else {
-                        locationName = parts.join(", ");
+                    // CRITICAL FALLBACK: If we still don't have 3 pieces, pull extra segments from display_name
+                    if (parts.length < 3) {
+                        const segments = a.display_name.split(',').map(s => s.trim());
+                        for (const seg of segments) {
+                            if (parts.length >= 3) break;
+                            // Skip state/country/zip
+                            if (seg === a.state || seg === a.country || seg === a.postcode) continue;
+                            if (!parts.some(p => p.toLowerCase() === seg.toLowerCase())) {
+                                parts.push(seg);
+                            }
+                        }
                     }
+
+                    locationName = parts.join(", ");
                     break;
                 }
             } catch (e) {

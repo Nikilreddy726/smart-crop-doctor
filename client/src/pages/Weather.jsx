@@ -137,19 +137,33 @@ const Weather = () => {
                 // Village, Mandal, District (High Precision Parsing)
                 const village = address.village || address.hamlet || address.neighbourhood || address.suburb || address.residential || address.town || "";
                 const mandal = address.subdistrict || address.municipality || address.city_district || address.city || "";
-                const district = address.county || address.district || address.state_district || "";
+                const district = address.state_district || address.county || address.district || "";
                 const state = address.state || "";
 
                 const parts = [];
                 if (village) parts.push(village);
+
                 if (mandal && !parts.some(p => p.toLowerCase() === mandal.toLowerCase())) {
                     parts.push(mandal);
                 }
+
                 if (district && !parts.some(p => p.toLowerCase() === district.toLowerCase())) {
                     parts.push(district);
                 }
 
-                const localName = parts.length > 0 ? parts.join(", ") : result.name;
+                // Harvest extra segments if needed to reach 3 parts
+                if (parts.length < 3) {
+                    const segments = result.display_name.split(',').map(s => s.trim());
+                    for (const seg of segments) {
+                        if (parts.length >= 3) break;
+                        if (seg === state || seg === address.country || seg === address.postcode) continue;
+                        if (!parts.some(p => p.toLowerCase() === seg.toLowerCase())) {
+                            parts.push(seg);
+                        }
+                    }
+                }
+
+                const localName = parts.join(", ");
                 const regionLabel = state || address.country || "";
 
                 await fetchWeather(lat, lon, { city: localName, region: regionLabel, isManual: true });

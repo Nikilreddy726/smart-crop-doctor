@@ -10,11 +10,12 @@ const Weather = () => {
     const [loading, setLoading] = useState(true);
     const [location, setLocation] = useState({ city: 'Loading...', region: '' });
     const [searchCity, setSearchCity] = useState('');
-    const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
+    const [status, setStatus] = useState({ show: false, message: '', type: 'error' });
 
-    const showToast = (message, type = 'error') => {
-        setToast({ show: true, message, type });
-        setTimeout(() => setToast({ show: false, message: '', type: 'error' }), 5000);
+    const showStatus = (message, type = 'error') => {
+        setStatus({ show: true, message, type });
+        // Keeping it for 8 seconds since it's inline and less intrusive
+        setTimeout(() => setStatus({ show: false, message: '', type: 'error' }), 8000);
     };
 
     useEffect(() => {
@@ -105,7 +106,7 @@ const Weather = () => {
         } catch (error) {
             console.error("Weather fetch error:", error);
             if (locationOverride) {
-                showToast("Could not fetch weather data. Please check your internet connection.");
+                showStatus("Could not fetch weather data. Please check your internet connection.");
                 const fallback = { ...locationOverride, isManual: true };
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
@@ -218,12 +219,12 @@ const Weather = () => {
                     : "";
 
                 if (finalCityName.split(",").length < 2 && finalCityName.toLowerCase().includes("hyderabad")) {
-                    showToast("Showing general city center. For farm-specific weather, please search for your specific Village name.", 'info');
+                    showStatus("Showing general city center. For farm-specific weather, please search for your specific Village name.", 'info');
                 }
 
                 await fetchWeather(lat, lon, { city: finalCityName, region: regionLabel, isManual: true });
             } else {
-                showToast('Location not found. Please check the spelling.');
+                showStatus('Location not found. Please check the spelling.');
                 setLoading(false);
             }
         } catch (err) {
@@ -303,6 +304,35 @@ const Weather = () => {
                     </button>
                 </form>
             </header>
+
+            {/* Inline Status Banner - Integrated into the website flow */}
+            {status.show && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                    exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                    className="w-full"
+                >
+                    <div className={`p-6 rounded-[2rem] border flex items-center gap-5 ${status.type === 'error'
+                        ? 'bg-red-50 border-red-100 text-red-900'
+                        : 'bg-indigo-50 border-indigo-100 text-indigo-900'
+                        }`}>
+                        <div className={`p-3 rounded-2xl ${status.type === 'error' ? 'bg-red-500 text-white shadow-lg shadow-red-200' : 'bg-indigo-500 text-white shadow-lg shadow-indigo-200'}`}>
+                            {status.type === 'error' ? <AlertTriangle size={24} /> : <Info size={24} />}
+                        </div>
+                        <div className="flex-1">
+                            <h5 className="font-black uppercase tracking-widest text-[10px] opacity-50 mb-1">{status.type === 'error' ? 'Attention' : 'Heads Up'}</h5>
+                            <p className="text-sm font-bold leading-relaxed">{status.message}</p>
+                        </div>
+                        <button
+                            onClick={() => setStatus({ ...status, show: false })}
+                            className="p-2 hover:bg-black/5 rounded-xl transition-colors shrink-0"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </motion.div>
+            )}
 
             {loading ? (
                 <div className="flex items-center justify-center py-32">
@@ -498,34 +528,6 @@ const Weather = () => {
                     </p>
                 </div>
             </div>
-
-            {/* Premium Toast Notification System */}
-            {toast.show && (
-                <motion.div
-                    initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 20, scale: 0.9 }}
-                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md"
-                >
-                    <div className={`p-5 rounded-3xl shadow-2xl border flex items-center gap-4 backdrop-blur-xl ${toast.type === 'error'
-                            ? 'bg-red-50/90 border-red-100 text-red-900 shadow-red-200/50'
-                            : 'bg-indigo-50/90 border-indigo-100 text-indigo-900 shadow-indigo-200/50'
-                        }`}>
-                        <div className={`p-2 rounded-xl scale-110 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-indigo-500 text-white'}`}>
-                            {toast.type === 'error' ? <AlertTriangle size={18} /> : <Info size={18} />}
-                        </div>
-                        <div className="flex-1">
-                            <p className="text-sm font-black leading-tight">{toast.message}</p>
-                        </div>
-                        <button
-                            onClick={() => setToast({ ...toast, show: false })}
-                            className="p-1 hover:bg-black/5 rounded-lg transition-colors"
-                        >
-                            <X size={16} />
-                        </button>
-                    </div>
-                </motion.div>
-            )}
         </div>
     );
 };

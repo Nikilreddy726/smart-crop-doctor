@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { CloudSun, Droplets, Wind, Thermometer, MapPin, Search, Loader2, Navigation, CheckCircle } from 'lucide-react';
+import { CloudSun, Droplets, Wind, Thermometer, MapPin, Search, Loader2, Navigation, CheckCircle, AlertTriangle, X, Info } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
 import { getWeather, cleanLocationName } from '../services/api';
 
@@ -10,6 +10,12 @@ const Weather = () => {
     const [loading, setLoading] = useState(true);
     const [location, setLocation] = useState({ city: 'Loading...', region: '' });
     const [searchCity, setSearchCity] = useState('');
+    const [toast, setToast] = useState({ show: false, message: '', type: 'error' });
+
+    const showToast = (message, type = 'error') => {
+        setToast({ show: true, message, type });
+        setTimeout(() => setToast({ show: false, message: '', type: 'error' }), 5000);
+    };
 
     useEffect(() => {
         const CACHE_EXPIRY = 6 * 60 * 60 * 1000; // 6 Hours
@@ -99,7 +105,7 @@ const Weather = () => {
         } catch (error) {
             console.error("Weather fetch error:", error);
             if (locationOverride) {
-                alert("Could not fetch weather data. Please check your internet connection.");
+                showToast("Could not fetch weather data. Please check your internet connection.");
                 const fallback = { ...locationOverride, isManual: true };
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
@@ -212,12 +218,12 @@ const Weather = () => {
                     : "";
 
                 if (finalCityName.split(",").length < 2 && finalCityName.toLowerCase().includes("hyderabad")) {
-                    alert("Showing general city center. For farm-specific weather, please search for your specific Village name.");
+                    showToast("Showing general city center. For farm-specific weather, please search for your specific Village name.", 'info');
                 }
 
                 await fetchWeather(lat, lon, { city: finalCityName, region: regionLabel, isManual: true });
             } else {
-                alert('Location not found. Please check the spelling.');
+                showToast('Location not found. Please check the spelling.');
                 setLoading(false);
             }
         } catch (err) {
@@ -492,6 +498,34 @@ const Weather = () => {
                     </p>
                 </div>
             </div>
+
+            {/* Premium Toast Notification System */}
+            {toast.show && (
+                <motion.div
+                    initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 20, scale: 0.9 }}
+                    className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md"
+                >
+                    <div className={`p-5 rounded-3xl shadow-2xl border flex items-center gap-4 backdrop-blur-xl ${toast.type === 'error'
+                            ? 'bg-red-50/90 border-red-100 text-red-900 shadow-red-200/50'
+                            : 'bg-indigo-50/90 border-indigo-100 text-indigo-900 shadow-indigo-200/50'
+                        }`}>
+                        <div className={`p-2 rounded-xl scale-110 ${toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-indigo-500 text-white'}`}>
+                            {toast.type === 'error' ? <AlertTriangle size={18} /> : <Info size={18} />}
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-black leading-tight">{toast.message}</p>
+                        </div>
+                        <button
+                            onClick={() => setToast({ ...toast, show: false })}
+                            className="p-1 hover:bg-black/5 rounded-lg transition-colors"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
+                </motion.div>
+            )}
         </div>
     );
 };

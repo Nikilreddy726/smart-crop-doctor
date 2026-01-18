@@ -27,13 +27,12 @@ app.use(express.json());
 
 const AI_SERVICE_URL = 'https://smart-crop-doctor.onrender.com';
 
-app.get('/api/health', (req, res) => res.json({ server: 'online', version: '1.3.6', firebase: firebaseInitialized }));
+app.get('/api/health', (req, res) => res.json({ server: 'online', version: '1.3.9', firebase: firebaseInitialized }));
 
 app.get('/api/weather', async (req, res) => {
     let { lat, lon } = req.query;
     const API_KEY = process.env.OPENWEATHER_API_KEY;
 
-    // 1. Precise IP Fallback (Only if GPS is missing)
     let ipFull = null;
     try {
         const xf = req.headers['x-forwarded-for'];
@@ -48,23 +47,33 @@ app.get('/api/weather', async (req, res) => {
     const isActualGPS = !!(lat && lon && lat !== 'null' && lat !== 'undefined');
     if (!lat || !lon) { lat = 16.3067; lon = 80.4365; }
 
+    // --- India Bounding Box Check (Approx) ---
+    // If it's a GPS coordinate, verify it's reasonably near India or the server will flag it.
+    const isIndiaGPS = lat > 6.0 && lat < 38.0 && lon > 68.0 && lon < 98.0;
+
     let finalLocation = ipFull || "Your Location";
     let identifiedHierarchy = null;
 
     if (isActualGPS) {
-        // --- MULTI-ENGINE REVERSE GEOCODING ---
-
-        // ENGINE A: Nominatim (Primary - Detail Heavy)
+        // ENGINE A: Nominatim
         for (const z of [18, 14, 10]) {
             if (identifiedHierarchy) break;
             try {
                 const geo = await axios.get(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=${z}`, {
                     timeout: 7000,
-                    headers: { 'User-Agent': 'SmartCropDoctor/2.1', 'Referer': 'https://smart-doctor-crop.web.app/' }
+                    headers: { 'User-Agent': 'SmartCropDoctor/2.2 (nikilreddy726@gmail.com)', 'Referer': 'https://smart-doctor-crop.web.app/' }
                 });
 
                 if (geo.data && geo.data.display_name) {
                     const a = geo.data.address || {};
+                    // Strict India Filter for Reverse Geocoding
+                    const cc = (a.country_code || "").toLowerCase();
+                    if (cc && cc !== 'in' && cc !== 'india') {
+                        // If it's not India, we stop trying to name it as an Indian village
+                        identifiedHierarchy = "Outside Service Area (India Only)";
+                        break;
+                    }
+
                     const chunks = (geo.data.display_name || "").split(',').map(c => c.trim()).filter(c => c.toLowerCase() !== 'india' && !/^\d{5,6}$/.test(c));
 
                     let village = a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || "";
@@ -72,7 +81,6 @@ app.get('/api/weather', async (req, res) => {
                     let district = a.state_district || a.district || a.county || "";
                     let state = a.state || (chunks.length > 0 ? chunks[chunks.length - 1] : "");
 
-                    // Hierarchy Backfill Logic
                     if (!district) { for (let i = chunks.length - 1; i >= 0; i--) if (chunks[i].toLowerCase().includes('district') || chunks.length - 2 === i) if (chunks[i] !== state) { district = chunks[i]; break; } }
                     if (!mandal || mandal === district) { for (let i = 0; i < chunks.length; i++) if (['mandal', 'tehsil', 'taluk', 'block'].some(x => chunks[i].toLowerCase().includes(x))) { mandal = chunks[i]; break; } }
                     if (!mandal || mandal === district) { const idx = chunks.indexOf(district); if (idx > 0) mandal = chunks[idx - 1]; }
@@ -95,11 +103,11 @@ app.get('/api/weather', async (req, res) => {
             } catch (e) { }
         }
 
-        // ENGINE B: BigDataCloud (Reliable Locality Secondary)
-        if (!identifiedHierarchy) {
+        // ENGINE B/C: Restricted to India only for crop intelligence
+        if (!identifiedHierarchy && isIndiaGPS) {
             try {
                 const bdc = await axios.get(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`, { timeout: 4000 });
-                if (bdc.data && bdc.data.locality) {
+                if (bdc.data && bdc.data.countryCode === 'IN') {
                     const b = bdc.data;
                     const v = b.locality || "";
                     const m = b.localityInfo?.administrative?.find(a => a.order === 4 || a.name.toLowerCase().includes('mandal'))?.name || "";
@@ -110,37 +118,25 @@ app.get('/api/weather', async (req, res) => {
                 }
             } catch (e) { }
         }
-
-        // ENGINE C: OpenWeather Reverse (Tier-3 Fallback)
-        if (!identifiedHierarchy && API_KEY) {
-            try {
-                const owmGeo = await axios.get(`https://api.openweathermap.org/geo/1.0/reverse?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`, { timeout: 4000 });
-                if (owmGeo.data?.length > 0) {
-                    const g = owmGeo.data[0];
-                    identifiedHierarchy = [g.name, g.state].filter(Boolean).join(", ");
-                }
-            } catch (e) { }
-        }
     }
 
-    // FINAL WEATHER DATA WITH INJECTED LOCATION
     if (API_KEY) {
         try {
             const wr = await axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric`);
             const data = wr.data;
+
+            // Final sanity check: if the OWM country is not India, flag it.
+            if (data.sys?.country && data.sys.country !== 'IN') {
+                data.name = "International Support Disabled";
+                return res.json(data);
+            }
+
             data.name = identifiedHierarchy || (data.name && data.name !== "Your Location" ? data.name : finalLocation);
-            // If it's still generic, use coordinates as last-last resort
-            if (data.name === "Your Location" && isActualGPS) data.name = `Area (${parseFloat(lat).toFixed(2)}, ${parseFloat(lon).toFixed(2)})`;
             return res.json(data);
         } catch (e) { }
     }
 
-    res.json({
-        name: identifiedHierarchy || finalLocation,
-        main: { temp: 28 },
-        weather: [{ main: "Clear" }],
-        coord: { lat, lon }
-    });
+    res.json({ name: identifiedHierarchy || finalLocation, main: { temp: 28 }, weather: [{ main: "Clear" }], coord: { lat, lon } });
 });
 
 app.get('/api/predictions', async (req, res) => {
@@ -149,4 +145,4 @@ app.get('/api/predictions', async (req, res) => {
     res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
 });
 
-app.listen(port, () => console.log(`Server v1.3.6 running on ${port}`));
+app.listen(port, () => console.log(`Server v1.3.9 running on ${port}`));

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { CloudSun, Droplets, Wind, Thermometer, MapPin, Search, Loader2, Navigation, CheckCircle, AlertTriangle, X, Info } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
 import { getWeather, cleanLocationName } from '../services/api';
@@ -137,12 +137,24 @@ const Weather = () => {
 
         try {
             setLoading(true);
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&q=${encodeURIComponent(searchCity)}`);
+            // Restrict search to India only using countrycodes=in
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=1&countrycodes=in&q=${encodeURIComponent(searchCity)}`);
             const data = await response.json();
 
             if (data && data.length > 0) {
                 const result = data[0];
                 const { lat, lon, address } = result;
+
+                // Extra safety: aggressive check that the returned country is India
+                const rawCC = (address.country_code || "").toLowerCase();
+                const rawC = (address.country || "").toLowerCase();
+                const rawDN = (result.display_name || "").toLowerCase();
+
+                if (rawCC !== 'in' && rawC !== 'india' && !rawDN.includes('india')) {
+                    showStatus('Weather service is optimized for India only.', 'error');
+                    setLoading(false);
+                    return;
+                }
 
                 const displayChunks = (result.display_name || "").split(',').map(c => c.trim()).filter(Boolean);
 
@@ -204,7 +216,12 @@ const Weather = () => {
                     const norm = val.toLowerCase().replace(/\s/g, '');
                     let isDup = false;
                     seen.forEach(s => {
-                        if (norm.includes(s) || s.includes(norm)) isDup = true;
+                        // Check for direct overlap or if one is a substring of the other
+                        if (norm.includes(s) || s.includes(norm) || norm === s) isDup = true;
+                        // Special check for administrative overlaps like "Ile-de-France" duplicating
+                        if (norm.length > 5 && s.length > 5) {
+                            if (norm.substring(0, 10) === s.substring(0, 10)) isDup = true;
+                        }
                     });
                     if (!isDup) {
                         out.push(val);
@@ -275,7 +292,31 @@ const Weather = () => {
                     <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
                     <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Farm-specific localized forecasting</p>
                 </div>
-                <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-stretch md:items-center">
+                <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-stretch md:items-end relative">
+                    {/* Small Status Indicator - Positioned elegantly above the search bar */}
+                    <AnimatePresence>
+                        {status.show && (
+                            <motion.div
+                                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                className={`absolute -top-10 right-0 px-4 py-2 rounded-xl border flex items-center gap-2 shadow-sm whitespace-nowrap z-20 ${status.type === 'error'
+                                    ? 'bg-red-50 border-red-100 text-red-600'
+                                    : 'bg-indigo-50 border-indigo-100 text-indigo-600'
+                                    }`}
+                            >
+                                {status.type === 'error' ? <AlertTriangle size={14} className="shrink-0" /> : <Info size={14} className="shrink-0" />}
+                                <span className="text-[11px] font-black uppercase tracking-tight">{status.message}</span>
+                                <button
+                                    onClick={() => setStatus({ ...status, show: false })}
+                                    className="ml-1 p-0.5 hover:bg-black/5 rounded-md transition-colors"
+                                >
+                                    <X size={12} />
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
                     <div className="relative flex-1 md:w-80 group">
                         <input
                             type="text"
@@ -304,35 +345,6 @@ const Weather = () => {
                     </button>
                 </form>
             </header>
-
-            {/* Inline Status Banner - Integrated into the website flow */}
-            {status.show && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                    exit={{ opacity: 0, height: 0, scale: 0.95 }}
-                    className="w-full"
-                >
-                    <div className={`p-6 rounded-[2rem] border flex items-center gap-5 ${status.type === 'error'
-                        ? 'bg-red-50 border-red-100 text-red-900'
-                        : 'bg-indigo-50 border-indigo-100 text-indigo-900'
-                        }`}>
-                        <div className={`p-3 rounded-2xl ${status.type === 'error' ? 'bg-red-500 text-white shadow-lg shadow-red-200' : 'bg-indigo-500 text-white shadow-lg shadow-indigo-200'}`}>
-                            {status.type === 'error' ? <AlertTriangle size={24} /> : <Info size={24} />}
-                        </div>
-                        <div className="flex-1">
-                            <h5 className="font-black uppercase tracking-widest text-[10px] opacity-50 mb-1">{status.type === 'error' ? 'Attention' : 'Heads Up'}</h5>
-                            <p className="text-sm font-bold leading-relaxed">{status.message}</p>
-                        </div>
-                        <button
-                            onClick={() => setStatus({ ...status, show: false })}
-                            className="p-2 hover:bg-black/5 rounded-xl transition-colors shrink-0"
-                        >
-                            <X size={20} />
-                        </button>
-                    </div>
-                </motion.div>
-            )}
 
             {loading ? (
                 <div className="flex items-center justify-center py-32">

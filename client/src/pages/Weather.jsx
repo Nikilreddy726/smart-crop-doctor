@@ -205,14 +205,17 @@ const Weather = () => {
                     }
                 });
 
-                const localName = out.slice(0, 4).join(", ");
-                const regionLabel = sFinal || address.country || "";
+                const finalCityName = out.slice(0, 4).join(", ");
+                // Only provide a region label if the city name is simple (not a full hierarchy)
+                const regionLabel = (finalCityName.split(',').length < 3 && !finalCityName.toLowerCase().includes((sFinal || "").toLowerCase()))
+                    ? (sFinal || address.country || "")
+                    : "";
 
-                if (localName.split(",").length < 2 && localName.toLowerCase().includes("hyderabad")) {
+                if (finalCityName.split(",").length < 2 && finalCityName.toLowerCase().includes("hyderabad")) {
                     alert("Showing general city center. For farm-specific weather, please search for your specific Village name.");
                 }
 
-                await fetchWeather(lat, lon, { city: localName, region: regionLabel, isManual: true });
+                await fetchWeather(lat, lon, { city: finalCityName, region: regionLabel, isManual: true });
             } else {
                 alert('Location not found. Please check the spelling.');
                 setLoading(false);

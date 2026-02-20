@@ -293,7 +293,7 @@ const Detection = () => {
                                                         </div>
                                                         <div className="text-center space-y-2 w-full max-w-[220px]">
                                                             <p className="text-orange-600 font-black text-xs uppercase tracking-widest animate-pulse">{warmingMsg}</p>
-                                                            <p className="text-[10px] text-slate-400 font-bold">Retry {retryCount}/4 — AI wakes after ~1 min</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold">{t('retry')} {retryCount}/4 — {t('aiWakesInOneMin')}</p>
                                                             <div className="w-full bg-orange-100 rounded-full h-2 mt-1">
                                                                 <motion.div className="bg-orange-500 h-2 rounded-full" initial={{ width: 0 }} animate={{ width: `${warmingProgress}%` }} transition={{ duration: 1 }} />
                                                             </div>
@@ -320,14 +320,14 @@ const Detection = () => {
                                     <Sparkles size={36} className="text-orange-500" />
                                 </div>
                                 <div>
-                                    <h3 className="text-xl font-black text-orange-800 mb-2">AI is Waking Up ☀️</h3>
+                                    <h3 className="text-xl font-black text-orange-800 mb-2">{t('aiWakingUp')}</h3>
                                     <p className="text-orange-700 font-semibold text-sm leading-relaxed max-w-sm">{result.message}</p>
                                 </div>
                                 <button onClick={() => { setResult(null); handleUpload(0); }}
                                     className="bg-orange-500 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wide shadow-lg shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95 flex items-center gap-2">
-                                    <Sparkles size={18} /> Try Again
+                                    <Sparkles size={18} /> {t('tryAgain')}
                                 </button>
-                                <p className="text-[11px] text-orange-500 font-semibold">💡 The AI restarts after inactivity on the free server plan. It fully wakes in 1–2 minutes.</p>
+                                <p className="text-[11px] text-orange-500 font-semibold">{t('aiRestartNoteExt')}</p>
                             </motion.div>
                         ) : result ? (
                             <motion.div
@@ -386,25 +386,25 @@ const Detection = () => {
                                         </div>
 
                                         <div className={`p-5 rounded-3xl border shadow-sm transition-all group ${result.severity === 'High' || result.severity === 'Critical'
-                                                ? 'bg-gradient-to-br from-rose-50 to-white border-rose-200 hover:shadow-rose-100 hover:border-rose-300'
-                                                : result.severity === 'Medium' || result.severity === 'Moderate'
-                                                    ? 'bg-gradient-to-br from-amber-50 to-white border-amber-200 hover:shadow-amber-100 hover:border-amber-300'
-                                                    : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 hover:shadow-emerald-100 hover:border-emerald-300'
+                                            ? 'bg-gradient-to-br from-rose-50 to-white border-rose-200 hover:shadow-rose-100 hover:border-rose-300'
+                                            : result.severity === 'Medium' || result.severity === 'Moderate'
+                                                ? 'bg-gradient-to-br from-amber-50 to-white border-amber-200 hover:shadow-amber-100 hover:border-amber-300'
+                                                : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 hover:shadow-emerald-100 hover:border-emerald-300'
                                             }`}>
                                             <div className="flex items-center justify-between mb-3">
                                                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('riskLabel') || 'Risk Level'}</p>
                                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${result.severity === 'High' || result.severity === 'Critical'
-                                                        ? 'bg-rose-100 text-rose-600 group-hover:bg-rose-600 group-hover:text-white'
-                                                        : result.severity === 'Medium' || result.severity === 'Moderate'
-                                                            ? 'bg-amber-100 text-amber-600 group-hover:bg-amber-500 group-hover:text-white'
-                                                            : 'bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white'
+                                                    ? 'bg-rose-100 text-rose-600 group-hover:bg-rose-600 group-hover:text-white'
+                                                    : result.severity === 'Medium' || result.severity === 'Moderate'
+                                                        ? 'bg-amber-100 text-amber-600 group-hover:bg-amber-500 group-hover:text-white'
+                                                        : 'bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white'
                                                     }`}>
                                                     <AlertCircle size={16} />
                                                 </div>
                                             </div>
                                             <p className={`text-xl font-black leading-tight ${result.severity === 'High' || result.severity === 'Critical' ? 'text-rose-700'
-                                                    : result.severity === 'Medium' || result.severity === 'Moderate' ? 'text-amber-700'
-                                                        : 'text-emerald-700'
+                                                : result.severity === 'Medium' || result.severity === 'Moderate' ? 'text-amber-700'
+                                                    : 'text-emerald-700'
                                                 }`}>
                                                 {t(result.severity) || result.severity}
                                             </p>

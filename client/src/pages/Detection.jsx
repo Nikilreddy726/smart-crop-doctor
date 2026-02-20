@@ -65,7 +65,6 @@ const Detection = () => {
         setResult(null);
         setSaved(false);
 
-        // Get Location Coords for Outbreak Mapping (Plantix Workflow Step 6)
         let location = null;
         try {
             const pos = await new Promise((resolve, reject) => {
@@ -77,44 +76,36 @@ const Detection = () => {
         }
 
         try {
-            // 1. Submit the Job with Location Metadata
-            const initialResponse = await detectDisease(selectedFile, location);
-            const { jobId } = initialResponse;
-
-            if (!jobId) {
-                setResult(initialResponse);
-                setLoading(false);
-                return;
+            const response = await detectDisease(selectedFile, location);
+            // Backend returns result directly (no job queue on this server)
+            if (response && response.disease) {
+                setResult(response);
+            } else if (response && response.jobId) {
+                // Legacy polling path (in case backend adds queue later)
+                const pollInterval = setInterval(async () => {
+                    try {
+                        const statusRes = await axios.get(`${api.defaults.baseURL}/status/${response.jobId}`);
+                        const job = statusRes.data;
+                        if (job.status === 'completed') {
+                            clearInterval(pollInterval);
+                            setResult(job.result);
+                            setLoading(false);
+                        } else if (job.status === 'failed') {
+                            clearInterval(pollInterval);
+                            alert(t('waitingForEngine'));
+                            setLoading(false);
+                        }
+                    } catch (e) { console.log("Status check retry..."); }
+                }, 3000);
+                return; // Don't run setLoading(false) below
+            } else {
+                alert(t('weatherError') + ': Invalid response from AI service');
             }
-
-            // 2. Poll for Status (Long Polling)
-            console.log(`Polling status for Job ${jobId}...`);
-            const pollInterval = setInterval(async () => {
-                try {
-                    const statusRes = await axios.get(`${api.defaults.baseURL}/status/${jobId}`);
-                    const job = statusRes.data;
-
-                    if (job.status === 'completed') {
-                        clearInterval(pollInterval);
-                        setResult(job.result);
-                        setLoading(false);
-                    } else if (job.status === 'failed') {
-                        clearInterval(pollInterval);
-                        const isTimeout = job.error?.includes("failed to start");
-                        alert(isTimeout
-                            ? t('waitingForEngine')
-                            : t('weatherError') + ": " + job.error);
-                        setLoading(false);
-                    }
-                } catch (e) {
-                    console.log("Status check retry...");
-                }
-            }, 3000);
-
         } catch (error) {
             console.error('Detection failed:', error);
-            const errorMsg = error.response?.data?.details || error.message;
-            alert(t('weatherError') + ". " + errorMsg);
+            const errMsg = error.response?.data?.error || error.message;
+            alert(`Detection failed: ${errMsg}`);
+        } finally {
             setLoading(false);
         }
     };

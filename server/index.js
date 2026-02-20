@@ -556,16 +556,55 @@ app.get('/api/outbreaks', (req, res) => {
 
 app.get('/api/shops', (req, res) => {
     res.json([
-        { name: 'Kisan Seva Kendra', location: 'Near Market Yard', phone: '9848012345', distance: '1.2 km' },
-        { name: 'Modern Agri Solutions', location: 'Main Road', phone: '9848054321', distance: '2.5 km' }
+        {
+            name: 'Krishi Seva Kendra', owner: 'Rajesh Patel', distance: '1.2 km',
+            rating: 4.9, tags: ['Certified Seeds', 'Expert Advice', 'Pesticides'],
+            image: 'https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=400',
+            verified: true, status: 'Open Now', phone: '9848012345', location: 'Near Market Yard, Hyderabad'
+        },
+        {
+            name: 'Modern Agri Solutions', owner: 'Suresh Kumar', distance: '2.5 km',
+            rating: 4.7, tags: ['Fertilizers', 'Drip Irrigation', 'Soil Testing'],
+            image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&q=80&w=400',
+            verified: true, status: 'Open Now', phone: '9848054321', location: 'Main Road, Guntur'
+        },
+        {
+            name: 'Green Earth Agro Store', owner: 'Lakshmi Devi', distance: '3.8 km',
+            rating: 4.6, tags: ['Organic Products', 'Bio-Pesticides', 'Compost'],
+            image: 'https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&q=80&w=400',
+            verified: true, status: 'Open Now', phone: '9848099876', location: 'Bypass Road, Warangal'
+        },
+        {
+            name: 'Kisan Agri Mart', owner: 'Venkata Rao', distance: '5.1 km',
+            rating: 4.5, tags: ['Farm Equipment', 'Seeds', 'Crop Insurance Help'],
+            image: 'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&q=80&w=400',
+            verified: false, status: 'Closes at 7 PM', phone: '9848077654', location: 'Old Town, Karimnagar'
+        },
+        {
+            name: 'Sai Agro Services', owner: 'Nagarjuna Reddy', distance: '6.4 km',
+            rating: 4.3, tags: ['Pump Sets', 'Irrigation Pipes', 'Herbicides'],
+            image: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?auto=format&fit=crop&q=80&w=400',
+            verified: false, status: 'Open Now', phone: '9848033210', location: 'Ranga Reddy District'
+        },
+        {
+            name: 'Bharat Seeds House', owner: 'Ramu Bhai', distance: '7.9 km',
+            rating: 4.8, tags: ['Hybrid Seeds', 'Vegetable Seeds', 'Govt. Subsidized'],
+            image: 'https://images.unsplash.com/photo-1520052205864-92d242b3a76b?auto=format&fit=crop&q=80&w=400',
+            verified: true, status: 'Open Now', phone: '9848055678', location: 'Agricultural Complex, Nizamabad'
+        }
     ]);
 });
 
 app.get('/api/products', (req, res) => {
     res.json([
-        { name: 'Organic Fertilizer', price: 450, stock: 'In Stock' },
-        { name: 'Neem Oil (1L)', price: 320, stock: 'In Stock' },
-        { name: 'NPK 19:19:19', price: 1200, stock: 'Limited' }
+        { name: 'Micro-Nutrient Urea 46%', price: '₹266', unit: '45kg Bag', img: '🌿', stock: 'In Stock', color: 'from-emerald-500 to-green-600' },
+        { name: 'Hybrid Paddy BPT-5204', price: '₹850', unit: '10kg Packet', img: '🌾', stock: 'High Demand', color: 'from-amber-500 to-orange-600' },
+        { name: 'Neem Oil (Bio Pesticide)', price: '₹320', unit: '1 Litre', img: '🌱', stock: 'In Stock', color: 'from-lime-500 to-green-700' },
+        { name: 'DAP Fertilizer', price: '₹1350', unit: '50kg Bag', img: '💊', stock: 'In Stock', color: 'from-blue-500 to-indigo-600' },
+        { name: 'NPK 19:19:19', price: '₹1200', unit: '25kg Bag', img: '🧪', stock: 'Limited', color: 'from-purple-500 to-violet-600' },
+        { name: 'Hybrid Tomato F1 Seeds', price: '₹550', unit: '10g Packet', img: '🍅', stock: 'In Stock', color: 'from-red-500 to-rose-600' },
+        { name: 'Drip Irrigation Kit', price: '₹4200', unit: '1 Acre Set', img: '💧', stock: 'In Stock', color: 'from-cyan-500 to-sky-600' },
+        { name: 'Trichoderma Powder', price: '₹180', unit: '1kg Packet', img: '🔬', stock: 'In Stock', color: 'from-teal-500 to-emerald-600' }
     ]);
 });
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Camera, ImageIcon, Leaf } from 'lucide-react';
+import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Camera, ImageIcon, Leaf, Activity, AlertCircle, TestTube, Droplets, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import api, { detectDisease, getHealth } from '../services/api';
@@ -334,80 +334,119 @@ const Detection = () => {
                                 key="result"
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-xl space-y-6 overflow-hidden relative"
+                                className="bg-white p-6 md:p-8 rounded-[2.5rem] border border-slate-200 shadow-2xl space-y-8 overflow-hidden relative"
                             >
                                 {/* Professional Diagnosis Banner */}
-                                <div className="absolute top-0 right-0 px-4 py-1.5 bg-slate-900 text-white text-[8px] font-black uppercase tracking-widest rounded-bl-2xl">
-                                    {t('bioScan')}
+                                <div className="absolute top-0 right-0 px-5 py-2 bg-gradient-to-r from-primary to-indigo-600 text-white text-[10px] font-black uppercase tracking-[0.3em] rounded-bl-3xl shadow-lg">
+                                    {t('bioScan') || 'BIO-SCAN 8.0'}
                                 </div>
 
                                 {/* Disease Header */}
-                                <div className="space-y-6">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="space-y-2">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`p-2.5 rounded-2xl ${result.severity === 'None' || result.disease === 'Healthy' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                                                    {result.severity === 'None' || result.disease === 'Healthy' ? <CheckCircle size={24} /> : <AlertTriangle size={24} />}
-                                                </div>
-                                                <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter">{t(result.disease) || result.disease}</h2>
+                                <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-slate-100">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`p-4 rounded-3xl shadow-lg border ${result.severity === 'None' || result.disease === 'Healthy' ? 'bg-gradient-to-br from-green-400 to-emerald-600 border-green-200 text-white' : 'bg-gradient-to-br from-amber-400 to-orange-500 border-orange-200 text-white'}`}>
+                                                {result.severity === 'None' || result.disease === 'Healthy' ? <CheckCircle size={32} /> : <AlertTriangle size={32} />}
                                             </div>
-                                            {result.scientific_name && (
-                                                <p className="text-indigo-600 font-bold italic tracking-wide text-[10px] pl-1">
-                                                    {result.scientific_name}
-                                                </p>
-                                            )}
+                                            <div>
+                                                <h2 className={`text-3xl md:text-4xl font-black tracking-tight ${result.severity === 'None' || result.disease === 'Healthy' ? 'text-emerald-700' : 'text-slate-900'}`}>
+                                                    {t(result.disease) || result.disease}
+                                                </h2>
+                                                {result.scientific_name && (
+                                                    <p className="text-indigo-600/80 font-bold italic tracking-wide text-xs mt-1 bg-indigo-50 inline-block px-3 py-1 rounded-full">
+                                                        {result.scientific_name}
+                                                    </p>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-
-                                    {/* Advanced Metrics Cards */}
-                                    {result.disease !== 'Not a Crop' && (
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🧬 {t('typeLabel')}</p>
-                                                <p className="text-sm font-black text-slate-800 leading-tight">{t(result.pathogen) || result.pathogen || 'Biological'}</p>
-                                            </div>
-                                            <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-green-200 transition-all">
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🌱 {t('cropLabel')}</p>
-                                                <p className="text-sm font-black text-slate-800 leading-tight">{t(result.crop) || result.crop}</p>
-                                            </div>
-                                            <div className={`p-3 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50/50 border-red-100' : 'bg-green-50/50 border-green-100'}`}>
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">⚠️ {t('riskLabel')}</p>
-                                                <p className={`text-sm font-black leading-tight ${result.severity === 'High' ? 'text-red-700' : 'text-green-700'}`}>
-                                                    {t(result.severity) || result.severity}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    )}
                                 </div>
+
+                                {/* Advanced Metrics Cards */}
+                                {result.disease !== 'Not a Crop' && (
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 border-b border-slate-100 pb-6">
+                                        <div className="p-5 bg-gradient-to-br from-slate-50 to-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md hover:border-indigo-200 transition-all group">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('typeLabel') || 'Pathogen Type'}</p>
+                                                <div className="w-8 h-8 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                                                    <Activity size={16} />
+                                                </div>
+                                            </div>
+                                            <p className="text-lg font-black text-slate-800 leading-tight">{t(result.pathogen) || result.pathogen || 'Biological'}</p>
+                                        </div>
+
+                                        <div className="p-5 bg-gradient-to-br from-slate-50 to-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all group">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('cropLabel') || 'Detected Crop'}</p>
+                                                <div className="w-8 h-8 rounded-full bg-emerald-50 text-emerald-500 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-white transition-colors">
+                                                    <Leaf size={16} />
+                                                </div>
+                                            </div>
+                                            <p className="text-lg font-black text-slate-800 leading-tight">{t(result.crop) || result.crop}</p>
+                                        </div>
+
+                                        <div className={`p-5 rounded-3xl border shadow-sm transition-all group ${result.severity === 'High' || result.severity === 'Critical'
+                                                ? 'bg-gradient-to-br from-rose-50 to-white border-rose-200 hover:shadow-rose-100 hover:border-rose-300'
+                                                : result.severity === 'Medium' || result.severity === 'Moderate'
+                                                    ? 'bg-gradient-to-br from-amber-50 to-white border-amber-200 hover:shadow-amber-100 hover:border-amber-300'
+                                                    : 'bg-gradient-to-br from-emerald-50 to-white border-emerald-200 hover:shadow-emerald-100 hover:border-emerald-300'
+                                            }`}>
+                                            <div className="flex items-center justify-between mb-3">
+                                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('riskLabel') || 'Risk Level'}</p>
+                                                <div className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${result.severity === 'High' || result.severity === 'Critical'
+                                                        ? 'bg-rose-100 text-rose-600 group-hover:bg-rose-600 group-hover:text-white'
+                                                        : result.severity === 'Medium' || result.severity === 'Moderate'
+                                                            ? 'bg-amber-100 text-amber-600 group-hover:bg-amber-500 group-hover:text-white'
+                                                            : 'bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white'
+                                                    }`}>
+                                                    <AlertCircle size={16} />
+                                                </div>
+                                            </div>
+                                            <p className={`text-xl font-black leading-tight ${result.severity === 'High' || result.severity === 'Critical' ? 'text-rose-700'
+                                                    : result.severity === 'Medium' || result.severity === 'Moderate' ? 'text-amber-700'
+                                                        : 'text-emerald-700'
+                                                }`}>
+                                                {t(result.severity) || result.severity}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Deep recommendations categorization */}
                                 {result.disease !== 'Not a Crop' && result.disease !== 'Healthy' && (
-                                    <div className="space-y-6 pt-2">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2">
                                         {/* Biological Solutions */}
-                                        <div className="space-y-3">
-                                            <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-emerald-600 flex items-center gap-2">
-                                                <Leaf size={14} /> {t('biologicalControl')}
+                                        <div className="space-y-4">
+                                            <h3 className="font-black text-xs uppercase tracking-widest text-emerald-700 flex items-center gap-3 bg-emerald-50 py-2.5 px-4 rounded-xl w-fit">
+                                                <ShieldCheck size={18} /> {t('biologicalControl') || 'Biological Control'}
                                             </h3>
-                                            <div className="grid grid-cols-1 gap-1.5">
+                                            <div className="space-y-3">
                                                 {(result.recommendations?.organic_solutions || ['Regular monitoring']).map((p, i) => (
-                                                    <div key={i} className="px-3.5 py-2.5 rounded-xl bg-emerald-50/30 border border-emerald-100/50 flex items-center gap-3">
-                                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-400"></div>
-                                                        <p className="text-emerald-900 font-bold text-xs">{t(p) || p}</p>
+                                                    <div key={i} className="p-4 rounded-2xl bg-white border-2 border-emerald-50 hover:border-emerald-200 hover:shadow-md transition-all flex items-start gap-4">
+                                                        <div className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center font-bold text-xs">{i + 1}</div>
+                                                        <p className="text-slate-700 font-semibold text-sm leading-relaxed">{t(p) || p}</p>
                                                     </div>
                                                 ))}
                                             </div>
                                         </div>
 
                                         {/* Chemical Treatments */}
-                                        <div className="space-y-3">
-                                            <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2">
-                                                <div className="p-1 bg-indigo-100 rounded text-indigo-600"><CheckCircle size={10} /></div> {t('chemicalTreatment')}
+                                        <div className="space-y-4">
+                                            <h3 className="font-black text-xs uppercase tracking-widest text-indigo-700 flex items-center gap-3 bg-indigo-50 py-2.5 px-4 rounded-xl w-fit">
+                                                <TestTube size={18} /> {t('chemicalTreatment') || 'Chemical Treatment'}
                                             </h3>
-                                            <div className="grid grid-cols-1 gap-1.5">
+                                            <div className="space-y-3">
                                                 {(result.recommendations?.pesticides || []).map((p, i) => (
-                                                    <div key={i} className="px-3.5 py-2.5 rounded-xl bg-indigo-50/30 border border-indigo-100/50 flex items-center justify-between">
-                                                        <p className="text-indigo-900 font-bold text-xs">{t(p) || p}</p>
-                                                        <Link to="/shops" className="text-[9px] font-black uppercase text-indigo-600 hover:underline">{t('retailer')} →</Link>
+                                                    <div key={i} className="p-4 rounded-2xl bg-white border-2 border-indigo-50 hover:border-indigo-200 hover:shadow-md transition-all flex items-center justify-between gap-4 group">
+                                                        <div className="flex items-center gap-4">
+                                                            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                                                                <Droplets size={14} />
+                                                            </div>
+                                                            <p className="text-slate-700 font-semibold text-sm leading-relaxed">{t(p) || p}</p>
+                                                        </div>
+                                                        <Link to="/shops" className="flex-shrink-0 bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider group-hover:bg-indigo-600 group-hover:text-white transition-all flex items-center gap-1 mt-1 sm:mt-0">
+                                                            {t('retailer') || 'Shop'} <ArrowRight size={12} />
+                                                        </Link>
                                                     </div>
                                                 ))}
                                             </div>

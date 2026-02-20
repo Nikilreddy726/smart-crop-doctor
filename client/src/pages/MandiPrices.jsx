@@ -59,7 +59,7 @@ const MandiPrices = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const states = ['All', ...new Set(prices.map(item => item.state))];
+    const states = ['All', ...[...new Set(prices.map(item => item.state))].sort()];
 
     const filteredPrices = prices.filter(item => {
         const matchesSearch = (item.commodity || '').toLowerCase().includes(search.toLowerCase()) ||

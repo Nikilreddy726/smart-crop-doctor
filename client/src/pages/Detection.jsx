@@ -67,16 +67,11 @@ const Detection = () => {
         if (files && files.length > 0) processFile(files[0]);
     };
 
-    const handleUpload = async (attempt = 0) => {
+    const handleUpload = async () => {
         if (!selectedFile) return;
-        if (attempt === 0) {
-            setLoading(true);
-            setResult(null);
-            setSaved(false);
-            setWarmingUp(false);
-            setWarmingProgress(0);
-            setRetryCount(0);
-        }
+        setLoading(true);
+        setResult(null);
+        setSaved(false);
 
         let location = null;
         try {
@@ -89,49 +84,16 @@ const Detection = () => {
         try {
             const response = await detectDisease(selectedFile, location);
             if (response && response.disease) {
-                setWarmingUp(false);
                 setResult(response);
-                setLoading(false);
             } else {
-                setLoading(false);
-                setWarmingUp(false);
+                setResult({ __error: true, message: 'Invalid response from AI service.' });
             }
         } catch (error) {
             const errMsg = error.response?.data?.error || error.message || '';
-            const isWarmingError = errMsg.toLowerCase().includes('offline') ||
-                errMsg.toLowerCase().includes('warming') ||
-                errMsg.toLowerCase().includes('econnreset') ||
-                errMsg.toLowerCase().includes('timeout') ||
-                error.code === 'ECONNABORTED' ||
-                (error.response?.status >= 500);
-
-            const MAX_RETRIES = 4;
-            if (isWarmingError && attempt < MAX_RETRIES) {
-                // Show warming-up UI instead of crashing
-                setWarmingUp(true);
-                setRetryCount(attempt + 1);
-                const msgIdx = Math.min(attempt, WARMING_MESSAGES.length - 1);
-                setWarmingMsg(WARMING_MESSAGES[msgIdx]);
-
-                // Animate progress bar
-                const progress = ((attempt + 1) / (MAX_RETRIES + 1)) * 100;
-                setWarmingProgress(progress);
-
-                // Wait 25s then retry
-                console.log(`AI warming up — retry ${attempt + 1}/${MAX_RETRIES} in 25s...`);
-                setTimeout(() => handleUpload(attempt + 1), 25000);
-            } else {
-                // Exhausted retries or non-warming error
-                setLoading(false);
-                setWarmingUp(false);
-                setRetryCount(0);
-                if (isWarmingError) {
-                    // Show friendly inline message instead of alert
-                    setResult({ __error: true, message: 'AI service is still waking up. Please wait 1–2 minutes and try again.' });
-                } else {
-                    setResult({ __error: true, message: `Could not analyse the image: ${errMsg}` });
-                }
-            }
+            setResult({ __error: true, message: `Could not analyse the image: ${errMsg}` });
+        } finally {
+            setLoading(false);
+            setWarmingUp(false);
         }
     };
 

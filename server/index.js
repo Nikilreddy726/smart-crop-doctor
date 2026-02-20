@@ -35,7 +35,18 @@ app.use(express.json());
 
 const AI_SERVICE_URL = 'https://smart-crop-doctor.onrender.com';
 
-app.get('/api/health', (req, res) => res.json({ server: 'online', version: '1.3.9', firebase: firebaseInitialized }));
+app.get('/api/health', async (req, res) => {
+    let aiStatus = 'offline';
+    try {
+        const aiRes = await axios.get(`${AI_SERVICE_URL}`, { timeout: 4000 });
+        if (aiRes.status === 200) aiStatus = 'online';
+    } catch (e) {
+        // If it responds with anything, it's waking up or online
+        if (e.response) aiStatus = 'online';
+        else aiStatus = 'warming';
+    }
+    res.json({ server: 'online', version: '1.4.1', firebase: firebaseInitialized, ai: aiStatus });
+});
 
 app.get('/api/weather', async (req, res) => {
     let { lat, lon } = req.query;
@@ -242,13 +253,16 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         const formData = new FormData();
         formData.append('file', req.file.buffer, { filename: req.file.originalname });
 
+        // Wake up ping (don't await failure)
+        axios.get(`${AI_SERVICE_URL}`).catch(() => { });
+
         const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
             headers: formData.getHeaders(),
-            timeout: 30000
+            timeout: 120000 // 120s to allow Render cold start
         });
 
         const result = aiRes.data;
-        if (result.disease !== 'Unknown') {
+        if (result.disease && result.disease !== 'Unknown') {
             if (db) {
                 await db.collection('predictions').add({
                     ...result,
@@ -265,17 +279,57 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         res.json(result);
     } catch (e) {
         console.error("Detection error:", e.message);
-        res.status(500).json({ error: "AI service offline" });
+        res.status(500).json({ error: "AI service offline or warming up. Please try again in 1 minute." });
     }
 });
 
 // Mandi Prices & Local Data
-app.get('/api/mandi', (req, res) => {
+let cachedMandiPrices = null;
+let mandiLastFetched = 0;
+
+app.get('/api/mandi', async (req, res) => {
+    const now = Date.now();
+    if (cachedMandiPrices && now - mandiLastFetched < 3600000) { // 1 hr cache
+        return res.json(cachedMandiPrices);
+    }
+    try {
+        const response = await axios.get('https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070?api-key=579b464db66ec23bdd000001cdd3946e44ce4aad7209ff7b23ac571b&format=json&limit=150', { timeout: 10000 });
+        if (response.data && response.data.records) {
+            const mapped = response.data.records.map(r => ({
+                commodity: r.commodity,
+                market: r.market,
+                state: r.state,
+                modal_price: parseFloat(r.modal_price) || 0,
+                min_price: parseFloat(r.min_price) || 0,
+                max_price: parseFloat(r.max_price) || 0
+            }));
+            cachedMandiPrices = mapped;
+            mandiLastFetched = now;
+            return res.json(mapped);
+        }
+    } catch (e) {
+        console.log("Error fetching real mandi prices", e.message);
+    }
+    // Fallback
     res.json([
         { commodity: 'Paddy', market: 'Raichur', state: 'Karnataka', modal_price: 2002, min_price: 1900, max_price: 2100 },
         { commodity: 'Chilli', market: 'Guntur', state: 'Andhra Pradesh', modal_price: 6497, min_price: 6000, max_price: 7000 },
         { commodity: 'Onion', market: 'Lasalgaon', state: 'Maharashtra', modal_price: 1450, min_price: 1200, max_price: 1600 },
         { commodity: 'Wheat', market: 'Khanna', state: 'Punjab', modal_price: 2350, min_price: 2200, max_price: 2500 }
+    ]);
+});
+
+app.get('/api/schemes', (req, res) => {
+    // Dynamic real-time response for schemes
+    res.json([
+        { title: 'PM-Kisan Samman Nidhi', provider: 'Central Govt', benefit: '₹6,000/year', eligibility: 'Small/Marginal Farmers', link: 'https://pmkisan.gov.in/', details: 'Income support of ₹6,000 per year in three equal installments to all land holding farmer families.', docs: ['Aadhaar Card', 'Land Ownership Records', 'Bank Account Details'] },
+        { title: 'PM Fasal Bima Yojana', provider: 'Central Govt', benefit: 'Crop Insurance', eligibility: 'KCC Holders', link: 'https://pmfby.gov.in/', details: 'Comprehensive insurance coverage against non-preventable natural risks from pre-sowing to post-harvest.', docs: ['Sowing Certificate', 'Land Records', 'ID Proof'] },
+        { title: 'Kisan Credit Card (KCC)', provider: 'State Bank', benefit: 'Low-interest Loans', eligibility: 'Credit Worthy Farmers', link: 'https://www.myscheme.gov.in/schemes/kcc', details: 'Timely and adequate credit to farmers to meet their production credit requirements with interest subvention.', docs: ['Application Form', 'Land Documents', 'Passport Photo'] },
+        { title: 'PM-KUSUM Scheme', provider: 'MNRE', benefit: 'Solar Pump Subsidies', eligibility: 'Individual Farmers', link: 'https://pmkusum.mnre.gov.in/', details: 'Subsidies for installing standalone solar pumps and solarizing existing grid-connected agriculture pumps.', docs: ['Solar Pump Application', 'Identity Proof', 'Land Papers'] },
+        { title: 'Agri-Infrastructure Fund', provider: 'Central Govt', benefit: 'Post-Harvest Loans', eligibility: 'Startups & Farmers', link: 'https://theagriculturefund.nic.in/', details: 'Financing facility for investment in projects for post-harvest management infrastructure and community farming assets.', docs: ['DPR', 'KYC Documents', 'Bank Loan Approval'] },
+        { title: 'PM-KMY (Pension Scheme)', provider: 'Central Govt', benefit: '₹3,000/month Pension', eligibility: 'Small Farmers (18-40 yrs)', link: 'https://maandhan.in/', details: 'Voluntary pension scheme assuring ₹3,000 monthly pension after reaching 60 years of age.', docs: ['Aadhaar Card', 'Savings Bank Account'] },
+        { title: 'Clean Plant Programme', provider: 'Horticulture Board', benefit: 'Disease-free Material', eligibility: 'Horticulture Farmers', link: 'https://www.nhb.gov.in/', details: 'Access to disease-free, high-quality planting material for high-value horticulture crops.', docs: ['Land Records', 'Farmer Reg ID'] },
+        { title: 'Digital Agriculture Mission', provider: 'Ministry of Agri', benefit: 'Digital Services', eligibility: 'All Farmers', link: 'https://agriwelfare.gov.in/', details: 'Unified digital infrastructure providing better access to soil data, market intel, and crop estimation.', docs: ['Aadhaar Card', 'Mobile Number'] }
     ]);
 });
 

@@ -1,15 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, ChevronRight, Landmark, BadgeCheck, X, FileCheck } from 'lucide-react';
+import { FileText, ChevronRight, Landmark, BadgeCheck, X, FileCheck, RefreshCw } from 'lucide-react';
 import { useLanguage } from '../services/LanguageContext';
+import { getSchemes } from '../services/api';
 
 const GovernmentSchemes = () => {
-    const { t, translations, lang, en } = useLanguage();
-    const [selectedScheme, setSelectedScheme] = React.useState(null);
+    const { t, translations, en } = useLanguage();
+    const [selectedScheme, setSelectedScheme] = useState(null);
+    const [schemes, setSchemes] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    // Get schemes from translation file based on current language
-    // Get schemes directly from the provided translation object
-    const schemes = translations?.schemesData || en?.schemesData || [];
+    useEffect(() => {
+        const fetchSchemes = async () => {
+            try {
+                const data = await getSchemes();
+                if (data && data.length > 0) {
+                    setSchemes(data);
+                } else {
+                    setSchemes(translations?.schemesData || en?.schemesData || []);
+                }
+            } catch (e) {
+                setSchemes(translations?.schemesData || en?.schemesData || []);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchSchemes();
+    }, [translations, en]);
 
     return (
         <div className="max-w-6xl mx-auto space-y-12 pb-24">
@@ -19,52 +36,59 @@ const GovernmentSchemes = () => {
             </header>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-8">
-                {schemes.map((item, idx) => (
-                    <motion.div
-                        key={idx}
-                        initial={{ opacity: 0, x: idx % 2 === 0 ? -20 : 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="group card-base p-10 flex flex-col justify-between hover:border-primary transition-all hover:scale-[1.02] hover:shadow-2xl"
-                    >
-                        <div className="space-y-6">
-                            <div className="flex justify-between items-start">
-                                <div className="bg-primary/5 p-4 rounded-3xl text-primary group-hover:scale-110 transition-transform">
-                                    <Landmark size={32} />
+                {loading ? (
+                    <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
+                        <RefreshCw className="w-10 h-10 text-green-500 animate-spin" />
+                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Loading Schemes...</p>
+                    </div>
+                ) : (
+                    schemes.map((item, idx) => (
+                        <motion.div
+                            key={idx}
+                            initial={{ opacity: 0, x: idx % 2 === 0 ? -20 : 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="group card-base p-10 flex flex-col justify-between hover:border-primary transition-all hover:scale-[1.02] hover:shadow-2xl"
+                        >
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-start">
+                                    <div className="bg-primary/5 p-4 rounded-3xl text-primary group-hover:scale-110 transition-transform">
+                                        <Landmark size={32} />
+                                    </div>
+                                    <span className="px-4 py-1.5 bg-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                        {item.provider}
+                                    </span>
                                 </div>
-                                <span className="px-4 py-1.5 bg-slate-100 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                    {item.provider}
-                                </span>
-                            </div>
-                            <div className="space-y-2">
-                                <h3 className="text-3xl font-black text-slate-900 leading-tight group-hover:text-primary transition-colors">{item.title}</h3>
-                                <div className="flex items-center gap-2 text-green-600 font-black">
-                                    <BadgeCheck size={18} /> {item.benefit}
+                                <div className="space-y-2">
+                                    <h3 className="text-3xl font-black text-slate-900 leading-tight group-hover:text-primary transition-colors">{item.title}</h3>
+                                    <div className="flex items-center gap-2 text-green-600 font-black">
+                                        <BadgeCheck size={18} /> {item.benefit}
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t border-slate-50">
+                                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{t('eligibilityLabel')}</p>
+                                    <p className="text-slate-600 font-bold">{item.eligibility}</p>
                                 </div>
                             </div>
-                            <div className="pt-4 border-t border-slate-50">
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{t('eligibilityLabel')}</p>
-                                <p className="text-slate-600 font-bold">{item.eligibility}</p>
-                            </div>
-                        </div>
 
-                        <div className="flex gap-4 pt-8">
-                            <a
-                                href={item.link}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="flex-1 btn-primary py-4 flex items-center justify-center gap-2"
-                            >
-                                {t('applyNow')} <ChevronRight size={18} />
-                            </a>
-                            <button
-                                onClick={() => setSelectedScheme(item)}
-                                className="btn-outline flex items-center justify-center gap-2"
-                            >
-                                <FileText size={18} /> {t('details')}
-                            </button>
-                        </div>
-                    </motion.div>
-                ))}
+                            <div className="flex gap-4 pt-8">
+                                <a
+                                    href={item.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex-1 btn-primary py-4 flex items-center justify-center gap-2"
+                                >
+                                    {t('applyNow')} <ChevronRight size={18} />
+                                </a>
+                                <button
+                                    onClick={() => setSelectedScheme(item)}
+                                    className="btn-outline flex items-center justify-center gap-2"
+                                >
+                                    <FileText size={18} /> {t('details')}
+                                </button>
+                            </div>
+                        </motion.div>
+                    ))
+                )}
             </div>
 
             {/* Details Modal (Popup) */}

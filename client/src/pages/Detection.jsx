@@ -249,19 +249,24 @@ const Detection = () => {
                                 </div>
 
                                 <AnimatePresence mode="wait">
-                                    {!result && !loading && (
+                                    {!result && (
                                         <div className="space-y-4 w-full">
                                             <motion.button
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 onClick={handleUpload}
-                                                className="w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all bg-primary text-white shadow-primary/20 hover:scale-[1.02] active:scale-95"
+                                                disabled={loading}
+                                                className={`w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all text-white ${loading ? 'bg-slate-400 cursor-not-allowed scale-100' : 'bg-primary shadow-primary/20 hover:scale-[1.02] active:scale-95'}`}
                                             >
-                                                <Sparkles size={24} />
-                                                {t('analyzeInfection')}
+                                                {loading ? (
+                                                    <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <Sparkles size={24} />
+                                                )}
+                                                {loading ? t('analyzing') : t('analyzeInfection')}
                                             </motion.button>
 
-                                            {aiStatus !== 'online' && (
+                                            {!loading && aiStatus !== 'online' && (
                                                 <p className="text-center text-[10px] text-slate-400 font-bold px-4 leading-tight animate-pulse">
                                                     ⏳ {t('waitingForEngine')}
                                                     <br />
@@ -270,44 +275,33 @@ const Detection = () => {
                                                     </span>
                                                 </p>
                                             )}
-                                        </div>
-                                    )}
 
-                                    {loading && (
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="flex flex-col items-center gap-4 py-4"
-                                        >
-                                            {warmingUp ? (
-                                                // Warming-up animation
-                                                <>
-                                                    <div className="relative w-20 h-20">
-                                                        <div className="absolute inset-0 rounded-full border-4 border-orange-100"></div>
-                                                        <div className="absolute inset-0 rounded-full border-4 border-t-orange-500 border-r-transparent border-b-transparent border-l-orange-200 animate-spin"></div>
-                                                        <div className="absolute inset-3 rounded-full bg-orange-50 flex items-center justify-center">
-                                                            <Sparkles size={20} className="text-orange-500" />
+                                            <AnimatePresence>
+                                                {loading && warmingUp && (
+                                                    <motion.div
+                                                        initial={{ opacity: 0, height: 0 }}
+                                                        animate={{ opacity: 1, height: 'auto' }}
+                                                        exit={{ opacity: 0, height: 0 }}
+                                                        className="flex flex-col items-center gap-4 overflow-hidden pt-4"
+                                                    >
+                                                        <div className="relative w-20 h-20">
+                                                            <div className="absolute inset-0 rounded-full border-4 border-orange-100"></div>
+                                                            <div className="absolute inset-0 rounded-full border-4 border-t-orange-500 border-r-transparent border-b-transparent border-l-orange-200 animate-spin"></div>
+                                                            <div className="absolute inset-3 rounded-full bg-orange-50 flex items-center justify-center">
+                                                                <Sparkles size={20} className="text-orange-500" />
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                    <div className="text-center space-y-2 w-full max-w-[220px]">
-                                                        <p className="text-orange-600 font-black text-xs uppercase tracking-widest animate-pulse">{warmingMsg}</p>
-                                                        <p className="text-[10px] text-slate-400 font-bold">Retry {retryCount}/4 — AI wakes after ~1 min</p>
-                                                        <div className="w-full bg-orange-100 rounded-full h-2 mt-1">
-                                                            <motion.div className="bg-orange-500 h-2 rounded-full" initial={{ width: 0 }} animate={{ width: `${warmingProgress}%` }} transition={{ duration: 1 }} />
+                                                        <div className="text-center space-y-2 w-full max-w-[220px]">
+                                                            <p className="text-orange-600 font-black text-xs uppercase tracking-widest animate-pulse">{warmingMsg}</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold">Retry {retryCount}/4 — AI wakes after ~1 min</p>
+                                                            <div className="w-full bg-orange-100 rounded-full h-2 mt-1">
+                                                                <motion.div className="bg-orange-500 h-2 rounded-full" initial={{ width: 0 }} animate={{ width: `${warmingProgress}%` }} transition={{ duration: 1 }} />
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                // Normal analysing spinner
-                                                <>
-                                                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                                    <div className="text-center space-y-2">
-                                                        <p className="text-primary font-black animate-pulse tracking-widest text-xs uppercase">{t('computing')}</p>
-                                                        <p className="text-[10px] text-slate-400 font-bold max-w-[200px] leading-tight">{t('analyzingPixels')}</p>
-                                                    </div>
-                                                </>
-                                            )}
-                                        </motion.div>
+                                                    </motion.div>
+                                                )}
+                                            </AnimatePresence>
+                                        </div>
                                     )}
                                 </AnimatePresence>
                             </div>

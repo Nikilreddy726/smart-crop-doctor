@@ -11,14 +11,21 @@ const port = process.env.PORT || 5000;
 
 let firebaseInitialized = false;
 try {
-    const serviceAccount = require('./serviceAccountKey.json');
+    let serviceAccount;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+        serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf8'));
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+        serviceAccount = require('./serviceAccountKey.json');
+    }
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         storageBucket: "smart-doctor-crop.firebasestorage.app"
     });
     firebaseInitialized = true;
 } catch (e) {
-    console.error("Firebase Service Account not found.");
+    console.error("Firebase Service Account not found or invalid:", e.message);
 }
 
 const db = firebaseInitialized ? admin.firestore() : null;

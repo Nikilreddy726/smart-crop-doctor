@@ -72,6 +72,25 @@ const Detection = () => {
         setLoading(true);
         setResult(null);
         setSaved(false);
+        setWarmingUp(false);
+        setWarmingProgress(0);
+        setRetryCount(1); // Reusing this for UI display
+
+        // If Render server is cold, it takes ~60-90s to wake up.
+        // We'll show the warming UI after 6 seconds of waiting.
+        const timerId = setTimeout(() => {
+            setWarmingUp(true);
+            setWarmingMsg(WARMING_MESSAGES[0]);
+        }, 6000);
+
+        // Fun rotating messages while waiting
+        const msgTimerId = setInterval(() => {
+            setWarmingMsg(prev => {
+                const idx = WARMING_MESSAGES.indexOf(prev);
+                return WARMING_MESSAGES[(idx + 1) % WARMING_MESSAGES.length];
+            });
+            setWarmingProgress(prev => (prev < 90 ? prev + 3 : prev));
+        }, 3000);
 
         let location = null;
         try {
@@ -92,6 +111,8 @@ const Detection = () => {
             const errMsg = error.response?.data?.error || error.message || '';
             setResult({ __error: true, message: `Could not analyse the image: ${errMsg}` });
         } finally {
+            clearTimeout(timerId);
+            clearInterval(msgTimerId);
             setLoading(false);
             setWarmingUp(false);
         }

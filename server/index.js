@@ -244,14 +244,7 @@ app.delete('/api/community/:id', async (req, res) => {
     res.json({ success: true });
 });
 
-// Rich offline instant fallbacks to ensure blazing-fast UX even when heavy AI sleeps
-const fallbackDiseases = [
-    { crop: 'Tomato', disease: 'Early Blight', pathogen: 'Fungal (Alternaria)', severity: 'High', conf: 92.4, reqs: { organic_solutions: ['Prune infected leaves', 'Copper fungicide', 'Improve ventilation'], pesticides: ['Mancozeb 75% WP', 'Chlorothalonil'] } },
-    { crop: 'Cotton', disease: 'Bacterial Blight', pathogen: 'Bacterial Disease', severity: 'Medium', conf: 88.7, reqs: { organic_solutions: ['Use disease-free seed', 'Crop rotation'], pesticides: ['Copper Oxychloride', 'Streptomycin'] } },
-    { crop: 'Wheat', disease: 'Yellow Rust', pathogen: 'Fungal (Puccinia)', severity: 'High', conf: 95.1, reqs: { organic_solutions: ['Plant resistant varieties', 'Early sowing'], pesticides: ['Propiconazole 25% EC', 'Tebuconazole'] } },
-    { crop: 'Paddy', disease: 'Leaf Folder', pathogen: 'Pest Infestation', severity: 'Medium', conf: 89.2, reqs: { organic_solutions: ['Avoid excessive nitrogen', 'Release Trichogramma'], pesticides: ['Cartap Hydrochloride', 'Chlorpyrifos'] } },
-    { crop: 'Potato', disease: 'Late Blight', pathogen: 'Water Mold', severity: 'High', conf: 94.8, reqs: { organic_solutions: ['Destroy cull piles', 'Ensure good drainage'], pesticides: ['Metalaxyl 8% + Mancozeb', 'Cymoxanil'] } }
-];
+
 
 // AI Detection Proxy
 const upload = multer({ storage: multer.memoryStorage() });
@@ -265,10 +258,10 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         // Wake up ping (don't await failure)
         axios.get(`${AI_SERVICE_URL}`).catch(() => { });
 
-        // VERY short timeout (4.5 seconds) to ensure INSTANT results for user
+        // Wait for real AI to respond (up to 120s for Render cold start)
         const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
             headers: formData.getHeaders(),
-            timeout: 4500
+            timeout: 120000
         });
 
         const result = aiRes.data;
@@ -279,30 +272,8 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         }
         return res.json(result);
     } catch (e) {
-        // FAST OFFLINE/FALLBACK RESPONSE (Instant Results)
-        console.log(`AI Real-time failed (${e.message}), providing instant seamless fallback.`);
-
-        const randomFallback = fallbackDiseases[Math.floor(Math.random() * fallbackDiseases.length)];
-        const fallbackResult = {
-            id: 'fallback_' + Date.now(),
-            disease: randomFallback.disease,
-            crop: randomFallback.crop,
-            severity: randomFallback.severity,
-            confidence: randomFallback.conf,
-            pathogen: randomFallback.pathogen,
-            recommendations: randomFallback.reqs,
-            imageUrl: "image-not-stored",
-            scientific_name: "Mock Analysis (AI Offline)"
-        };
-
-        if (db) {
-            await db.collection('predictions').add({
-                ...fallbackResult,
-                timestamp: admin.firestore.FieldValue.serverTimestamp()
-            }).catch(() => { });
-        }
-        // Respond instantly with a completely valid, rich object
-        return res.json(fallbackResult);
+        console.error("Detection error:", e.message);
+        return res.status(500).json({ error: "AI service offline or warming up. Please try again in 1 minute." });
     }
 });
 

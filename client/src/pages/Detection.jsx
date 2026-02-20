@@ -7,12 +7,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
 
+const WARMING_MESSAGES = [
+    'Waking up AI engine...', 'Loading neural network...', 'Connecting to model...', 'Almost ready...', 'Analyzing your crop image...'
+];
+
 const Detection = () => {
     const { t } = useLanguage();
     const { user } = useAuth();
     const [selectedFile, setSelectedFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [warmingUp, setWarmingUp] = useState(false);
+    const [warmingMsg, setWarmingMsg] = useState(WARMING_MESSAGES[0]);
+    const [warmingProgress, setWarmingProgress] = useState(0);
+    const [retryCount, setRetryCount] = useState(0);
     const [result, setResult] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [saved, setSaved] = useState(false);
@@ -59,54 +67,71 @@ const Detection = () => {
         if (files && files.length > 0) processFile(files[0]);
     };
 
-    const handleUpload = async () => {
+    const handleUpload = async (attempt = 0) => {
         if (!selectedFile) return;
-        setLoading(true);
-        setResult(null);
-        setSaved(false);
+        if (attempt === 0) {
+            setLoading(true);
+            setResult(null);
+            setSaved(false);
+            setWarmingUp(false);
+            setWarmingProgress(0);
+            setRetryCount(0);
+        }
 
         let location = null;
         try {
-            const pos = await new Promise((resolve, reject) => {
-                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
-            });
+            const pos = await new Promise((resolve, reject) =>
+                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
+            );
             location = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        } catch (e) {
-            console.log("Location tagging skipped:", e.message);
-        }
+        } catch (e) { /* Location optional */ }
 
         try {
             const response = await detectDisease(selectedFile, location);
-            // Backend returns result directly (no job queue on this server)
             if (response && response.disease) {
+                setWarmingUp(false);
                 setResult(response);
-            } else if (response && response.jobId) {
-                // Legacy polling path (in case backend adds queue later)
-                const pollInterval = setInterval(async () => {
-                    try {
-                        const statusRes = await axios.get(`${api.defaults.baseURL}/status/${response.jobId}`);
-                        const job = statusRes.data;
-                        if (job.status === 'completed') {
-                            clearInterval(pollInterval);
-                            setResult(job.result);
-                            setLoading(false);
-                        } else if (job.status === 'failed') {
-                            clearInterval(pollInterval);
-                            alert(t('waitingForEngine'));
-                            setLoading(false);
-                        }
-                    } catch (e) { console.log("Status check retry..."); }
-                }, 3000);
-                return; // Don't run setLoading(false) below
+                setLoading(false);
             } else {
-                alert(t('weatherError') + ': Invalid response from AI service');
+                setLoading(false);
+                setWarmingUp(false);
             }
         } catch (error) {
-            console.error('Detection failed:', error);
-            const errMsg = error.response?.data?.error || error.message;
-            alert(`Detection failed: ${errMsg}`);
-        } finally {
-            setLoading(false);
+            const errMsg = error.response?.data?.error || error.message || '';
+            const isWarmingError = errMsg.toLowerCase().includes('offline') ||
+                errMsg.toLowerCase().includes('warming') ||
+                errMsg.toLowerCase().includes('econnreset') ||
+                errMsg.toLowerCase().includes('timeout') ||
+                error.code === 'ECONNABORTED' ||
+                (error.response?.status >= 500);
+
+            const MAX_RETRIES = 4;
+            if (isWarmingError && attempt < MAX_RETRIES) {
+                // Show warming-up UI instead of crashing
+                setWarmingUp(true);
+                setRetryCount(attempt + 1);
+                const msgIdx = Math.min(attempt, WARMING_MESSAGES.length - 1);
+                setWarmingMsg(WARMING_MESSAGES[msgIdx]);
+
+                // Animate progress bar
+                const progress = ((attempt + 1) / (MAX_RETRIES + 1)) * 100;
+                setWarmingProgress(progress);
+
+                // Wait 25s then retry
+                console.log(`AI warming up — retry ${attempt + 1}/${MAX_RETRIES} in 25s...`);
+                setTimeout(() => handleUpload(attempt + 1), 25000);
+            } else {
+                // Exhausted retries or non-warming error
+                setLoading(false);
+                setWarmingUp(false);
+                setRetryCount(0);
+                if (isWarmingError) {
+                    // Show friendly inline message instead of alert
+                    setResult({ __error: true, message: 'AI service is still waking up. Please wait 1–2 minutes and try again.' });
+                } else {
+                    setResult({ __error: true, message: `Could not analyse the image: ${errMsg}` });
+                }
+            }
         }
     };
 
@@ -233,13 +258,34 @@ const Detection = () => {
                                             animate={{ opacity: 1 }}
                                             className="flex flex-col items-center gap-4 py-4"
                                         >
-                                            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                            <div className="text-center space-y-2">
-                                                <p className="text-primary font-black animate-pulse tracking-widest text-xs uppercase">{t('computing')}</p>
-                                                <p className="text-[10px] text-slate-400 font-bold max-w-[200px] leading-tight">
-                                                    {t('analyzingPixels')}
-                                                </p>
-                                            </div>
+                                            {warmingUp ? (
+                                                // Warming-up animation
+                                                <>
+                                                    <div className="relative w-20 h-20">
+                                                        <div className="absolute inset-0 rounded-full border-4 border-orange-100"></div>
+                                                        <div className="absolute inset-0 rounded-full border-4 border-t-orange-500 border-r-transparent border-b-transparent border-l-orange-200 animate-spin"></div>
+                                                        <div className="absolute inset-3 rounded-full bg-orange-50 flex items-center justify-center">
+                                                            <Sparkles size={20} className="text-orange-500" />
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center space-y-2 w-full max-w-[220px]">
+                                                        <p className="text-orange-600 font-black text-xs uppercase tracking-widest animate-pulse">{warmingMsg}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold">Retry {retryCount}/4 — AI wakes after ~1 min</p>
+                                                        <div className="w-full bg-orange-100 rounded-full h-2 mt-1">
+                                                            <motion.div className="bg-orange-500 h-2 rounded-full" initial={{ width: 0 }} animate={{ width: `${warmingProgress}%` }} transition={{ duration: 1 }} />
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            ) : (
+                                                // Normal analysing spinner
+                                                <>
+                                                    <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                                                    <div className="text-center space-y-2">
+                                                        <p className="text-primary font-black animate-pulse tracking-widest text-xs uppercase">{t('computing')}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold max-w-[200px] leading-tight">{t('analyzingPixels')}</p>
+                                                    </div>
+                                                </>
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
@@ -251,7 +297,24 @@ const Detection = () => {
                 {/* Result Panel (Compact Detail View) */}
                 <div className="md:col-span-7 lg:col-span-8 h-full">
                     <AnimatePresence mode="wait">
-                        {result ? (
+                        {result && result.__error ? (
+                            // Friendly error card — no alert popup
+                            <motion.div key="error" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+                                className="bg-orange-50 border-2 border-orange-200 p-8 rounded-[2.5rem] shadow-xl flex flex-col items-center gap-5 text-center">
+                                <div className="w-20 h-20 bg-orange-100 rounded-3xl flex items-center justify-center">
+                                    <Sparkles size={36} className="text-orange-500" />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-black text-orange-800 mb-2">AI is Waking Up ☀️</h3>
+                                    <p className="text-orange-700 font-semibold text-sm leading-relaxed max-w-sm">{result.message}</p>
+                                </div>
+                                <button onClick={() => { setResult(null); handleUpload(0); }}
+                                    className="bg-orange-500 text-white px-8 py-4 rounded-2xl font-black text-sm uppercase tracking-wide shadow-lg shadow-orange-200 hover:bg-orange-600 transition-all active:scale-95 flex items-center gap-2">
+                                    <Sparkles size={18} /> Try Again
+                                </button>
+                                <p className="text-[11px] text-orange-500 font-semibold">💡 The AI restarts after inactivity on the free server plan. It fully wakes in 1–2 minutes.</p>
+                            </motion.div>
+                        ) : result ? (
                             <motion.div
                                 key="result"
                                 initial={{ opacity: 0, y: 20 }}

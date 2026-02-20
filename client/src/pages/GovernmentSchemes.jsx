@@ -4,12 +4,12 @@ import { FileText, ChevronRight, Landmark, BadgeCheck, X, FileCheck } from 'luci
 import { useLanguage } from '../services/LanguageContext';
 
 const GovernmentSchemes = () => {
-    const { t, translations, lang } = useLanguage();
+    const { t, translations, lang, en } = useLanguage();
     const [selectedScheme, setSelectedScheme] = React.useState(null);
 
     // Get schemes from translation file based on current language
     // Get schemes directly from the provided translation object
-    const schemes = translations?.schemesData || [];
+    const schemes = translations?.schemesData || en?.schemesData || [];
 
     return (
         <div className="max-w-6xl mx-auto space-y-12 pb-24">
@@ -42,7 +42,7 @@ const GovernmentSchemes = () => {
                                 </div>
                             </div>
                             <div className="pt-4 border-t border-slate-50">
-                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Eligibility</p>
+                                <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">{t('eligibilityLabel')}</p>
                                 <p className="text-slate-600 font-bold">{item.eligibility}</p>
                             </div>
                         </div>

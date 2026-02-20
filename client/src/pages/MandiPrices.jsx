@@ -155,7 +155,7 @@ const MandiPrices = () => {
                             onClick={fetchPrices}
                             disabled={loading}
                             className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-[2rem] shadow-lg shadow-green-200 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center min-w-[3.5rem] group"
-                            aria-label="Refresh Prices"
+                            aria-label={t('refreshPrices')}
                         >
                             <RefreshCw size={24} className={loading ? "animate-spin" : "group-hover:animate-spin"} />
                         </button>
@@ -232,7 +232,7 @@ const MandiPrices = () => {
                                                     <div className="flex justify-between items-center py-2 border-b border-slate-50">
                                                         <span className="text-xs font-bold text-slate-400 uppercase">{t('modalPrice')}</span>
                                                         <span className="text-2xl font-black text-green-600">
-                                                            ₹{displayModal} <span className="text-xs font-bold text-slate-400">/ {unitWeight}Kg</span>
+                                                            ₹{displayModal} <span className="text-xs font-bold text-slate-400">/ {unitWeight}{t('kgUnit')}</span>
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between items-center text-xs font-bold text-slate-500">

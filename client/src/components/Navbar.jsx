@@ -134,7 +134,7 @@ const Navbar = () => {
                         {!isLoginPage && (user ? (
                             <div className="flex items-center gap-4 ml-4 pl-4 border-l border-slate-200">
                                 <div className="flex flex-col items-end">
-                                    <span className="text-[10px] font-black uppercase text-slate-400">Farmer</span>
+                                    <span className="text-[10px] font-black uppercase text-slate-400">{t('farmer')}</span>
                                     <span className="text-[11px] font-bold text-slate-900">{user.displayName || user.email.split('@')[0]}</span>
                                 </div>
                                 <button

@@ -68,7 +68,7 @@ const Home = () => {
                 className="mt-12 text-slate-400 font-bold text-[10px] tracking-widest uppercase flex items-center gap-3"
             >
                 <span className="h-px w-8 bg-slate-200"></span>
-                Secure Cloud Diagnostics
+                {t('secureCloud')}
                 <span className="h-px w-8 bg-slate-200"></span>
             </motion.p>
         </div>

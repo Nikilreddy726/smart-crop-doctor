@@ -47,7 +47,7 @@ const Detection = () => {
             setResult(null);
             setSaved(false);
         } else {
-            alert('Please select a valid image file');
+            alert(t('locationNotFound') || 'Please select a valid image file');
         }
     };
 
@@ -102,8 +102,8 @@ const Detection = () => {
                         clearInterval(pollInterval);
                         const isTimeout = job.error?.includes("failed to start");
                         alert(isTimeout
-                            ? "The AI engine is taking a bit longer to wake up. Please wait 10 seconds and try your scan again—it will be ready now!"
-                            : "Analysis Error: " + job.error);
+                            ? t('waitingForEngine')
+                            : t('weatherError') + ": " + job.error);
                         setLoading(false);
                     }
                 } catch (e) {
@@ -114,7 +114,7 @@ const Detection = () => {
         } catch (error) {
             console.error('Detection failed:', error);
             const errorMsg = error.response?.data?.details || error.message;
-            alert(`Failed to analyze image. ${errorMsg}`);
+            alert(t('weatherError') + ". " + errorMsg);
             setLoading(false);
         }
     };
@@ -159,14 +159,14 @@ const Detection = () => {
                         animate={{ scale: 1, opacity: 1 }}
                         className="inline-flex items-center gap-2 bg-primary/5 text-primary px-4 py-2 rounded-full text-[9px] sm:text-[10px] font-black tracking-widest uppercase"
                     >
-                        <Sparkles size={12} /> Neural-Net Diagnostics
+                        <Sparkles size={12} /> {t('neuralNetDiagnostics')}
                     </motion.div>
 
                     {/* Status Indicator */}
                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${aiStatus === 'online' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'
                         }`}>
                         <div className={`w-1.5 h-1.5 rounded-full ${aiStatus === 'online' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                        Engine: {aiStatus === 'online' ? 'Ready' : 'Warming Up...'}
+                        {t('engineStatus')}: {aiStatus === 'online' ? t('engineReady') : t('engineWarming')}
                     </div>
                 </div>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-none">{t('aiCropDoctor')}</h1>
@@ -192,7 +192,7 @@ const Detection = () => {
                                     </div>
                                     <div className="text-center">
                                         <p className="text-lg sm:text-2xl font-black text-slate-900 leading-tight tracking-tight">
-                                            {isDragging ? 'Drop Image Here!' : t('readyToScan')}
+                                            {isDragging ? t('dropImageHere') : t('readyToScan')}
                                         </p>
                                         <p className="text-[10px] text-slate-400 font-black mt-1 sm:mt-2 uppercase tracking-[0.2em]">{t('dropImage')}</p>
                                     </div>
@@ -226,10 +226,10 @@ const Detection = () => {
 
                                             {aiStatus !== 'online' && (
                                                 <p className="text-center text-[10px] text-slate-400 font-bold px-4 leading-tight animate-pulse">
-                                                    ⏳ {t('waitingForEngine') || 'AI engine is waking up from sleep. The button will enable automatically in a few seconds...'}
+                                                    ⏳ {t('waitingForEngine')}
                                                     <br />
                                                     <span className="text-[9px] font-medium opacity-50">
-                                                        (Render Free Tier takes ~30s to boot after inactivity)
+                                                        {t('renderBootNote')}
                                                     </span>
                                                 </p>
                                             )}
@@ -246,7 +246,7 @@ const Detection = () => {
                                             <div className="text-center space-y-2">
                                                 <p className="text-primary font-black animate-pulse tracking-widest text-xs uppercase">{t('computing')}</p>
                                                 <p className="text-[10px] text-slate-400 font-bold max-w-[200px] leading-tight">
-                                                    (Analyzing pixels and textures for patterns...)
+                                                    {t('analyzingPixels')}
                                                 </p>
                                             </div>
                                         </motion.div>
@@ -269,7 +269,7 @@ const Detection = () => {
                             >
                                 {/* Professional Diagnosis Banner */}
                                 <div className="absolute top-0 right-0 px-4 py-1.5 bg-slate-900 text-white text-[8px] font-black uppercase tracking-widest rounded-bl-2xl">
-                                    BIO-SCAN 8.0
+                                    {t('bioScan')}
                                 </div>
 
                                 {/* Disease Header */}
@@ -294,15 +294,15 @@ const Detection = () => {
                                     {result.disease !== 'Not a Crop' && (
                                         <div className="grid grid-cols-3 gap-3">
                                             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-indigo-200 transition-all">
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🧬 Type</p>
-                                                <p className="text-sm font-black text-slate-800 leading-tight">{result.pathogen || 'Biological'}</p>
+                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🧬 {t('typeLabel')}</p>
+                                                <p className="text-sm font-black text-slate-800 leading-tight">{t(result.pathogen) || result.pathogen || 'Biological'}</p>
                                             </div>
                                             <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 group hover:border-green-200 transition-all">
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🌱 Crop</p>
+                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">🌱 {t('cropLabel')}</p>
                                                 <p className="text-sm font-black text-slate-800 leading-tight">{t(result.crop) || result.crop}</p>
                                             </div>
                                             <div className={`p-3 rounded-2xl border ${result.severity === 'High' ? 'bg-red-50/50 border-red-100' : 'bg-green-50/50 border-green-100'}`}>
-                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">⚠️ Risk</p>
+                                                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">⚠️ {t('riskLabel')}</p>
                                                 <p className={`text-sm font-black leading-tight ${result.severity === 'High' ? 'text-red-700' : 'text-green-700'}`}>
                                                     {t(result.severity) || result.severity}
                                                 </p>
@@ -317,7 +317,7 @@ const Detection = () => {
                                         {/* Biological Solutions */}
                                         <div className="space-y-3">
                                             <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-emerald-600 flex items-center gap-2">
-                                                <Leaf size={14} /> Biological Control
+                                                <Leaf size={14} /> {t('biologicalControl')}
                                             </h3>
                                             <div className="grid grid-cols-1 gap-1.5">
                                                 {(result.recommendations?.organic_solutions || ['Regular monitoring']).map((p, i) => (
@@ -332,13 +332,13 @@ const Detection = () => {
                                         {/* Chemical Treatments */}
                                         <div className="space-y-3">
                                             <h3 className="font-black text-[10px] uppercase tracking-[0.2em] text-indigo-600 flex items-center gap-2">
-                                                <div className="p-1 bg-indigo-100 rounded text-indigo-600"><CheckCircle size={10} /></div> Chemical Treatment
+                                                <div className="p-1 bg-indigo-100 rounded text-indigo-600"><CheckCircle size={10} /></div> {t('chemicalTreatment')}
                                             </h3>
                                             <div className="grid grid-cols-1 gap-1.5">
                                                 {(result.recommendations?.pesticides || []).map((p, i) => (
                                                     <div key={i} className="px-3.5 py-2.5 rounded-xl bg-indigo-50/30 border border-indigo-100/50 flex items-center justify-between">
                                                         <p className="text-indigo-900 font-bold text-xs">{t(p) || p}</p>
-                                                        <Link to="/shops" className="text-[9px] font-black uppercase text-indigo-600 hover:underline">Retailer →</Link>
+                                                        <Link to="/shops" className="text-[9px] font-black uppercase text-indigo-600 hover:underline">{t('retailer')} →</Link>
                                                     </div>
                                                 ))}
                                             </div>
@@ -356,9 +356,9 @@ const Detection = () => {
                                         <div className="p-4 rounded-2xl bg-red-100 text-red-600 shadow-lg inline-block font-black">
                                             <ShieldCheck size={32} />
                                         </div>
-                                        <h2 className="text-xl font-black text-red-900 tracking-tight">AI Validation Failed</h2>
+                                        <h2 className="text-xl font-black text-red-900 tracking-tight">{t('aiValidationFailed')}</h2>
                                         <p className="text-red-700/70 font-bold max-w-[200px] mx-auto text-[10px] leading-relaxed">
-                                            The image does not contain identifiable plant tissue. Please photograph a leaf 15cm away.
+                                            {t('notPlantTissue')}
                                         </p>
                                     </motion.div>
                                 )}
@@ -372,26 +372,26 @@ const Detection = () => {
                                                     onClick={handleCommitToCloud}
                                                     className="py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all bg-slate-900 text-white hover:bg-primary shadow-lg shadow-slate-200"
                                                 >
-                                                    Save to History
+                                                    {t('saveToHistory')}
                                                 </button>
                                                 <Link
                                                     to="/community"
                                                     className="py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all border-2 border-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 flex items-center justify-center gap-2"
                                                 >
-                                                    Ask Experts
+                                                    {t('askExperts')}
                                                 </Link>
                                             </div>
                                         ) : (
                                             <div className="space-y-4">
                                                 <div className="w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 bg-green-600 text-white shadow-lg shadow-green-100">
-                                                    <CheckCircle size={20} /> Report Saved
+                                                    <CheckCircle size={20} /> {t('reportSaved')}
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <button
                                                         onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); setSaved(false); }}
                                                         className="py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest border-2 border-slate-100 text-slate-500 hover:bg-slate-50"
                                                     >
-                                                        Scan New
+                                                        {t('detect')}
                                                     </button>
                                                     <Link
                                                         to="/dashboard"
@@ -410,7 +410,7 @@ const Detection = () => {
                                         onClick={() => { setSelectedFile(null); setPreview(null); setResult(null); setSaved(false); }}
                                         className="w-full py-3.5 rounded-2xl font-black text-xs uppercase tracking-widest bg-primary text-white hover:bg-primary/90 flex items-center justify-center gap-2"
                                     >
-                                        <Camera size={18} /> Retry Capture
+                                        <Camera size={18} /> {t('retryCapture')}
                                     </button>
                                 )}
                             </motion.div>
@@ -426,15 +426,15 @@ const Detection = () => {
                                             <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-primary">
                                                 <Sparkles size={16} />
                                             </div>
-                                            AI Diagnostic Workflow
+                                            {t('aiDiagnosticWorkflow')}
                                         </h3>
-                                        <p className="text-slate-500 text-xs font-medium max-w-xs">Professional-grade health report in 3 steps.</p>
+                                        <p className="text-slate-500 text-xs font-medium max-w-xs">{t('healthReportSteps')}</p>
                                     </div>
                                     <div className="grid grid-cols-1 gap-6">
                                         {[
-                                            { title: "Capture Photo", desc: "Take a clear leaf photo.", icon: <Camera size={18} />, color: "bg-blue-50 text-blue-600" },
-                                            { title: "AI Analysis", desc: "Digital symptom verification.", icon: <Sparkles size={18} />, color: "bg-purple-50 text-purple-600" },
-                                            { title: "Get Cure", icon: <CheckCircle size={18} />, desc: "Expert treatment plan.", color: "bg-green-50 text-green-600" }
+                                            { title: t('step1Title'), desc: t('step1Desc'), icon: <Camera size={18} />, color: "bg-blue-50 text-blue-600" },
+                                            { title: t('step2Title'), desc: t('step2Desc'), icon: <Sparkles size={18} />, color: "bg-purple-50 text-purple-600" },
+                                            { title: t('step3Title'), icon: <CheckCircle size={18} />, desc: t('step3Desc'), color: "bg-green-50 text-green-600" }
                                         ].map((item, i) => (
                                             <div key={i} className="flex items-start gap-4 group">
                                                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110 ${item.color}`}>

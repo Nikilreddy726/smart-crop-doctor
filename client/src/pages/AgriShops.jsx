@@ -15,12 +15,12 @@ const AgriShops = () => {
             tags: ["Certified Seeds", "Expert Advice"],
             image: "https://images.unsplash.com/photo-1595152772835-219674b2a8a6?auto=format&fit=crop&q=80&w=400",
             verified: true,
-            status: "Open Now"
+            status: t('openNow')
         }
     ]);
     const [products, setProducts] = useState([
-        { name: "Micro-Nutrient Urea", price: "₹266", unit: "45kg Bag", img: "📦", stock: "In Stock", color: "from-emerald-500 to-green-600" },
-        { name: "Hybrid Paddy V2", price: "₹850", unit: "10kg", img: "🌾", stock: "High Demand", color: "from-amber-500 to-orange-600" }
+        { name: "Micro-Nutrient Urea", price: "₹266", unit: "45kg Bag", img: "📦", stock: t('inStock'), color: "from-emerald-500 to-green-600" },
+        { name: "Hybrid Paddy V2", price: "₹850", unit: "10kg", img: "🌾", stock: t('highDemand'), color: "from-amber-500 to-orange-600" }
     ]);
     const [loading, setLoading] = useState(true);
 
@@ -63,20 +63,20 @@ const AgriShops = () => {
                     <div className="relative z-10 max-w-2xl">
                         <div className="inline-flex items-center gap-3 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full border border-white/20 mb-8">
                             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                            <span className="text-xs font-black uppercase tracking-widest text-emerald-200">Verified Marketplace</span>
+                            <span className="text-xs font-black uppercase tracking-widest text-emerald-200">{t('verifiedMarketplace')}</span>
                         </div>
                         <h1 className="text-3xl sm:text-5xl md:text-7xl font-black mb-4 sm:mb-6 leading-[0.9] tracking-tighter">
-                            Your Local <span className="text-amber-400">Agri-Hub.</span>
+                            {t('yourLocal')} <span className="text-amber-400">{t('agriHub')}.</span>
                         </h1>
                         <p className="text-lg md:text-xl font-medium text-indigo-100 opacity-80 leading-relaxed mb-10">
-                            Connect with verified dealers, check live stock, and source professional-grade inputs for your farm.
+                            {t('sourceInputs')}
                         </p>
                         <div className="flex flex-wrap gap-4">
                             <button className="px-8 py-4 bg-amber-400 text-indigo-950 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white transition-all shadow-xl shadow-amber-900/20 w-full sm:w-auto md:max-w-xs">
-                                Find Nearest Shop
+                                {t('findNearestShop')}
                             </button>
                             <button className="px-8 py-4 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-white/20 transition-all w-full sm:w-auto md:max-w-xs">
-                                Price Trends
+                                {t('priceTrends')}
                             </button>
                         </div>
                     </div>
@@ -86,7 +86,7 @@ const AgriShops = () => {
             {/* Shop Cards Grid */}
             <div className="mb-24">
                 <div className="flex items-center justify-between mb-12">
-                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">Verified Partners Nearby</h2>
+                    <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t('verifiedPartnersNearby')}</h2>
                     <div className="h-px bg-slate-100 grow mx-8 hidden md:block" />
                 </div>
 
@@ -108,7 +108,7 @@ const AgriShops = () => {
                                         <Star size={14} className="text-amber-500 fill-amber-500" />
                                         <span className="text-sm font-black text-slate-900">{shop.rating}</span>
                                     </div>
-                                    <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-xl ${shop.status === 'Open Now' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
+                                    <div className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider shadow-xl ${shop.status === t('openNow') ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
                                         }`}>
                                         {shop.status}
                                     </div>
@@ -123,7 +123,7 @@ const AgriShops = () => {
                                     </div>
                                     <div className="flex items-center gap-2 text-slate-400 font-bold text-xs">
                                         <MapPin size={14} />
-                                        <span>{shop.distance} • Owned by {shop.owner}</span>
+                                        <span>{shop.distance} • {t('ownedBy')} {shop.owner}</span>
                                     </div>
                                 </div>
 
@@ -137,7 +137,7 @@ const AgriShops = () => {
 
                                 <button className="w-full py-4 md:py-5 bg-indigo-50 text-indigo-600 rounded-[2rem] font-black text-[11px] uppercase tracking-widest flex items-center justify-center gap-3 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-indigo-100 group-hover:shadow-indigo-200 shadow-xl">
                                     <Phone size={18} />
-                                    Instant Contact
+                                    {t('instantContact')}
                                 </button>
                             </div>
                         </motion.div>
@@ -149,11 +149,11 @@ const AgriShops = () => {
             <div className="relative">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
                     <div>
-                        <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Live Stock Explorer</h2>
-                        <p className="text-slate-500 font-medium">Real-time inventory from your regional distributors</p>
+                        <h2 className="text-4xl font-black text-slate-900 tracking-tighter">{t('liveStockExplorer')}</h2>
+                        <p className="text-slate-500 font-medium">{t('regionalInventory')}</p>
                     </div>
                     <button className="px-10 py-5 bg-slate-900 text-white rounded-[2rem] font-black uppercase tracking-widest text-xs hover:bg-emerald-600 transition-all shadow-2xl w-full sm:w-auto md:max-w-md">
-                        Full Product Catalogue
+                        {t('fullProductCatalogue')}
                     </button>
                 </div>
 
@@ -184,7 +184,7 @@ const AgriShops = () => {
 
                             <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                                 <div>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Price</p>
+                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('price')}</p>
                                     <p className="text-2xl font-black text-slate-900 tracking-tight">{p.price}</p>
                                 </div>
                                 <div className="w-14 h-14 bg-slate-900 text-white rounded-3xl flex items-center justify-center hover:bg-indigo-600 transition-all cursor-pointer shadow-lg group-hover:rotate-12">

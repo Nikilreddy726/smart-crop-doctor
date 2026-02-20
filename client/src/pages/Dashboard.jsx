@@ -11,7 +11,7 @@ import {
     Legend,
     Filler
 } from 'chart.js';
-import { Calendar, TrendingUp, AlertCircle, CheckCircle2, ArrowUpRight, CloudSun, Loader2 } from 'lucide-react';
+import { Calendar, TrendingUp, TrendingDown, AlertCircle, CheckCircle2, ArrowUpRight, CloudSun, Loader2, MapPin } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
@@ -126,21 +126,7 @@ const Dashboard = () => {
                 processHistory(localData, Array.isArray(cloudData) ? cloudData : []);
             } catch (err) { console.log("History sync failed", err); }
 
-            // 2. Sync Weather Data (Respect Manual pinned location)
-            let isManual = false;
-            try {
-                const cachedL = localStorage.getItem('cached_location');
-                if (cachedL && JSON.parse(cachedL).isManual) isManual = true;
-            } catch (e) { }
-
-            if (isManual) {
-                try {
-                    const w = await getWeather(undefined, undefined, Date.now());
-                    setWeather(w);
-                } catch (e) { }
-                return;
-            }
-
+            // 2. Sync Weather Data - Default to GPS on refresh
             if (navigator.geolocation) {
                 const options = { timeout: 20000, enableHighAccuracy: true, maximumAge: 0 };
 
@@ -182,11 +168,11 @@ const Dashboard = () => {
     // Dynamic chart data based on history
     const chartData = {
         labels: history.length > 0
-            ? history.slice(0, 7).map((_, i) => `Scan ${i + 1}`).reverse()
-            : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            ? history.slice(0, 7).map((_, i) => `${t('detect')} ${i + 1}`).reverse()
+            : [t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat'), t('sun')],
         datasets: [
             {
-                label: 'Confidence Score',
+                label: t('confidenceScore'),
                 data: history.length > 0
                     ? history.slice(0, 7).map(h => Math.round((h.confidence || 0.85) * 100)).reverse()
                     : [0, 0, 0, 0, 0, 0, 0],
@@ -221,7 +207,7 @@ const Dashboard = () => {
             {/* Header */}
             <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 w-full text-center md:text-left">
-                    <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">{greeting}, {user?.displayName || user?.email?.split('@')[0] || 'Farmer'}! 🌾</h1>
+                    <h1 className="text-2xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">{greeting}, {user?.displayName || user?.email?.split('@')[0] || t('farmer')}! 🌾</h1>
                     <p className="text-slate-500 font-medium mt-1 text-xs sm:text-base opacity-80">{t('dashboardSubtitle')}</p>
                 </motion.div>
                 <div className="bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-3 font-bold text-primary text-xs sm:text-sm w-full md:w-auto justify-center md:justify-start">
@@ -237,8 +223,8 @@ const Dashboard = () => {
                 {[
                     {
                         label: t('overallHealth'),
-                        value: stats.totalScans > 0 ? `${stats.healthPercentage}%` : 'No Data',
-                        sub: stats.totalScans > 0 ? `${stats.healthyCount} healthy scans` : 'Start scanning',
+                        value: stats.totalScans > 0 ? `${stats.healthPercentage}%` : t('noData'),
+                        sub: stats.totalScans > 0 ? `${stats.healthyCount} ${t('healthyScans')}` : t('startScanning'),
                         icon: <TrendingUp />,
                         color: 'text-green-600',
                         bg: 'bg-green-50'
@@ -246,7 +232,7 @@ const Dashboard = () => {
                     {
                         label: t('activeAlerts'),
                         value: stats.diseasedCount.toString(),
-                        sub: stats.diseasedCount > 0 ? 'Diseases detected' : 'All clear!',
+                        sub: stats.diseasedCount > 0 ? t('diseasesDetected') : t('allClear'),
                         icon: <AlertCircle />,
                         color: stats.diseasedCount > 0 ? 'text-red-600' : 'text-green-600',
                         bg: stats.diseasedCount > 0 ? 'bg-red-50' : 'bg-green-50'
@@ -254,7 +240,7 @@ const Dashboard = () => {
                     {
                         label: t('tasksCompleted'),
                         value: `${stats.totalScans}`,
-                        sub: 'Total scans',
+                        sub: t('totalScans'),
                         icon: <CheckCircle2 />,
                         color: 'text-blue-600',
                         bg: 'bg-blue-50'
@@ -281,10 +267,10 @@ const Dashboard = () => {
                 <div className="flex justify-between items-center relative z-10">
                     <div>
                         <h3 className="font-black text-2xl text-slate-900">{t('alerts')}</h3>
-                        <p className="text-slate-400 text-sm font-bold mt-1">Disease activity monitoring in your region</p>
+                        <p className="text-slate-400 text-sm font-bold mt-1">{t('diseaseMonitoring')}</p>
                     </div>
                     <span className="bg-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest animate-pulse">
-                        Live Tracking
+                        {t('liveTracking')}
                     </span>
                 </div>
 
@@ -301,7 +287,7 @@ const Dashboard = () => {
                             <h5 className="font-black text-slate-800 text-base mt-1 leading-tight">{alert.disease}</h5>
 
                             <Link to="/detect" className="mt-6 flex items-center justify-between text-[10px] font-black uppercase text-primary tracking-widest group-hover:gap-4 transition-all">
-                                <span>Preventive Measures</span>
+                                <span>{t('preventiveMeasures')}</span>
                                 <ArrowUpRight size={14} />
                             </Link>
                         </div>
@@ -316,7 +302,7 @@ const Dashboard = () => {
                         <h3 className="font-black text-2xl text-slate-900">{t('performanceIndex')}</h3>
                         {stats.totalScans === 0 && (
                             <Link to="/detect" className="text-primary text-sm font-bold hover:underline">
-                                Start Scanning →
+                                {t('startScanning')} →
                             </Link>
                         )}
                     </div>
@@ -326,9 +312,9 @@ const Dashboard = () => {
                         ) : (
                             <div className="h-full flex items-center justify-center bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
                                 <div className="text-center">
-                                    <p className="text-slate-400 font-bold">No scan data yet</p>
+                                    <p className="text-slate-400 font-bold">{t('noScanData')}</p>
                                     <Link to="/detect" className="text-primary font-bold text-sm mt-2 inline-block hover:underline">
-                                        Scan your first crop →
+                                        {t('scanFirstCrop')} →
                                     </Link>
                                 </div>
                             </div>
@@ -344,11 +330,16 @@ const Dashboard = () => {
                             {weather?.main?.temp ? Math.round(weather.main.temp) : '--'}°C
                         </h3>
                         <p className="text-xl font-medium opacity-90">
-                            {weather?.weather?.[0]?.main || 'Loading...'}
+                            {weather?.weather?.[0]?.main || t('loading')}
                         </p>
-                        <p className="text-sm opacity-70">
-                            {weather?.name || 'Your Location'}
-                        </p>
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                            <div className="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/10 flex items-start gap-2 group-hover:bg-white/30 transition-all max-w-full">
+                                <MapPin size={14} className="text-white mt-0.5 shrink-0" />
+                                <span className="text-xs sm:text-sm font-black text-white leading-tight break-words overflow-hidden">
+                                    {weather?.name || t('useMyLocation')}
+                                </span>
+                            </div>
+                        </div>
                     </div>
                     <Link to="/weather" className="relative z-10 w-full bg-white text-primary py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-slate-50 transition-all shadow-xl">
                         {t('detailedForecast')} <ArrowUpRight size={20} />
@@ -356,12 +347,49 @@ const Dashboard = () => {
                 </div>
             </div>
 
+            {/* Live Market Snapshot */}
+            <section className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-8 relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-5">
+                    <TrendingUp size={200} />
+                </div>
+                <div className="flex justify-between items-end relative z-10">
+                    <div>
+                        <h3 className="font-black text-2xl text-slate-900">{t('liveMarket')}</h3>
+                        <p className="text-slate-400 text-sm font-bold mt-1 uppercase tracking-widest">{t('indiaOnly')}</p>
+                    </div>
+                    <Link to="/mandi" className="bg-indigo-50 text-indigo-600 px-6 py-3 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all">
+                        {t('viewAll')}
+                    </Link>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative z-10">
+                    {[
+                        { crop: 'Paddy', price: '₹2,002', trend: '+1.2%', up: true, market: 'Raichur' },
+                        { crop: 'Chilli', price: '₹6,497', trend: '+4.5%', up: true, market: 'Guntur' },
+                        { crop: 'Onion', price: '₹1,450', trend: '-2.1%', up: false, market: 'Lasalgaon' },
+                        { crop: 'Wheat', price: '₹2,350', trend: '+0.8%', up: true, market: 'Khanna' }
+                    ].map((m, i) => (
+                        <div key={i} className="bg-slate-50 rounded-3xl p-6 border border-slate-100 flex items-center justify-between hover:bg-white hover:shadow-xl transition-all">
+                            <div className="space-y-1">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.crop}</span>
+                                <h4 className="font-black text-slate-800 text-lg">{m.price}</h4>
+                                <p className="text-[9px] font-bold text-slate-400">{m.market}</p>
+                            </div>
+                            <div className={`flex flex-col items-end ${m.up ? 'text-emerald-500' : 'text-red-500'}`}>
+                                {m.up ? <ArrowUpRight size={20} /> : <TrendingDown size={20} />}
+                                <span className="text-[10px] font-black">{m.trend}</span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
             {/* Recent History */}
             <section className="bg-white p-10 rounded-[3rem] border border-slate-200 shadow-sm space-y-8">
                 <div className="flex justify-between items-center">
                     <h3 className="font-black text-2xl text-slate-900">{t('detectionHistory')}</h3>
                     <Link to="/history" className="text-primary font-bold text-sm hover:underline">
-                        View All →
+                        {t('viewAll')} →
                     </Link>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -374,24 +402,24 @@ const Dashboard = () => {
                                 <h4 className="font-black text-xl text-slate-900">{t(p.disease) || p.disease}</h4>
                                 <p className="text-sm font-bold text-slate-400 mt-2">
                                     {(() => {
-                                        const t = p.timestamp;
-                                        if (!t) return 'Just now';
-                                        if (t.seconds) return new Date(t.seconds * 1000).toLocaleDateString();
-                                        if (t._seconds) return new Date(t._seconds * 1000).toLocaleDateString();
-                                        const d = new Date(t);
-                                        return !isNaN(d.getTime()) ? d.toLocaleDateString() : 'Just now';
+                                        const tVal = p.timestamp;
+                                        if (!tVal) return t('today');
+                                        if (tVal.seconds) return new Date(tVal.seconds * 1000).toLocaleDateString();
+                                        if (tVal._seconds) return new Date(tVal._seconds * 1000).toLocaleDateString();
+                                        const d = new Date(tVal);
+                                        return !isNaN(d.getTime()) ? d.toLocaleDateString() : t('today');
                                     })()}
                                 </p>
                                 <p className="text-xs font-bold text-primary mt-1">
-                                    {(p.confidence * 100).toFixed(1)}% confidence
+                                    {(p.confidence * 100).toFixed(1)}% {t('confidenceSuffix')}
                                 </p>
                             </div>
                         ))
                     ) : (
                         <div className="col-span-full text-center py-10">
-                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">No detection history yet</p>
+                            <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t('noHistory')}</p>
                             <Link to="/detect" className="text-primary font-bold text-sm mt-2 inline-block hover:underline">
-                                Start your first scan →
+                                {t('startFirstScan')} →
                             </Link>
                         </div>
                     )}

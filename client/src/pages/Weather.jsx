@@ -8,7 +8,7 @@ const Weather = () => {
     const { t } = useLanguage();
     const [weather, setWeather] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [location, setLocation] = useState({ city: 'Loading...', region: '' });
+    const [location, setLocation] = useState({ city: t('loading'), region: '' });
     const [searchCity, setSearchCity] = useState('');
     const [status, setStatus] = useState({ show: false, message: '', type: 'error' });
 
@@ -40,21 +40,15 @@ const Weather = () => {
                 setLocation(loc);
                 setLoading(false);
 
-                if (loc.isManual) isManual = true;
-
-                // If data is fresh, don't trigger background refresh immediately
-                if (!isStale) return;
+                // If cache is extremely fresh (less than 10 mins), don't trigger auto-detect immediately
+                const isVeryFresh = cacheTime && (Date.now() - parseInt(cacheTime)) < 10 * 60 * 1000;
+                if (isVeryFresh) return;
             }
         } catch (e) { console.error("Cache load failed", e); }
 
-        // 2. Background Refresh
-        if (isManual) {
-            const savedLoc = JSON.parse(localStorage.getItem('cached_location'));
-            // If we have manual coords in the saved loc, use them for refresh
-            fetchWeather(savedLoc.lat, savedLoc.lon, savedLoc);
-            return;
-        }
-
+        // 2. Priority Auto-Detect on Refresh/Mount
+        // We no longer return early if isManual. This ensures every page refresh 
+        // attempts to get the 'Current Location' as requested.
         const triggerAutoDetect = () => {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -106,11 +100,11 @@ const Weather = () => {
         } catch (error) {
             console.error("Weather fetch error:", error);
             if (locationOverride) {
-                showStatus("Could not fetch weather data. Please check your internet connection.");
+                showStatus(t('weatherError'));
                 const fallback = { ...locationOverride, isManual: true };
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
-                    weather: [{ main: 'Cloudy', description: 'Offline' }],
+                    weather: [{ main: t('cloudy'), description: t('offline') }],
                     wind: { speed: 12 },
                     name: locationOverride.city
                 });
@@ -120,7 +114,7 @@ const Weather = () => {
                 // Initial Load Fail fallback
                 setWeather({
                     main: { temp: 28, humidity: 64, feels_like: 30 },
-                    weather: [{ main: 'Cloudy', description: 'Network error' }],
+                    weather: [{ main: t('cloudy'), description: t('networkError') }],
                     wind: { speed: 12 },
                     name: 'Guntur'
                 });
@@ -151,7 +145,7 @@ const Weather = () => {
                 const rawDN = (result.display_name || "").toLowerCase();
 
                 if (rawCC !== 'in' && rawC !== 'india' && !rawDN.includes('india')) {
-                    showStatus('Weather service is optimized for India only.', 'error');
+                    showStatus(t('indiaOnly'), 'error');
                     setLoading(false);
                     return;
                 }
@@ -236,12 +230,12 @@ const Weather = () => {
                     : "";
 
                 if (finalCityName.split(",").length < 2 && finalCityName.toLowerCase().includes("hyderabad")) {
-                    showStatus("Showing general city center. For farm-specific weather, please search for your specific Village name.", 'info');
+                    showStatus(t('cityCenterNote'), 'info');
                 }
 
                 await fetchWeather(lat, lon, { city: finalCityName, region: regionLabel, isManual: true });
             } else {
-                showStatus('Location not found. Please check the spelling.');
+                showStatus(t('locationNotFound'));
                 setLoading(false);
             }
         } catch (err) {
@@ -253,7 +247,7 @@ const Weather = () => {
     const getCurrentLocation = () => {
         if (navigator.geolocation) {
             setLoading(true);
-            setLocation(prev => ({ ...prev, city: 'Detecting...', region: '' }));
+            setLocation(prev => ({ ...prev, city: t('detecting'), region: '' }));
 
             const options = { timeout: 20000, enableHighAccuracy: true, maximumAge: 0 };
 
@@ -285,12 +279,15 @@ const Weather = () => {
     return (
         <div className="max-w-6xl mx-auto space-y-12 pb-24">
             <header className="flex flex-col md:flex-row justify-between items-end gap-6">
-                <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-primary font-bold">
-                        <MapPin size={18} /> {location.city}{location.region ? `, ${location.region}` : ''}
+                <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-primary font-bold bg-primary/5 px-4 py-2 rounded-xl border border-primary/10 w-fit">
+                        <MapPin size={16} />
+                        <span className="truncate max-w-[200px] sm:max-w-none">
+                            {location.city}{location.region ? `, ${location.region}` : ''}
+                        </span>
                     </div>
                     <h1 className="text-3xl sm:text-5xl font-black text-slate-900 tracking-tighter">{t('localWeather')}</h1>
-                    <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Farm-specific localized forecasting</p>
+                    <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">{t('farmWeatherSubtitle')}</p>
                 </div>
                 <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3 w-full md:w-auto items-stretch md:items-end relative">
                     {/* Small Status Indicator - Positioned elegantly above the search bar */}
@@ -320,7 +317,7 @@ const Weather = () => {
                     <div className="relative flex-1 md:w-80 group">
                         <input
                             type="text"
-                            placeholder="Search Village, District, State..."
+                            placeholder={t('searchPlaceholder')}
                             value={searchCity}
                             onChange={(e) => setSearchCity(e.target.value)}
                             className="w-full bg-white border border-slate-200 rounded-2xl py-4 pl-12 pr-14 focus:ring-2 focus:ring-primary outline-none font-bold text-slate-900 shadow-sm transition-all"
@@ -341,7 +338,7 @@ const Weather = () => {
                         title="Use my location"
                     >
                         <Navigation size={20} />
-                        <span className="md:hidden">Use My Location</span>
+                        <span className="md:hidden">{t('useMyLocation')}</span>
                     </button>
                 </form>
             </header>
@@ -367,28 +364,28 @@ const Weather = () => {
                                     {t('today')}, {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                     {localStorage.getItem('weather_cache_time') && (
                                         <span className="block text-[10px] uppercase tracking-tighter opacity-50 mt-1 font-black">
-                                            Last Updated: {new Date(parseInt(localStorage.getItem('weather_cache_time'))).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            {t('lastUpdated')}: {new Date(parseInt(localStorage.getItem('weather_cache_time'))).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     )}
                                 </p>
                                 <h2 className="text-7xl sm:text-9xl font-black">{weather?.main?.temp ? Math.round(weather.main.temp) : '--'}°C</h2>
-                                <p className="text-2xl font-medium">{weather?.weather?.[0]?.main || 'Loading...'}</p>
+                                <p className="text-2xl font-medium">{weather?.weather?.[0]?.main || t('loading')}</p>
                             </div>
                             <div className="grid grid-cols-2 gap-8 bg-white/10 backdrop-blur-md p-8 rounded-[3rem] border border-white/10">
                                 <div>
-                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Humidity</p>
+                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">{t('humidityLabel')}</p>
                                     <div className="flex items-center gap-2 text-2xl font-bold"><Droplets /> {weather?.main?.humidity || '--'}%</div>
                                 </div>
                                 <div>
-                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Wind</p>
+                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">{t('windLabel')}</p>
                                     <div className="flex items-center gap-2 text-2xl font-bold"><Wind /> {weather?.wind?.speed || '--'} km/h</div>
                                 </div>
                                 <div>
-                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Feels Like</p>
+                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">{t('feelsLike')}</p>
                                     <div className="flex items-center gap-2 text-2xl font-bold">{weather?.main?.feels_like ? Math.round(weather.main.feels_like) : '--'}°C</div>
                                 </div>
                                 <div>
-                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">Location</p>
+                                    <p className="text-xs font-black uppercase tracking-widest opacity-60 mb-2">{t('locationLabel')}</p>
                                     <div className="flex items-center gap-2 text-lg font-bold leading-tight">
                                         {location.city}{location.region ? `, ${location.region}` : ''}
                                     </div>
@@ -403,14 +400,14 @@ const Weather = () => {
                         animate={{ opacity: 1, x: 0 }}
                         className="card-base p-10 space-y-8"
                     >
-                        <h3 className="text-2xl font-black text-slate-900">5-Day Outlook</h3>
+                        <h3 className="text-2xl font-black text-slate-900">{t('fiveDayOutlook')}</h3>
                         <div className="space-y-6">
                             {[
-                                { day: 'Tomorrow', temp: `${(weather?.main?.temp || 28) + 1}°`, icon: <CloudSun size={20} className="text-yellow-500" />, condition: 'Sunny' },
-                                { day: 'Day 2', temp: `${(weather?.main?.temp || 28) - 1}°`, icon: <Droplets size={20} className="text-blue-500" />, condition: 'Showers' },
-                                { day: 'Day 3', temp: `${(weather?.main?.temp || 28) + 2}°`, icon: <Thermometer size={20} className="text-red-500" />, condition: 'Hot' },
-                                { day: 'Day 4', temp: `${(weather?.main?.temp || 28)}°`, icon: <CloudSun size={20} className="text-slate-400" />, condition: 'Cloudy' },
-                                { day: 'Day 5', temp: `${(weather?.main?.temp || 28)}°`, icon: <CloudSun size={20} className="text-slate-400" />, condition: 'Cloudy' },
+                                { day: t('tomorrow'), temp: `${(weather?.main?.temp || 28) + 1}°`, icon: <CloudSun size={20} className="text-yellow-500" />, condition: t('sunny') },
+                                { day: t('day2'), temp: `${(weather?.main?.temp || 28) - 1}°`, icon: <Droplets size={20} className="text-blue-500" />, condition: t('showers') },
+                                { day: t('day3'), temp: `${(weather?.main?.temp || 28) + 2}°`, icon: <Thermometer size={20} className="text-red-500" />, condition: t('hot') },
+                                { day: t('day4'), temp: `${(weather?.main?.temp || 28)}°`, icon: <CloudSun size={20} className="text-slate-400" />, condition: t('cloudy') },
+                                { day: t('day5'), temp: `${(weather?.main?.temp || 28)}°`, icon: <CloudSun size={20} className="text-slate-400" />, condition: t('cloudy') },
                             ].map((d, i) => (
                                 <div key={i} className="flex justify-between items-center group cursor-default">
                                     <span className="font-bold text-slate-500 w-24 group-hover:text-primary transition-colors">{d.day}</span>
@@ -441,20 +438,20 @@ const Weather = () => {
                                 <Wind size={24} />
                             </div>
                             <div>
-                                <h4 className="text-2xl font-black text-slate-900">Spraying Advisor</h4>
-                                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Pesticide & Fertilizer Timing</p>
+                                <h4 className="text-2xl font-black text-slate-900">{t('sprayingAdvisor')}</h4>
+                                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">{t('sprayingSubtitle')}</p>
                             </div>
                         </div>
 
                         {/* Spray Rating */}
                         <div className="flex items-center justify-between p-6 bg-slate-50 rounded-3xl border border-slate-100">
                             <div className="space-y-1">
-                                <span className="text-[10px] font-black uppercase text-slate-400">Current Rating</span>
+                                <span className="text-[10px] font-black uppercase text-slate-400">{t('currentRating')}</span>
                                 <h5 className={`text-2xl font-black ${(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'text-red-600' :
                                     (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'text-orange-500' : 'text-emerald-600'
                                     }`}>
-                                    {(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'FORBIDDEN' :
-                                        (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? 'RISKY' : 'OPTIMAL'}
+                                    {(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? t('forbidden') :
+                                        (weather?.wind?.speed > 10 || weather?.main?.temp > 35) ? t('risky') : t('optimal')}
                                 </h5>
                             </div>
                             <div className={`w-12 h-12 rounded-full flex items-center justify-center text-white ${(weather?.wind?.speed > 15 || weather?.weather?.[0]?.main === 'Rain') ? 'bg-red-600' :
@@ -467,11 +464,11 @@ const Weather = () => {
                         <ul className="space-y-3">
                             <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
                                 <div className={`w-2 h-2 rounded-full ${weather?.wind?.speed < 10 ? 'bg-green-500' : 'bg-red-500'}`} />
-                                Wind Speed: {weather?.wind?.speed || 0} km/h {weather?.wind?.speed < 10 ? '(Safe)' : '(Drift Risk)'}
+                                {t('windSpeedLabel')}: {weather?.wind?.speed || 0} km/h {weather?.wind?.speed < 10 ? `(${t('safe')})` : `(${t('driftRisk')})`}
                             </li>
                             <li className="flex items-center gap-3 text-sm font-bold text-slate-600">
                                 <div className={`w-2 h-2 rounded-full ${weather?.main?.temp < 35 ? 'bg-green-500' : 'bg-red-500'}`} />
-                                Temperature: {Math.round(weather?.main?.temp) || 0}°C {weather?.main?.temp < 35 ? '(Safe)' : '(Evaporation Risk)'}
+                                {t('tempLabel')}: {Math.round(weather?.main?.temp) || 0}°C {weather?.main?.temp < 35 ? `(${t('safe')})` : `(${t('evaporationRisk')})`}
                             </li>
                         </ul>
                     </div>
@@ -486,16 +483,16 @@ const Weather = () => {
                     </div>
                     <div className="relative z-10 space-y-8">
                         <div>
-                            <h4 className="text-2xl font-black">7-Day Spray Timeline</h4>
-                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Forecasted Optimal Windows</p>
+                            <h4 className="text-2xl font-black">{t('sevenDayTimeline')}</h4>
+                            <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{t('optimalWindows')}</p>
                         </div>
 
                         <div className="space-y-4">
                             {[
-                                { day: 'Mon', rating: 'Optimal', color: 'bg-emerald-500' },
-                                { day: 'Tue', rating: 'Risky (Rain)', color: 'bg-red-500' },
-                                { day: 'Wed', rating: 'Optimal', color: 'bg-emerald-500' },
-                                { day: 'Thu', rating: 'Good', color: 'bg-emerald-500' },
+                                { day: t('mon'), rating: t('optimal'), color: 'bg-emerald-500' },
+                                { day: t('tue'), rating: t('riskyRain'), color: 'bg-red-500' },
+                                { day: t('wed'), rating: t('optimal'), color: 'bg-emerald-500' },
+                                { day: t('thu'), rating: t('good'), color: 'bg-emerald-500' },
                             ].map((s, i) => (
                                 <div key={i} className="flex items-center justify-between bg-white/5 border border-white/10 p-4 rounded-2xl">
                                     <span className="font-black text-sm">{s.day}</span>
@@ -524,7 +521,7 @@ const Weather = () => {
                     </h4>
                     <p className="text-lg text-slate-700 font-medium leading-relaxed">
                         {(() => {
-                            if (!weather) return 'Loading advice...';
+                            if (!weather) return t('loadingAdvice');
                             const temp = weather.main?.temp || 0;
                             const humidity = weather.main?.humidity || 0;
                             const wind = weather.wind?.speed || 0;

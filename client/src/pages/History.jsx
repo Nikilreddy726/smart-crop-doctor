@@ -165,11 +165,11 @@ const History = () => {
             <header className="flex flex-col md:flex-row justify-between items-end gap-6">
                 <div className="space-y-2">
                     <h1 className="text-5xl font-black text-slate-900 tracking-tighter">{t('detectionHistory')}</h1>
-                    <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">Manage your previous crop scans and reports</p>
+                    <p className="text-slate-500 font-medium tracking-wide uppercase text-xs">{t('historySubtitle')}</p>
                 </div>
                 <div className="flex gap-4 w-full md:w-auto">
                     <button className="flex-1 md:flex-none btn-outline flex items-center justify-center gap-2" onClick={() => window.print()}>
-                        <Download size={18} /> Export PDF
+                        <Download size={18} /> {t('exportPDF')}
                     </button>
                 </div>
             </header>
@@ -188,7 +188,7 @@ const History = () => {
                     </div>
                     <div className="flex gap-4 items-center flex-wrap justify-center">
                         <span className="text-sm font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            <Filter size={16} /> Filter:
+                            <Filter size={16} /> {t('filterLabel')}:
                         </span>
                         <div className="flex gap-2">
                             {['All', 'Healthy', 'Issues Detected', 'High Severity'].map(f => (
@@ -210,11 +210,11 @@ const History = () => {
                     <table className="w-full">
                         <thead className="bg-slate-50 border-b border-slate-100">
                             <tr>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Crop / Disease</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Date & Time</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Severity</th>
-                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                                <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
+                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('cropDisease')}</th>
+                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dateTime')}</th>
+                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('riskLabel')}</th>
+                                <th className="px-8 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('statusLabel')}</th>
+                                <th className="px-8 py-5 text-right text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('actionLabel')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-50">
@@ -223,7 +223,7 @@ const History = () => {
                                     <td colSpan="5" className="px-8 py-20 text-center">
                                         <div className="flex flex-col items-center gap-4">
                                             <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                                            <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Fetching Records...</p>
+                                            <p className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('fetchingRecords')}</p>
                                         </div>
                                     </td>
                                 </tr>
@@ -281,7 +281,7 @@ const History = () => {
                                                         <button
                                                             onClick={(e) => handleViewImage(e, item.imageUrl)}
                                                             className="inline-block text-slate-400 hover:text-primary transition-all p-2 rounded-lg bg-white border border-slate-100 hover:border-primary/20"
-                                                            title="View Image"
+                                                            title={t('viewImage')}
                                                         >
                                                             <ExternalLink size={18} />
                                                         </button>
@@ -309,7 +309,7 @@ const History = () => {
                             ) : (
                                 <tr>
                                     <td colSpan="5" className="px-8 py-20 text-center">
-                                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">No records found matching your filters</p>
+                                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('noRecordsFound')}</p>
                                     </td>
                                 </tr>
                             )}
@@ -320,7 +320,7 @@ const History = () => {
 
             <div className="text-center">
                 <button className="text-primary font-black uppercase tracking-widest text-xs hover:underline flex items-center justify-center gap-2 mx-auto">
-                    Load More History <ArrowRight size={14} />
+                    {t('loadMore')} <ArrowRight size={14} />
                 </button>
             </div>
 

@@ -12,8 +12,13 @@ const FinancialTracker = () => {
     const [analysis, setAnalysis] = useState(null);
 
     const calculateProfit = () => {
-        const totalCost = parseFloat(investment) + parseFloat(expenses);
-        const totalRevenue = parseFloat(yieldAmount) * parseFloat(marketPrice);
+        const inv = parseFloat(investment) || 0;
+        const exp = parseFloat(expenses) || 0;
+        const yieldAmt = parseFloat(yieldAmount) || 0;
+        const price = parseFloat(marketPrice) || 0;
+
+        const totalCost = inv + exp;
+        const totalRevenue = yieldAmt * price;
         const netProfit = totalRevenue - totalCost;
         const roi = totalCost > 0 ? (netProfit / totalCost) * 100 : 0;
 
@@ -39,7 +44,7 @@ const FinancialTracker = () => {
                     </div>
                     <div>
                         <h1 className="text-4xl font-black text-slate-900 tracking-tight">{t('financialTracker')}</h1>
-                        <p className="text-slate-500 font-medium">{t('financialSubtitle') || 'Track every rupee invested and earned from your harvest.'}</p>
+                        <p className="text-slate-500 font-medium">{t('financialSubtitle')}</p>
                     </div>
                 </motion.div>
             </div>
@@ -54,7 +59,7 @@ const FinancialTracker = () => {
                     <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-slate-100 border border-slate-50">
                         <h3 className="text-sm font-black uppercase tracking-[0.2em] text-slate-400 mb-8 flex items-center gap-2">
                             <Wallet size={18} className="text-indigo-600" />
-                            Expense Details
+                            {t('expenseDetails')}
                         </h3>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -64,7 +69,7 @@ const FinancialTracker = () => {
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                                     <input
                                         type="number"
-                                        placeholder="Seeds, Tilling, Plowing"
+                                        placeholder={t('seedsPlaceholder')}
                                         className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-10 pr-4 font-bold text-slate-900 focus:border-indigo-500 transition-all outline-none"
                                         onChange={(e) => setInvestment(e.target.value)}
                                     />
@@ -76,22 +81,22 @@ const FinancialTracker = () => {
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                                     <input
                                         type="number"
-                                        placeholder="Labor, Water, Power"
+                                        placeholder={t('laborPlaceholder')}
                                         className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-10 pr-4 font-bold text-slate-900 focus:border-indigo-500 transition-all outline-none"
                                         onChange={(e) => setExpenses(e.target.value)}
                                     />
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Total Yield (Quintals)</label>
+                                <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">{t('totalYield')}</label>
                                 <div className="relative">
                                     <input
                                         type="number"
-                                        placeholder="e.g. 50"
+                                        placeholder={t('yieldPlaceholder')}
                                         className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 px-4 font-bold text-slate-900 focus:border-indigo-500 transition-all outline-none"
                                         onChange={(e) => setYieldAmount(e.target.value)}
                                     />
-                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-black uppercase">Qtls</span>
+                                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-black uppercase">{t('qtlsUnit')}</span>
                                 </div>
                             </div>
                             <div className="space-y-2">
@@ -100,7 +105,7 @@ const FinancialTracker = () => {
                                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">₹</span>
                                     <input
                                         type="number"
-                                        placeholder="Price per Quintal"
+                                        placeholder={t('pricePlaceholder')}
                                         className="w-full bg-slate-50 border-2 border-slate-50 rounded-2xl py-4 pl-10 pr-4 font-bold text-slate-900 focus:border-indigo-500 transition-all outline-none"
                                         onChange={(e) => setMarketPrice(e.target.value)}
                                     />
@@ -113,7 +118,7 @@ const FinancialTracker = () => {
                             className="w-full mt-10 bg-indigo-600 text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-slate-900 transition-all flex items-center justify-center gap-3 shadow-xl shadow-indigo-100"
                         >
                             <BarChart3 size={20} />
-                            Generate Report
+                            {t('generateReport')}
                         </button>
                     </div>
                 </motion.div>
@@ -147,7 +152,7 @@ const FinancialTracker = () => {
                                         <span className="text-xl font-black">{analysis.roi}%</span>
                                     </div>
                                     <div className="bg-white/10 p-4 rounded-2xl">
-                                        <span className="text-[9px] font-black uppercase tracking-widest opacity-70 block mb-1">Status</span>
+                                        <span className="text-[9px] font-black uppercase tracking-widest opacity-70 block mb-1">{t('statusLabel')}</span>
                                         <span className="text-xl font-black uppercase tracking-tighter">{analysis.isProfit ? t('profit') : t('loss')}</span>
                                     </div>
                                 </div>
@@ -155,14 +160,14 @@ const FinancialTracker = () => {
 
                             {/* Breakdown Card */}
                             <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-lg">
-                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">Analysis Breakdown</h4>
+                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4 px-2">{t('analysisBreakdown')}</h4>
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-center p-3 rounded-xl bg-slate-50">
-                                        <span className="text-xs font-bold text-slate-600">Total Revenue</span>
+                                        <span className="text-xs font-bold text-slate-600">{t('totalRevenue')}</span>
                                         <span className="font-black text-indigo-600">₹{analysis.revenue.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between items-center p-3 rounded-xl bg-slate-50">
-                                        <span className="text-xs font-bold text-slate-600">Total Investment</span>
+                                        <span className="text-xs font-bold text-slate-600">{t('totalInvestmentLabel')}</span>
                                         <span className="font-black text-red-500">₹{analysis.cost.toLocaleString()}</span>
                                     </div>
                                 </div>
@@ -171,8 +176,8 @@ const FinancialTracker = () => {
                     ) : (
                         <div className="h-[400px] bg-slate-50 rounded-[2rem] border-4 border-dashed border-slate-200 flex flex-col items-center justify-center p-12 text-center text-slate-400">
                             <PieChart size={48} className="mb-4 opacity-50" />
-                            <h4 className="font-black uppercase tracking-widest text-sm mb-2">Financial Hub</h4>
-                            <p className="text-[11px] font-bold leading-relaxed px-4">Enter your seasonal investment data to see an AI-driven profitability analysis.</p>
+                            <h4 className="font-black uppercase tracking-widest text-sm mb-2">{t('financialHub')}</h4>
+                            <p className="text-[11px] font-bold leading-relaxed px-4">{t('financialPrompt')}</p>
                         </div>
                     )}
                 </div>

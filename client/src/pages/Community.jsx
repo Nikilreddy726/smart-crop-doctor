@@ -38,14 +38,14 @@ const Community = () => {
     const handleDelete = async (e, id) => {
         e.stopPropagation(); // Prevent clicking the card background if it has handlers
         console.log("Attempting to delete post:", id);
-        if (window.confirm(translations?.confirmDelete || 'Are you sure you want to delete this post?')) {
+        if (window.confirm(translations?.confirmDelete || t('confirmDelete'))) {
             try {
                 await deletePost(id);
                 console.log("Delete success");
                 setPosts(posts.filter(post => post.id !== id));
             } catch (err) {
                 console.error("Delete failed", err);
-                alert("Failed to delete post. Check console for details.");
+                alert(t('weatherError'));
             }
         }
     };
@@ -76,7 +76,7 @@ const Community = () => {
             setCommentText('');
         } catch (err) {
             console.error("Comment failed:", err);
-            alert("Failed to submit comment");
+            alert(t('commentFailed'));
         }
     };
 
@@ -89,7 +89,7 @@ const Community = () => {
             // Pass string content to avoid React object-child crash
             const newPost = await createPost(
                 newPostContent,
-                user?.displayName || 'Farmer',
+                user?.displayName || t('farmer'),
                 user?.photoURL || null
             );
 
@@ -107,7 +107,7 @@ const Community = () => {
         } catch (err) {
             console.error("Failed to create post:", err);
             // Fallback for simple backend
-            alert("Posted!");
+            alert(t('postedSuccess'));
             setIsModalOpen(false);
             fetchPosts();
         } finally {
@@ -116,7 +116,7 @@ const Community = () => {
     };
 
     const getInitials = (name) => {
-        return name ? name.charAt(0).toUpperCase() : 'F';
+        return name ? name.charAt(0).toUpperCase() : t('initialsF');
     };
 
     const getRandomColor = (name) => {

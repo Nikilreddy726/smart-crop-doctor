@@ -3,6 +3,7 @@ const cors = require('cors');
 const multer = require('multer');
 const admin = require('firebase-admin');
 const axios = require('axios');
+const FormData = require('form-data');
 require('dotenv').config();
 
 const app = express();
@@ -139,10 +140,159 @@ app.get('/api/weather', async (req, res) => {
     res.json({ name: identifiedHierarchy || finalLocation, main: { temp: 28 }, weather: [{ main: "Clear" }], coord: { lat, lon } });
 });
 
+// In-memory fallback
+const localPredictions = [];
+const localCommunity = [];
+
 app.get('/api/predictions', async (req, res) => {
-    if (!db) return res.json([]);
-    const snap = await db.collection('predictions').orderBy('timestamp', 'desc').get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    if (!db) return res.json(localPredictions);
+    try {
+        const snap = await db.collection('predictions').orderBy('timestamp', 'desc').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) { res.json([]); }
 });
 
-app.listen(port, () => console.log(`Server v1.3.9 running on ${port}`));
+// Community Forum Routes
+app.get('/api/community', async (req, res) => {
+    if (!db) return res.json(localCommunity);
+    try {
+        const snap = await db.collection('community').orderBy('timestamp', 'desc').get();
+        res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    } catch (e) { res.json([]); }
+});
+
+app.post('/api/community', async (req, res) => {
+    const { content, author, avatar } = req.body;
+    const post = {
+        content,
+        author,
+        avatar,
+        timestamp: db ? admin.firestore.FieldValue.serverTimestamp() : new Date().toISOString(),
+        likes: 0,
+        replies: 0,
+        comments: []
+    };
+
+    if (!db) {
+        const id = 'local_' + Date.now();
+        localCommunity.unshift({ id, ...post });
+        return res.json({ id, ...post });
+    }
+
+    const doc = await db.collection('community').add(post);
+    res.json({ id: doc.id, ...post });
+});
+
+app.post('/api/community/:id/like', async (req, res) => {
+    if (!db) {
+        const post = localCommunity.find(p => p.id === req.params.id);
+        if (post) post.likes = (post.likes || 0) + 1;
+        return res.json({ success: true });
+    }
+    await db.collection('community').doc(req.params.id).update({
+        likes: admin.firestore.FieldValue.increment(1)
+    });
+    res.json({ success: true });
+});
+
+app.post('/api/community/:id/comment', async (req, res) => {
+    const { text, author } = req.body;
+    const comment = { text, author, timestamp: new Date().toISOString() };
+
+    if (!db) {
+        const post = localCommunity.find(p => p.id === req.params.id);
+        if (post) {
+            post.comments = post.comments || [];
+            post.comments.push(comment);
+            post.replies = (post.replies || 0) + 1;
+        }
+        return res.json({ success: true, comment });
+    }
+
+    await db.collection('community').doc(req.params.id).update({
+        comments: admin.firestore.FieldValue.arrayUnion(comment),
+        replies: admin.firestore.FieldValue.increment(1)
+    });
+    res.json({ success: true, comment });
+});
+
+app.delete('/api/community/:id', async (req, res) => {
+    if (!db) {
+        const idx = localCommunity.findIndex(p => p.id === req.params.id);
+        if (idx !== -1) localCommunity.splice(idx, 1);
+        return res.json({ success: true });
+    }
+    await db.collection('community').doc(req.params.id).delete();
+    res.json({ success: true });
+});
+
+// AI Detection Proxy
+const upload = multer({ storage: multer.memoryStorage() });
+app.post('/api/detect', upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) return res.status(400).json({ error: "No image uploaded" });
+
+        const formData = new FormData();
+        formData.append('file', req.file.buffer, { filename: req.file.originalname });
+
+        const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
+            headers: formData.getHeaders(),
+            timeout: 30000
+        });
+
+        const result = aiRes.data;
+        if (result.disease !== 'Unknown') {
+            if (db) {
+                await db.collection('predictions').add({
+                    ...result,
+                    timestamp: admin.firestore.FieldValue.serverTimestamp()
+                });
+            } else {
+                localPredictions.unshift({
+                    id: 'local_' + Date.now(),
+                    ...result,
+                    timestamp: new Date().toISOString()
+                });
+            }
+        }
+        res.json(result);
+    } catch (e) {
+        console.error("Detection error:", e.message);
+        res.status(500).json({ error: "AI service offline" });
+    }
+});
+
+// Mandi Prices & Local Data
+app.get('/api/mandi', (req, res) => {
+    res.json([
+        { commodity: 'Paddy', market: 'Raichur', state: 'Karnataka', modal_price: 2002, min_price: 1900, max_price: 2100 },
+        { commodity: 'Chilli', market: 'Guntur', state: 'Andhra Pradesh', modal_price: 6497, min_price: 6000, max_price: 7000 },
+        { commodity: 'Onion', market: 'Lasalgaon', state: 'Maharashtra', modal_price: 1450, min_price: 1200, max_price: 1600 },
+        { commodity: 'Wheat', market: 'Khanna', state: 'Punjab', modal_price: 2350, min_price: 2200, max_price: 2500 }
+    ]);
+});
+
+app.get('/api/outbreaks', (req, res) => {
+    res.json([
+        { crop: 'Tomato', disease: 'Early Blight', status: 'HIGH RISK', color: 'bg-red-500' },
+        { crop: 'Wheat', disease: 'Yellow Rust', status: 'MONITOR', color: 'bg-yellow-500' },
+        { crop: 'Maize', disease: 'Fall Armyworm', status: 'EMERGING', color: 'bg-orange-500' }
+    ]);
+});
+
+app.get('/api/shops', (req, res) => {
+    res.json([
+        { name: 'Kisan Seva Kendra', location: 'Near Market Yard', phone: '9848012345', distance: '1.2 km' },
+        { name: 'Modern Agri Solutions', location: 'Main Road', phone: '9848054321', distance: '2.5 km' }
+    ]);
+});
+
+app.get('/api/products', (req, res) => {
+    res.json([
+        { name: 'Organic Fertilizer', price: 450, stock: 'In Stock' },
+        { name: 'Neem Oil (1L)', price: 320, stock: 'In Stock' },
+        { name: 'NPK 19:19:19', price: 1200, stock: 'Limited' }
+    ]);
+});
+
+app.listen(port, () => console.log(`Server v1.4.0 running on ${port}`));

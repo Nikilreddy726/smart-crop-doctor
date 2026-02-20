@@ -29,24 +29,24 @@ const Login = () => {
     const getFriendlyErrorMessage = (error) => {
         const msg = error.message || error.toString();
         if (msg.includes('auth/invalid-credential') || error.code === 'auth/invalid-credential') {
-            return "Incorrect email or password. Please check your details or create a new account.";
+            return t('invalidCredential');
         }
         if (msg.includes('auth/user-not-found') || error.code === 'auth/user-not-found') {
-            return "No account found with this email. Please register first.";
+            return t('userNotFound');
         }
         if (msg.includes('auth/wrong-password') || error.code === 'auth/wrong-password') {
-            return "Incorrect password. Please try again.";
+            return t('wrongPassword');
         }
         if (msg.includes('auth/email-already-in-use') || error.code === 'auth/email-already-in-use') {
-            return "This email is already registered. Please login instead.";
+            return t('emailInUse');
         }
         if (msg.includes('auth/weak-password') || error.code === 'auth/weak-password') {
-            return "Password should be at least 6 characters.";
+            return t('weakPassword');
         }
         if (msg.includes('auth/invalid-email') || error.code === 'auth/invalid-email') {
-            return "Please enter a valid email or 10-digit mobile number.";
+            return t('invalidEmail');
         }
-        return "An error occurred. Please try again.";
+        return t('genericError');
     };
 
     const handleAuth = async (e) => {
@@ -62,22 +62,23 @@ const Login = () => {
 
             if (containsOnlyDigits) {
                 if (!phoneRegex.test(authIdentifier)) {
-                    throw new Error("Mobile number must be exactly 10 digits.");
+                    throw new Error(t('mobileMustBe10'));
                 }
                 // It's a valid phone number -> Convert to shadow email
                 authIdentifier = `${authIdentifier}@farmer.com`;
             } else if (!emailRegex.test(authIdentifier)) {
-                throw new Error("Please enter a valid Email Address or a 10-digit Mobile Number.");
+                throw new Error(t('validEmailOrPhone'));
             }
 
             if (isLogin) {
                 await loginUser(authIdentifier, password);
             } else {
                 if (password !== confirmPassword) {
-                    throw new Error("Passwords do not match.");
+                    throw new Error(t('passwordsDoNotMatch'));
                 }
                 await registerUser(authIdentifier, password, name);
             }
+            localStorage.removeItem('local_crop_scans'); // Ensure fresh start
             navigate('/dashboard');
         } catch (err) {
             console.error(err);
@@ -90,6 +91,7 @@ const Login = () => {
     const handleGoogleSignIn = async () => {
         try {
             await signInWithGoogle();
+            localStorage.removeItem('local_crop_scans');
             navigate('/dashboard');
         } catch (err) {
             console.error(err);
@@ -136,13 +138,13 @@ const Login = () => {
                         <form onSubmit={handleAuth} className="space-y-4">
                             {!isLogin && (
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Full Name</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{t('fullName')}</label>
                                     <div className="relative">
                                         <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                         <input
                                             type="text"
                                             required
-                                            placeholder="Your Name"
+                                            placeholder={t('yourName')}
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
                                             className="w-full bg-slate-50 border border-slate-100 focus:border-primary/20 focus:bg-white rounded-xl py-3 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-xs"
@@ -152,13 +154,13 @@ const Login = () => {
                             )}
 
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{isLogin ? "Email / Phone" : "Email / Phone Number"}</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{t('emailPhone')}</label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
                                         type="text"
                                         required
-                                        placeholder="Email or Phone (e.g. 9876543210)"
+                                        placeholder={t('emailPhonePlaceholder')}
                                         value={email}
                                         onChange={(e) => {
                                             const val = e.target.value;
@@ -187,7 +189,7 @@ const Login = () => {
 
                             {!isLogin && (
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">Confirm Password</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{t('confirmPasswordLabel')}</label>
                                     <div className="relative">
                                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                         <input

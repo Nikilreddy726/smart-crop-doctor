@@ -42,7 +42,7 @@ const FertilizerCalculator = () => {
                     </div>
                     <div>
                         <h1 className="text-4xl font-black text-slate-900 tracking-tight">{t('fertilizerCalc')}</h1>
-                        <p className="text-slate-500 font-medium">{t('fertilizerSubtitle') || 'Scientific nutrient planning for maximum yield.'}</p>
+                        <p className="text-slate-500 font-medium">{t('fertilizerSubtitle')}</p>
                     </div>
                 </motion.div>
             </div>
@@ -65,8 +65,8 @@ const FertilizerCalculator = () => {
                                         key={crop}
                                         onClick={() => setSelectedCrop(crop)}
                                         className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border-2 ${selectedCrop === crop
-                                                ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-100'
-                                                : 'bg-slate-50 border-slate-50 text-slate-500 hover:border-green-200'
+                                            ? 'bg-green-500 border-green-500 text-white shadow-lg shadow-green-100'
+                                            : 'bg-slate-50 border-slate-50 text-slate-500 hover:border-green-200'
                                             }`}
                                     >
                                         {t(crop) || crop}
@@ -146,7 +146,7 @@ const FertilizerCalculator = () => {
                                 <div className="mt-8 p-4 bg-white/10 rounded-2xl flex items-start gap-3">
                                     <Info className="flex-shrink-0" size={18} />
                                     <p className="text-[11px] font-medium leading-relaxed opacity-90">
-                                        Note: This is a general recommendation based on average soil health. For precise results, please conduct a soil test at your nearest government laboratory.
+                                        {t('fertilizerNote')}
                                     </p>
                                 </div>
                             </div>
@@ -156,8 +156,8 @@ const FertilizerCalculator = () => {
                             <div className="w-20 h-20 bg-slate-200 rounded-full flex items-center justify-center mb-6">
                                 <Calculator size={40} />
                             </div>
-                            <h3 className="text-lg font-black uppercase tracking-widest mb-2">Ready to Calculate</h3>
-                            <p className="text-xs font-bold leading-relaxed">Select your crop and plot size on the left to see the recommended scientific fertilizer ratio.</p>
+                            <h3 className="text-lg font-black uppercase tracking-widest mb-2">{t('readyToCalculate')}</h3>
+                            <p className="text-xs font-bold leading-relaxed">{t('selectCropPrompt')}</p>
                         </div>
                     )}
                 </div>

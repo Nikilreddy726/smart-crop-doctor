@@ -258,10 +258,10 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         // Wake up ping (don't await failure)
         axios.get(`${AI_SERVICE_URL}`).catch(() => { });
 
-        // Wait for real AI to respond (up to 120s for Render cold start)
+        // Wait for real AI to respond (up to 175s for Render cold start)
         const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
             headers: formData.getHeaders(),
-            timeout: 120000
+            timeout: 175000
         });
 
         const result = aiRes.data;

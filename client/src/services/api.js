@@ -23,7 +23,7 @@ export const detectDisease = async (imageFile, location = null) => {
         try {
             const response = await api.post('/detect', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
-                timeout: 120000 // 120s for job submission allow backend to wake AI up
+                timeout: 180000 // 180s for job submission allow backend to wake AI up
             });
             return response.data;
         } catch (error) {

@@ -22,7 +22,7 @@ const MandiPrices = () => {
         if (!isBackground) setLoading(true);
         try {
             const response = await getMandiPrices();
-            const data = response.data || [];
+            const data = Array.isArray(response) ? response : (response.data || []);
             const time = new Date().toLocaleString('en-IN', {
                 day: 'numeric', month: 'short', year: 'numeric',
                 hour: '2-digit', minute: '2-digit'
@@ -62,8 +62,8 @@ const MandiPrices = () => {
     const states = ['All', ...new Set(prices.map(item => item.state))];
 
     const filteredPrices = prices.filter(item => {
-        const matchesSearch = item.commodity.toLowerCase().includes(search.toLowerCase()) ||
-            item.market.toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = (item.commodity || '').toLowerCase().includes(search.toLowerCase()) ||
+            (item.market || '').toLowerCase().includes(search.toLowerCase());
         const matchesState = selectedState === 'All' || item.state === selectedState;
         return matchesSearch && matchesState;
     });
@@ -138,7 +138,6 @@ const MandiPrices = () => {
 
                 {/* Main Content */}
                 <div className="lg:col-span-3 space-y-6">
-                    {/* Search Bar */}
                     {/* Search Bar & Refresh */}
                     <div className="flex gap-3">
                         <div className="flex-1 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
@@ -152,7 +151,7 @@ const MandiPrices = () => {
                             />
                         </div>
                         <button
-                            onClick={fetchPrices}
+                            onClick={() => fetchPrices(false)}
                             disabled={loading}
                             className="bg-green-600 hover:bg-green-700 text-white p-4 rounded-[2rem] shadow-lg shadow-green-200 transition-all active:scale-95 disabled:opacity-70 disabled:active:scale-100 flex items-center justify-center min-w-[3.5rem] group"
                             aria-label={t('refreshPrices')}

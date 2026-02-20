@@ -273,7 +273,8 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         return res.json(result);
     } catch (e) {
         console.error("Detection error:", e.message);
-        return res.status(500).json({ error: "AI service offline or warming up. Please try again in 1 minute." });
+        const engineError = e.response?.data?.detail || e.message;
+        return res.status(500).json({ error: `AI Engine Error: ${engineError}` });
     }
 });
 

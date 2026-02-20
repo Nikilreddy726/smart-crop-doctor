@@ -67,30 +67,36 @@ const Detection = () => {
         if (files && files.length > 0) processFile(files[0]);
     };
 
-    const handleUpload = async () => {
+    const handleUpload = async (attempt = 0) => {
         if (!selectedFile) return;
-        setLoading(true);
-        setResult(null);
-        setSaved(false);
-        setWarmingUp(false);
-        setWarmingProgress(0);
-        setRetryCount(1); // Reusing this for UI display
 
-        // If Render server is cold, it takes ~60-90s to wake up.
-        // We'll show the warming UI after 6 seconds of waiting.
-        const timerId = setTimeout(() => {
-            setWarmingUp(true);
-            setWarmingMsg(WARMING_MESSAGES[0]);
-        }, 6000);
+        if (attempt === 0) {
+            setLoading(true);
+            setResult(null);
+            setSaved(false);
+            setWarmingUp(false);
+            setWarmingProgress(0);
+            setRetryCount(1);
+        }
 
-        // Fun rotating messages while waiting
-        const msgTimerId = setInterval(() => {
-            setWarmingMsg(prev => {
-                const idx = WARMING_MESSAGES.indexOf(prev);
-                return WARMING_MESSAGES[(idx + 1) % WARMING_MESSAGES.length];
-            });
-            setWarmingProgress(prev => (prev < 90 ? prev + 3 : prev));
-        }, 3000);
+        // If Render server is cold, it takes ~60-120s to wake up across 2 services.
+        // Show the warming UI after 6 seconds of waiting
+        let timerId, msgTimerId;
+        if (attempt === 0) {
+            timerId = setTimeout(() => {
+                setWarmingUp(true);
+                setWarmingMsg(WARMING_MESSAGES[0]);
+            }, 6000);
+
+            // Rotating messages
+            msgTimerId = setInterval(() => {
+                setWarmingMsg(prev => {
+                    const idx = WARMING_MESSAGES.indexOf(prev);
+                    return WARMING_MESSAGES[(idx + 1) % WARMING_MESSAGES.length];
+                });
+                setWarmingProgress(prev => (prev < 90 ? prev + 3 : prev));
+            }, 3000);
+        }
 
         let location = null;
         try {
@@ -104,17 +110,49 @@ const Detection = () => {
             const response = await detectDisease(selectedFile, location);
             if (response && response.disease) {
                 setResult(response);
+                if (timerId) clearTimeout(timerId);
+                if (msgTimerId) clearInterval(msgTimerId);
+                setLoading(false);
+                setWarmingUp(false);
             } else {
                 setResult({ __error: true, message: 'Invalid response from AI service.' });
+                setLoading(false);
+                setWarmingUp(false);
             }
         } catch (error) {
             const errMsg = error.response?.data?.error || error.message || '';
-            setResult({ __error: true, message: `Could not analyse the image: ${errMsg}` });
-        } finally {
-            clearTimeout(timerId);
-            clearInterval(msgTimerId);
-            setLoading(false);
-            setWarmingUp(false);
+            const isWarmingError = errMsg.toLowerCase().includes('offline') ||
+                errMsg.toLowerCase().includes('warming') ||
+                errMsg.toLowerCase().includes('econnreset') ||
+                errMsg.toLowerCase().includes('timeout') ||
+                errMsg.toLowerCase().includes('502') ||
+                errMsg.toLowerCase().includes('504') ||
+                error.code === 'ECONNABORTED';
+
+            const MAX_RETRIES = 3;
+            if (isWarmingError && attempt < MAX_RETRIES) {
+                // Ensure UI is in warming state
+                setWarmingUp(true);
+                setRetryCount(attempt + 2);
+
+                // Animate progress bar linearly
+                setWarmingProgress(((attempt + 1) / MAX_RETRIES) * 100);
+
+                // Wait 15s before the next retry to let Render boot
+                setTimeout(() => handleUpload(attempt + 1), 15000);
+            } else {
+                if (timerId) clearTimeout(timerId);
+                if (msgTimerId) clearInterval(msgTimerId);
+                setLoading(false);
+                setWarmingUp(false);
+
+                // Show friendly inline message instead of raw axios timeout text
+                if (isWarmingError) {
+                    setResult({ __error: true, message: 'The AI service is heavily sleeping and taking longer than usual to wake up. Please click "TRY AGAIN" in a few seconds.' });
+                } else {
+                    setResult({ __error: true, message: `Could not analyse the image: ${errMsg}` });
+                }
+            }
         }
     };
 

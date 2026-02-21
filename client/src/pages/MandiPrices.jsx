@@ -104,7 +104,7 @@ const MandiPrices = () => {
                                         : 'hover:bg-slate-50 text-slate-500'
                                         }`}
                                 >
-                                    {state === 'All' ? t('all') : t(state)}
+                                    {state === 'All' ? t('all') : t(state) || state}
                                 </button>
                             ))}
                         </div>
@@ -123,7 +123,7 @@ const MandiPrices = () => {
                             >
                                 {states.map(state => (
                                     <option key={state} value={state}>
-                                        {state === 'All' ? t('all') : t(state)}
+                                        {state === 'All' ? t('all') : t(state) || state}
                                     </option>
                                 ))}
                             </select>
@@ -217,9 +217,9 @@ const MandiPrices = () => {
                                             >
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div>
-                                                        <h3 className="text-xl font-black text-slate-900">{t(item.commodity)}</h3>
+                                                        <h3 className="text-xl font-black text-slate-900">{t(item.commodity) || item.commodity}</h3>
                                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1 mt-1">
-                                                            <MapPin size={12} /> {item.market}, {t(item.state)}
+                                                            <MapPin size={12} /> {t(item.market) || item.market}, {t(item.state) || item.state}
                                                         </p>
                                                     </div>
                                                     <div className="bg-green-50 p-2 rounded-xl text-green-600">
@@ -231,7 +231,7 @@ const MandiPrices = () => {
                                                     <div className="flex justify-between items-center py-2 border-b border-slate-50">
                                                         <span className="text-xs font-bold text-slate-400 uppercase">{t('modalPrice')}</span>
                                                         <span className="text-2xl font-black text-green-600">
-                                                            ₹{displayModal} <span className="text-xs font-bold text-slate-400">/ {unitWeight}{t('kgUnit')}</span>
+                                                            ₹{displayModal} <span className="text-xs font-bold text-slate-400">/ {unitWeight}{t('kgUnit') || 'kg'}</span>
                                                         </span>
                                                     </div>
                                                     <div className="flex justify-between items-center text-xs font-bold text-slate-500">

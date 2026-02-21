@@ -246,26 +246,17 @@ app.delete('/api/community/:id', async (req, res) => {
 
 
 
-// AI Detection Proxy
+// AI Detection Proxy -> Now Localized to prevent 429
+const { analyzeCropImage } = require('./cv_engine');
 const upload = multer({ storage: multer.memoryStorage() });
 app.post('/api/detect', upload.single('image'), async (req, res) => {
     try {
         if (!req.file) return res.status(400).json({ error: "No image uploaded" });
 
-        const formData = new FormData();
-        formData.append('file', req.file.buffer, { filename: req.file.originalname });
+        // Run local pixel analysis instantly
+        const result = await analyzeCropImage(req.file.buffer, req.file.originalname);
 
-        // Wake up ping (don't await failure)
-        axios.get(`${AI_SERVICE_URL}`).catch(() => { });
-
-        // Wait for real AI to respond (up to 175s for Render cold start)
-        const aiRes = await axios.post(`${AI_SERVICE_URL}/predict`, formData, {
-            headers: formData.getHeaders(),
-            timeout: 175000
-        });
-
-        const result = aiRes.data;
-        if (result.disease && result.disease !== 'Unknown') {
+        if (result.disease && result.disease !== 'Unknown' && result.disease !== 'Not a Crop') {
             if (db) {
                 await db.collection('predictions').add({ ...result, timestamp: admin.firestore.FieldValue.serverTimestamp() });
             }
@@ -273,8 +264,7 @@ app.post('/api/detect', upload.single('image'), async (req, res) => {
         return res.json(result);
     } catch (e) {
         console.error("Detection error:", e.message);
-        const engineError = e.response?.data?.detail || e.message;
-        return res.status(500).json({ error: `AI Engine Error: ${engineError}` });
+        return res.status(500).json({ error: `AI Engine Error: ${e.message}` });
     }
 });
 

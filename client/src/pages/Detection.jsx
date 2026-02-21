@@ -129,7 +129,7 @@ const Detection = () => {
                 errMsg.toLowerCase().includes('504') ||
                 error.code === 'ECONNABORTED';
 
-            const MAX_RETRIES = 3;
+            const MAX_RETRIES = 0; // AI is now local and instant, no retries needed for cold start.
             if (isWarmingError && attempt < MAX_RETRIES) {
                 // Ensure UI is in warming state
                 setWarmingUp(true);

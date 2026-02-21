@@ -39,7 +39,7 @@ const GovernmentSchemes = () => {
                 {loading ? (
                     <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
                         <RefreshCw className="w-10 h-10 text-green-500 animate-spin" />
-                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Loading Schemes...</p>
+                        <p className="text-slate-400 font-black uppercase tracking-widest text-xs">{t('loadingRecords') || 'Loading Schemes...'}</p>
                     </div>
                 ) : (
                     schemes.map((item, idx) => (

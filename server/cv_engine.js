@@ -1,4 +1,4 @@
-const { Jimp } = require('jimp');
+const { Jimp, intToRGBA } = require('jimp');
 
 const DISEASE_DATABASE = {
     "healthy": {
@@ -170,7 +170,7 @@ async function analyzeCropImage(buffer, filename = "") {
         for (let y = 0; y < 224; y++) {
             for (let x = 0; x < 224; x++) {
                 const hex = image.getPixelColor(x, y);
-                const rgb = Jimp.intToRGBA(hex);
+                const rgb = intToRGBA(hex);
                 const r = rgb.r, g = rgb.g, b = rgb.b;
 
                 const combined = (r << 16) | (g << 8) | b;

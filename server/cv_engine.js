@@ -156,6 +156,7 @@ async function analyzeCropImage(buffer, filename = "") {
         let is_white_count = 0;
         let pure_pixel_count = 0;
         let skin_count = 0;
+        let dark_gray_count = 0;
 
         let rm_sum = 0, gm_sum = 0, bm_sum = 0;
         let plant_pixels_count = 0;
@@ -187,6 +188,7 @@ async function analyzeCropImage(buffer, filename = "") {
                 const is_white = (r > 160) && (g > 160) && (b > 160) && (Math.abs(r - g) < 15) && (Math.abs(g - b) < 15);
                 const is_skin = (r > g + 20) && (g > b) && (r > 60) && (r < 235) && (brightness < 220);
                 const pure = (r < 2 && g < 2 && b < 2) || (r > 253 && g > 253 && b > 253);
+                const is_dark_gray = (r < 90 && g < 90 && b < 90) && (Math.abs(r - g) < 15) && (Math.abs(g - b) < 15);
 
                 if (is_green) is_green_count++;
                 if (is_leaf_brown) is_leaf_brown_count++;
@@ -194,6 +196,7 @@ async function analyzeCropImage(buffer, filename = "") {
                 if (is_white) is_white_count++;
                 if (is_skin) skin_count++;
                 if (pure) pure_pixel_count++;
+                if (is_dark_gray) dark_gray_count++;
 
                 if (is_green || is_leaf_brown) {
                     rm_sum += r; gm_sum += g; bm_sum += b;
@@ -251,15 +254,27 @@ async function analyzeCropImage(buffer, filename = "") {
             pixel_brown_ratio: is_leaf_brown_count / total_pixels,
             pixel_yellow_ratio: pixel_yellow_count / total_pixels,
             white_indicator: is_white_count / total_pixels,
-            skin_ratio: skin_count / total_pixels
+            skin_ratio: skin_count / total_pixels,
+            dark_gray_ratio: dark_gray_count / total_pixels
         };
 
         // 2. Validate
         if (analysis.unique_colors_ratio < 0.08 || analysis.pure_pixel_ratio > 0.30 || analysis.variance < 15.0 || analysis.skin_ratio > 0.12) {
             return buildResponse("not_a_crop", 0.0, "Unknown Object", analysis);
         }
+
+        if (analysis.pixel_healthy_ratio + analysis.pixel_yellow_ratio < 0.02) {
+            return buildResponse("not_a_crop", 0.0, "Unknown Object", analysis);
+        }
+
+        if (analysis.dark_gray_ratio > 0.40 || analysis.white_indicator > 0.50) {
+            if (analysis.pixel_healthy_ratio < 0.10 && analysis.pixel_yellow_ratio < 0.10) {
+                return buildResponse("not_a_crop", 0.0, "Unknown Object", analysis);
+            }
+        }
+
         const total_bio = analysis.pixel_healthy_ratio + analysis.pixel_brown_ratio + analysis.pixel_yellow_ratio;
-        if (total_bio < 0.05) {
+        if (total_bio < 0.10) {
             return buildResponse("not_a_crop", 0.0, "Unknown Object", analysis);
         }
 

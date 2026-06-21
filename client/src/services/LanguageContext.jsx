@@ -419,6 +419,11 @@ const en = {
     "Tomato Leaf Mold": "Tomato Leaf Mold",
     "Potato Late Blight": "Potato Late Blight",
     "Not a Crop": "Not a Crop",
+    "Tomato Late Blight": "Tomato Late Blight",
+    "Aphid Infestation": "Aphid Infestation",
+    "Bacterial Leaf Spot": "Bacterial Leaf Spot",
+    "Nitrogen Deficiency": "Nitrogen Deficiency",
+    "Spider Mite Infestation": "Spider Mite Infestation",
 
     schemesData: [
         { title: 'PM-Kisan Samman Nidhi', provider: 'Central Govt', benefit: '₹6,000/year', eligibility: 'Small/Marginal Farmers', link: 'https://pmkisan.gov.in/', details: 'Income support of ₹6,000 per year in three equal installments to all land holding farmer families.', docs: ['Aadhaar Card', 'Land Ownership Records', 'Bank Account Details'] },
@@ -846,6 +851,11 @@ const hi = {
     "Anthracnose (Bird's Eye Spot)": "एन्थ्रेक्नोज",
     "Tomato Leaf Mold": "टमाटर का लीफ मोल्ड",
     "Not a Crop": "फसल नहीं है",
+    "Tomato Late Blight": "टमाटर की पछेती झुलसा",
+    "Aphid Infestation": "एफिड का प्रकोप",
+    "Bacterial Leaf Spot": "बैक्टीरियल लीफ स्पॉट (पत्ती का धब्बा)",
+    "Nitrogen Deficiency": "नाइट्रोजन की कमी",
+    "Spider Mite Infestation": "मकड़ी कीट का प्रकोप",
     "Potato Late Blight": "आलू की पछेती झुलसा",
 
     schemesData: [
@@ -1365,6 +1375,11 @@ const te = {
     "Tomato Leaf Mold": "టమాటా ఆకు బూజు",
     "Potato Late Blight": "బంగాళాదుంప లేట్ బ్లైట్",
     "Not a Crop": "పంట కాదు",
+    "Tomato Late Blight": "టమోటా లేట్ బ్లైట్",
+    "Aphid Infestation": "పేనుబంక ఉధృతి",
+    "Bacterial Leaf Spot": "బాక్టీరియల్ ఆకు మచ్చ తెగులు",
+    "Nitrogen Deficiency": "నత్రజని లోపం",
+    "Spider Mite Infestation": "ఎర్ర నల్లి ఉధృతి",
 
     schemesData: [
         { title: 'PM- కిసాన్ సమ్మాన్ నిధి', provider: 'కేంద్ర ప్రభుత్వం', benefit: '₹6,000/ఏడాదికి', eligibility: 'చిన్న రైతులు', link: 'https://pmkisan.gov.in/', details: 'రైతు కుటుంబాలకు సంవత్సరానికి ₹6,000 ఆర్థిక సహాయం.', docs: ['ఆధార్ కార్డు', 'భూమి పత్రాలు', 'బ్యాంకు ఖాతా'] },
@@ -1856,6 +1871,11 @@ const kn = {
     "Tomato Leaf Mold": "ಟೊಮ್ಯಾಟೊ ಎಲೆ ಶಿಲೀಂಧ್ರ",
     "Potato Late Blight": "ಆಲೂಗಡ್ಡೆ ಅಂಗಮಾರಿ ರೋಗ",
     "Not a Crop": "ಬೆಳೆ ಅಲ್ಲ",
+    "Tomato Late Blight": "ಟೊಮೆಟೊ ಅಂಗಮಾರಿ ರೋಗ",
+    "Aphid Infestation": "ಜೇನು ಜಿಗಿ ಹುಳು ಬಾಧೆ",
+    "Bacterial Leaf Spot": "ಬ್ಯಾಕ್ಟೀರಿಯಲ್ ಎಲೆ ಚುಕ್ಕೆ ರೋಗ",
+    "Nitrogen Deficiency": "ಸಾರಜನಕದ ಕೊರತೆ",
+    "Spider Mite Infestation": "ಜೇಡರ ನುಸಿ ಬಾಧೆ",
 
     schemesData: [
         { title: 'PM- ಕಿಸಾನ್ ಸಮ್ಮಾನ್ ನಿಧಿ', provider: 'ಕೇಂದ್ರ ಸರ್ಕಾರ', benefit: '₹6,000/ವರ್ಷಕ್ಕೆ', eligibility: 'ಸಣ್ಣ ರೈತರು', link: 'https://pmkisan.gov.in/', details: 'ರೈತ ಕುಟುಂಬಗಳಿಗೆ ವಾರ್ಷಿಕ ₹6,000 ಆರ್ಥಿಕ ಬೆಂಬಲ.', docs: ['ಆಧಾರ್ ಕಾರ್ಡ್', 'ಭೂಮಿ ದಾಖಲೆ', 'ಬ್ಯಾಂಕ್ ಖಾತೆ'] },
@@ -2325,6 +2345,11 @@ const ta = {
     "Tomato Leaf Mold": "தக்காளி இலை பூஞ்சை",
     "Potato Late Blight": "உருளைக்கிழங்கு வாடல் நோய்",
     "Not a Crop": "பயிர் அல்ல",
+    "Tomato Late Blight": "தக்காளி வாடல் நோய்",
+    "Aphid Infestation": "அசுவினி தாக்குதல்",
+    "Bacterial Leaf Spot": "பாக்டீரியா இலைப்புள்ளி நோய்",
+    "Nitrogen Deficiency": "நைட்ரஜன் குறைபாடு",
+    "Spider Mite Infestation": "சிலந்திப் பேன் தாக்குதல்",
 
     schemesData: [
         { title: 'PM- கிசான் சம்மான் நிதி', provider: 'மத்திய அரசு', benefit: '₹6,000/ஆண்டு', eligibility: 'சிறு விவசாயிகள்', link: 'https://pmkisan.gov.in/', details: 'விவசாய குடும்பங்களுக்கு ஆண்டுக்கு ₹6,000 நிதியுதவி.', docs: ['ஆதார் அட்டை', 'நில ஆவணங்கள்', 'வங்கி கணக்கு'] },
@@ -2792,6 +2817,11 @@ const ml = {
     "Tomato Leaf Mold": "തക്കാളി ഇല പൂപ്പൽ",
     "Potato Late Blight": "ഉരുളക്കിഴങ്ങ് ലൈറ്റ് ബ്ലൈറ്റ്",
     "Not a Crop": "വിളയല്ല",
+    "Tomato Late Blight": "തക്കാളി ലൈറ്റ് ബ്ലൈറ്റ്",
+    "Aphid Infestation": "ഇലപ്പേൻ ശല്യം",
+    "Bacterial Leaf Spot": "ബാക്ടീരിയൽ ഇലപ്പുള്ളി രോഗം",
+    "Nitrogen Deficiency": "നൈട്രജന്റെ കുറവ്",
+    "Spider Mite Infestation": "ചിലന്തി ശല്യം",
 
     schemesData: [
         { title: 'പിഎം-കിസാൻ സമ്മാൻ നിധി', provider: 'കേന്ദ്ര സർക്കാർ', benefit: '₹6,000/വർഷം', eligibility: 'ചെറുകിട കർഷകർ', link: 'https://pmkisan.gov.in/', details: 'കർഷക കുടുംബങ്ങൾക്ക് വർഷം 6,000 രൂപ ധനസഹായം.', docs: ['ആധാർ കാർഡ്', 'ഭൂമി രേഖകൾ', 'ബാങ്ക് അക്കൗണ്ട്'] },

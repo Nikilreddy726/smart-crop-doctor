@@ -170,6 +170,47 @@ app.get('/api/predictions', async (req, res) => {
     } catch (e) { res.json([]); }
 });
 
+app.post('/api/predictions', async (req, res) => {
+    const prediction = req.body;
+    if (!db) {
+        const id = 'local_' + Date.now();
+        const fullPred = { id, ...prediction, timestamp: new Date().toISOString() };
+        localPredictions.unshift(fullPred);
+        return res.json(fullPred);
+    }
+    try {
+        const doc = await db.collection('predictions').add({
+            ...prediction,
+            timestamp: admin.firestore.FieldValue.serverTimestamp()
+        });
+        res.json({ id: doc.id, ...prediction });
+    } catch (e) {
+        console.error("Save prediction error:", e.message);
+        res.status(500).json({ error: `Firestore Error: ${e.message}` });
+    }
+});
+
+app.delete('/api/predictions/:id', async (req, res) => {
+    const { id } = req.params;
+    if (id.startsWith('local-') || id.startsWith('local_')) {
+        const idx = localPredictions.findIndex(p => p.id === id);
+        if (idx !== -1) localPredictions.splice(idx, 1);
+        return res.json({ success: true });
+    }
+    if (!db) {
+        const idx = localPredictions.findIndex(p => p.id === id);
+        if (idx !== -1) localPredictions.splice(idx, 1);
+        return res.json({ success: true });
+    }
+    try {
+        await db.collection('predictions').doc(id).delete();
+        res.json({ success: true });
+    } catch (e) {
+        console.error("Delete prediction error:", e.message);
+        res.status(500).json({ error: `Firestore Error: ${e.message}` });
+    }
+});
+
 // Community Forum Routes
 app.get('/api/community', async (req, res) => {
     if (!db) return res.json(localCommunity);

@@ -2,14 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Upload, CheckCircle, AlertTriangle, Info, Sparkles, X, ShieldCheck, Camera, ImageIcon, Leaf, Activity, AlertCircle, TestTube, Droplets, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import api, { detectDisease, getHealth } from '../services/api';
+import api, { detectDisease, getHealth, savePrediction } from '../services/api';
+import { verifyPlantImage } from '../services/imageVerification';
+import { EnhancedAIService } from '../services/enhancedAIService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
-
-const WARMING_MESSAGES = [
-    'Waking up AI engine...', 'Loading neural network...', 'Connecting to model...', 'Almost ready...', 'Analyzing your crop image...'
-];
 
 const Detection = () => {
     const { t } = useLanguage();
@@ -17,30 +15,20 @@ const Detection = () => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
-    const [warmingUp, setWarmingUp] = useState(false);
-    const [warmingMsg, setWarmingMsg] = useState(WARMING_MESSAGES[0]);
-    const [warmingProgress, setWarmingProgress] = useState(0);
-    const [retryCount, setRetryCount] = useState(0);
     const [result, setResult] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [saved, setSaved] = useState(false);
-    const [aiStatus, setAiStatus] = useState('warming');
+    const [aiStatus, setAiStatus] = useState('online');
+
+    const [isValidPlant, setIsValidPlant] = useState(true);
+    const [verificationMessage, setVerificationMessage] = useState(null);
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [processingStage, setProcessingStage] = useState(0);
+    const [processingMessage, setProcessingMessage] = useState('');
 
     // --- AUTO-WARMING LOGIC ---
     useEffect(() => {
-        const warmUp = async () => {
-            try {
-                const health = await getHealth();
-                setAiStatus(health.ai);
-                if (health.ai !== 'online') {
-                    setTimeout(warmUp, 10000);
-                }
-            } catch (e) {
-                setAiStatus('offline');
-                setTimeout(warmUp, 10000);
-            }
-        };
-        warmUp();
+        setAiStatus('online');
     }, []);
 
     const handleFileChange = (e) => {
@@ -48,12 +36,27 @@ const Detection = () => {
         if (file) processFile(file);
     };
 
-    const processFile = (file) => {
+    const processFile = async (file) => {
         if (file && file.type.startsWith('image/')) {
             setSelectedFile(file);
-            setPreview(URL.createObjectURL(file));
+            const tempUrl = URL.createObjectURL(file);
+            setPreview(tempUrl);
             setResult(null);
             setSaved(false);
+            setIsValidPlant(true);
+            setVerificationMessage(null);
+            setIsVerifying(true);
+
+            try {
+                const { isPlant, message } = await verifyPlantImage(tempUrl);
+                setIsValidPlant(isPlant);
+                setVerificationMessage(isPlant ? null : message);
+            } catch (err) {
+                console.error("Verification error:", err);
+                setIsValidPlant(true); // default to allow if canvas fails
+            } finally {
+                setIsVerifying(false);
+            }
         } else {
             alert(t('locationNotFound') || 'Please select a valid image file');
         }
@@ -67,109 +70,39 @@ const Detection = () => {
         if (files && files.length > 0) processFile(files[0]);
     };
 
-    const handleUpload = async (attempt = 0) => {
-        if (!selectedFile) return;
+    const handleUpload = async () => {
+        if (!preview) return;
 
-        if (attempt === 0) {
-            setLoading(true);
-            setResult(null);
-            setSaved(false);
-            setWarmingUp(false);
-            setWarmingProgress(0);
-            setRetryCount(1);
-        }
-
-        // If Render server is cold, it takes ~60-120s to wake up across 2 services.
-        // Show the warming UI after 6 seconds of waiting
-        let timerId, msgTimerId;
-        if (attempt === 0) {
-            timerId = setTimeout(() => {
-                setWarmingUp(true);
-                setWarmingMsg(WARMING_MESSAGES[0]);
-            }, 6000);
-
-            // Rotating messages
-            msgTimerId = setInterval(() => {
-                setWarmingMsg(prev => {
-                    const idx = WARMING_MESSAGES.indexOf(prev);
-                    return WARMING_MESSAGES[(idx + 1) % WARMING_MESSAGES.length];
-                });
-                setWarmingProgress(prev => (prev < 90 ? prev + 3 : prev));
-            }, 3000);
-        }
-
-        let location = null;
-        try {
-            const pos = await new Promise((resolve, reject) =>
-                navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 })
-            );
-            location = { lat: pos.coords.latitude, lon: pos.coords.longitude };
-        } catch (e) { /* Location optional */ }
+        setLoading(true);
+        setResult(null);
+        setSaved(false);
+        setProcessingStage(0);
+        setProcessingMessage('');
 
         try {
-            const response = await detectDisease(selectedFile, location);
-            if (response && response.disease) {
-                setResult(response);
-                if (timerId) clearTimeout(timerId);
-                if (msgTimerId) clearInterval(msgTimerId);
-                setLoading(false);
-                setWarmingUp(false);
-            } else {
-                setResult({ __error: true, message: 'Invalid response from AI service.' });
-                setLoading(false);
-                setWarmingUp(false);
-            }
+            const analysisResult = await EnhancedAIService.analyzeImage(preview, (stage, msg) => {
+                setProcessingStage(stage);
+                setProcessingMessage(msg);
+            });
+            setResult(analysisResult);
         } catch (error) {
-            const errMsg = error.response?.data?.error || error.message || '';
-            const isWarmingError = errMsg.toLowerCase().includes('offline') ||
-                errMsg.toLowerCase().includes('warming') ||
-                errMsg.toLowerCase().includes('econnreset') ||
-                errMsg.toLowerCase().includes('timeout') ||
-                errMsg.toLowerCase().includes('502') ||
-                errMsg.toLowerCase().includes('504') ||
-                error.code === 'ECONNABORTED';
-
-            const MAX_RETRIES = 0; // AI is now local and instant, no retries needed for cold start.
-            if (isWarmingError && attempt < MAX_RETRIES) {
-                // Ensure UI is in warming state
-                setWarmingUp(true);
-                setRetryCount(attempt + 2);
-
-                // Animate progress bar linearly
-                setWarmingProgress(((attempt + 1) / MAX_RETRIES) * 100);
-
-                // Wait 15s before the next retry to let Render boot
-                setTimeout(() => handleUpload(attempt + 1), 15000);
-            } else {
-                if (timerId) clearTimeout(timerId);
-                if (msgTimerId) clearInterval(msgTimerId);
-                setLoading(false);
-                setWarmingUp(false);
-
-                // Show friendly inline message instead of raw axios timeout text
-                if (isWarmingError) {
-                    setResult({ __error: true, message: 'The AI service is heavily sleeping and taking longer than usual to wake up. Please click "TRY AGAIN" in a few seconds.' });
-                } else {
-                    setResult({ __error: true, message: `Could not analyse the image: ${errMsg}` });
-                }
-            }
+            console.error("Analysis error:", error);
+            setResult({ __error: true, message: `Could not analyse the image: ${error.message}` });
+        } finally {
+            setLoading(false);
+            setProcessingStage(0);
+            setProcessingMessage('');
         }
     };
 
-    const handleCommitToCloud = () => {
+    const handleCommitToCloud = async () => {
         if (!result || result.disease === 'Not a Crop') return;
 
         try {
             setSaved(true);
-            const storageKey = user ? `local_crop_scans_${user.uid}` : 'local_crop_scans';
-            const raw = localStorage.getItem(storageKey);
-            let history = [];
-            try {
-                if (raw) history = JSON.parse(raw);
-            } catch (e) { history = []; }
-
+            let recordId = result.id || 'local-' + Date.now();
             const newRecord = {
-                id: result.id || 'local-' + Date.now(),
+                id: recordId,
                 disease: result.disease,
                 crop: result.crop,
                 severity: result.severity,
@@ -178,6 +111,27 @@ const Detection = () => {
                 imageUrl: result.imageUrl || 'image-not-stored',
                 timestamp: new Date().toISOString()
             };
+
+            if (user) {
+                try {
+                    const response = await savePrediction({
+                        userId: user.uid,
+                        ...newRecord
+                    });
+                    if (response && response.id) {
+                        newRecord.id = response.id;
+                    }
+                } catch (cloudErr) {
+                    console.error("Failed to save to cloud:", cloudErr);
+                }
+            }
+
+            const storageKey = user ? `local_crop_scans_${user.uid}` : 'local_crop_scans';
+            const raw = localStorage.getItem(storageKey);
+            let history = [];
+            try {
+                if (raw) history = JSON.parse(raw);
+            } catch (e) { history = []; }
 
             history.unshift(newRecord);
             localStorage.setItem(storageKey, JSON.stringify(history.slice(0, 50)));
@@ -200,10 +154,9 @@ const Detection = () => {
                     </motion.div>
 
                     {/* Status Indicator */}
-                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border ${aiStatus === 'online' ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'
-                        }`}>
-                        <div className={`w-1.5 h-1.5 rounded-full ${aiStatus === 'online' ? 'bg-green-500' : 'bg-orange-500'}`}></div>
-                        {t('engineStatus')}: {aiStatus === 'online' ? t('engineReady') : t('engineWarming')}
+                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter border bg-green-50 text-green-600 border-green-100`}>
+                        <div className={`w-1.5 h-1.5 rounded-full bg-green-500`}></div>
+                        {t('engineStatus')}: {t('engineReady')}
                     </div>
                 </div>
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 tracking-tighter leading-none">{t('aiCropDoctor')}</h1>
@@ -241,11 +194,23 @@ const Detection = () => {
                                 <div className="relative group rounded-3xl overflow-hidden shadow-xl aspect-square bg-slate-900 border border-slate-800">
                                     <img src={preview} alt="Preview" className="w-full h-full object-cover" />
                                     <button
-                                        onClick={() => { setPreview(null); setSelectedFile(null); setResult(null); }}
-                                        className="absolute top-6 right-6 bg-white/90 backdrop-blur-md p-4 rounded-2xl text-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-2xl"
+                                        onClick={() => { 
+                                            setPreview(null); 
+                                            setSelectedFile(null); 
+                                            setResult(null); 
+                                            setIsValidPlant(true);
+                                            setVerificationMessage(null);
+                                        }}
+                                        className="absolute top-6 right-6 bg-white/90 backdrop-blur-md p-4 rounded-2xl text-slate-900 hover:bg-slate-900 hover:text-white transition-all shadow-2xl z-10"
                                     >
                                         <X size={20} />
                                     </button>
+                                    {!isValidPlant && verificationMessage && !isVerifying && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-red-600/90 backdrop-blur-sm text-white p-4 text-xs font-bold flex items-center gap-2">
+                                            <AlertCircle size={16} className="shrink-0" />
+                                            <span>{verificationMessage}</span>
+                                        </div>
+                                    )}
                                 </div>
 
                                 <AnimatePresence mode="wait">
@@ -255,29 +220,27 @@ const Detection = () => {
                                                 initial={{ opacity: 0, y: 10 }}
                                                 animate={{ opacity: 1, y: 0 }}
                                                 onClick={handleUpload}
-                                                disabled={loading}
-                                                className={`w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all text-white ${loading ? 'bg-slate-400 cursor-not-allowed scale-100' : 'bg-primary shadow-primary/20 hover:scale-[1.02] active:scale-95'}`}
+                                                disabled={loading || isVerifying}
+                                                className={`w-full py-6 rounded-2xl text-xl font-black shadow-2xl flex items-center justify-center gap-3 transition-all text-white ${
+                                                    loading || isVerifying 
+                                                        ? 'bg-slate-400 cursor-not-allowed scale-100' 
+                                                        : !isValidPlant 
+                                                            ? 'bg-amber-500 shadow-amber-200 hover:scale-[1.02] active:scale-95' 
+                                                            : 'bg-primary shadow-primary/20 hover:scale-[1.02] active:scale-95'
+                                                }`}
                                             >
                                                 {loading ? (
+                                                    <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                ) : isVerifying ? (
                                                     <div className="w-6 h-6 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
                                                 ) : (
                                                     <Sparkles size={24} />
                                                 )}
-                                                {loading ? t('analyzing') : t('analyzeInfection')}
+                                                {loading ? t('analyzing') : isVerifying ? 'Verifying Image...' : !isValidPlant ? 'Analyze Anyway (Not a Plant?)' : t('analyzeInfection')}
                                             </motion.button>
 
-                                            {!loading && aiStatus !== 'online' && (
-                                                <p className="text-center text-[10px] text-slate-400 font-bold px-4 leading-tight animate-pulse">
-                                                    ⏳ {t('waitingForEngine')}
-                                                    <br />
-                                                    <span className="text-[9px] font-medium opacity-50">
-                                                        {t('renderBootNote')}
-                                                    </span>
-                                                </p>
-                                            )}
-
                                             <AnimatePresence>
-                                                {loading && warmingUp && (
+                                                {loading && (
                                                     <motion.div
                                                         initial={{ opacity: 0, height: 0 }}
                                                         animate={{ opacity: 1, height: 'auto' }}
@@ -285,17 +248,17 @@ const Detection = () => {
                                                         className="flex flex-col items-center gap-4 overflow-hidden pt-4"
                                                     >
                                                         <div className="relative w-20 h-20">
-                                                            <div className="absolute inset-0 rounded-full border-4 border-orange-100"></div>
-                                                            <div className="absolute inset-0 rounded-full border-4 border-t-orange-500 border-r-transparent border-b-transparent border-l-orange-200 animate-spin"></div>
-                                                            <div className="absolute inset-3 rounded-full bg-orange-50 flex items-center justify-center">
-                                                                <Sparkles size={20} className="text-orange-500" />
+                                                            <div className="absolute inset-0 rounded-full border-4 border-emerald-100"></div>
+                                                            <div className="absolute inset-0 rounded-full border-4 border-t-emerald-500 border-r-transparent border-b-transparent border-l-emerald-200 animate-spin"></div>
+                                                            <div className="absolute inset-3 rounded-full bg-emerald-50 flex items-center justify-center">
+                                                                <Sparkles size={20} className="text-emerald-600" />
                                                             </div>
                                                         </div>
                                                         <div className="text-center space-y-2 w-full max-w-[220px]">
-                                                            <p className="text-orange-600 font-black text-xs uppercase tracking-widest animate-pulse">{warmingMsg}</p>
-                                                            <p className="text-[10px] text-slate-400 font-bold">{t('retry')} {retryCount}/4 — {t('aiWakesInOneMin')}</p>
-                                                            <div className="w-full bg-orange-100 rounded-full h-2 mt-1">
-                                                                <motion.div className="bg-orange-500 h-2 rounded-full" initial={{ width: 0 }} animate={{ width: `${warmingProgress}%` }} transition={{ duration: 1 }} />
+                                                            <p className="text-emerald-700 font-black text-xs uppercase tracking-widest animate-pulse">{processingMessage}</p>
+                                                            <p className="text-[10px] text-slate-400 font-bold">Stage {processingStage}/5</p>
+                                                            <div className="w-full bg-emerald-100 rounded-full h-2 mt-1">
+                                                                <motion.div className="bg-emerald-600 h-2 rounded-full" initial={{ width: 0 }} animate={{ width: `${(processingStage / 5) * 100}%` }} transition={{ duration: 0.5 }} />
                                                             </div>
                                                         </div>
                                                     </motion.div>

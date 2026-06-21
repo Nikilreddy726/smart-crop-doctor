@@ -40,6 +40,11 @@ export const getHistory = async () => {
     return response.data;
 };
 
+export const savePrediction = async (predictionData) => {
+    const response = await api.post('/predictions', predictionData);
+    return response.data;
+};
+
 export const deletePrediction = async (id) => {
     const response = await api.delete(`/predictions/${id}`);
     return response.data;

@@ -183,7 +183,7 @@ const Home = () => {
                             {/* Leaf background image with moving scan laser line */}
                             <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
                                 <img
-                                    src="https://images.unsplash.com/photo-1599599810769-bcde5a160d32?auto=format&fit=crop&q=80&w=400"
+                                    src="https://images.unsplash.com/photo-1463936575829-25148e1db1b8?auto=format&fit=crop&q=80&w=400"
                                     alt="Scanning leaf mockup"
                                     className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000"
                                 />
@@ -276,70 +276,62 @@ const Home = () => {
             </div>
 
             {/* 3. AI WORKFLOW - How Our AI Technology Works */}
-            <div className="bg-slate-100 rounded-[3rem] py-16 px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mx-4">
-                <div className="lg:col-span-5 space-y-6 text-left lg:sticky lg:top-28">
-                    <div className="inline-flex items-center gap-2 bg-emerald-100/60 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black tracking-wider uppercase border border-emerald-200">
-                        ⚡ AI Technology Engine
-                    </div>
-                    <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">
+            <div className="bg-[#f4fbf8] rounded-[3rem] py-16 px-6 md:px-12 mx-4 text-center">
+                <div className="space-y-4 max-w-3xl mx-auto mb-16">
+                    <span className="inline-block bg-[#e6f7ed] text-[#2e7d32] border border-[#c8e6c9] px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider">
+                        🔍 AI Workflow
+                    </span>
+                    <h2 className="text-3xl md:text-5xl font-black text-[#1b5e20] tracking-tight leading-none">
                         How Our AI Technology Works 🧠
                     </h2>
-                    <div className="space-y-4 text-slate-600 text-sm font-semibold leading-relaxed">
-                        <p>
-                            Smart Crop Doctor utilizes state-of-the-art Convolutional Neural Networks (CNN) to detect plant pathology directly from leaf images.
-                        </p>
-                        <p>
-                            By combining modern computer vision with an offline-capable green-pixel validation algorithm, we guarantee instant, robust, and scientifically-verified crop diagnostics.
-                        </p>
-                    </div>
-
-                    {/* Visual indicators */}
-                    <div className="grid grid-cols-2 gap-4 pt-4">
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm">
-                            <p className="text-2xl font-black text-emerald-600">5-Stage</p>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">CNN Pipeline</p>
-                        </div>
-                        <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm">
-                            <p className="text-2xl font-black text-emerald-600">&lt; 3 Sec</p>
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Analysis Speed</p>
-                        </div>
-                    </div>
+                    <p className="text-slate-600 text-sm md:text-base font-semibold leading-relaxed">
+                        From image upload to diagnosis, our advanced AI processes your plant images using state-of-the-art computer vision techniques.
+                    </p>
                 </div>
 
-                <div className="lg:col-span-7 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {[
                         {
-                            step: "01",
-                            title: "Pre-processing & Canvas Verification 📸",
-                            desc: "The system runs a client-side canvas check to analyze pixel hue-saturation values. If the green-chlorophyll ratio is below 15%, it alerts the user to prevent non-plant uploads before processing."
+                            num: "1",
+                            emoji: "📷",
+                            title: "Image Capture",
+                            desc: "Take a clear photo of the affected plant part using your smartphone camera."
                         },
                         {
-                            step: "02",
-                            title: "Deep Feature Extraction 🤖",
-                            desc: "Our model breaks down the leaf image into deep mathematical grids, tracking subtle anomalies such as border necrosis, circular lesions, leaf curling, and pigmentation changes."
+                            num: "2",
+                            emoji: "🔄",
+                            title: "AI Processing",
+                            desc: "Our deep learning model extracts visual features and compares them against our disease database."
                         },
                         {
-                            step: "03",
-                            title: "Neural Pattern Matching 🧬",
-                            desc: "Visual maps are compared against a trained dataset representing 40+ fungal, bacterial, viral, and pest-induced crop diseases, seeking high-accuracy morphological matches."
+                            num: "3",
+                            emoji: "🧪",
+                            title: "Disease Analysis",
+                            desc: "The AI identifies the disease with confidence scoring and severity assessment."
                         },
                         {
-                            step: "04",
-                            title: "Confidence & Risk Evaluation 📊",
-                            desc: "Calculates an exact severity index and confidence percentage by factoring in seasonal growth risks, local humidity variables, and photo clarity parameters."
-                        },
-                        {
-                            step: "05",
-                            title: "Scientific Advisory Compilation 💊",
-                            desc: "Correlates the matched disease code with a curated agricultural database to generate distinct organic cures and chemical treatment plans verified by pathologists."
+                            num: "4",
+                            emoji: "✅",
+                            title: "Expert Treatment",
+                            desc: "Receive AI-generated treatment plans validated by agricultural scientists."
                         }
-                    ].map((item, i) => (
-                        <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex items-start gap-5 hover:border-emerald-200 hover:shadow-md transition-all group">
-                            <p className="text-3xl font-black text-emerald-600/30 group-hover:text-emerald-600 transition-colors">{item.step}</p>
-                            <div className="space-y-1.5 text-left">
-                                <h4 className="font-black text-slate-900 text-base">{item.title}</h4>
-                                <p className="text-slate-500 text-xs font-semibold leading-relaxed">{item.desc}</p>
+                    ].map((step, idx) => (
+                        <div key={idx} className="space-y-6 flex flex-col items-center">
+                            {/* Number circle */}
+                            <div className="w-16 h-16 rounded-full bg-white border border-[#e8f5e9] flex items-center justify-center text-[#2e7d32] text-2xl font-black shadow-md">
+                                {step.num}
                             </div>
+                            
+                            {/* Title with emoji */}
+                            <h3 className="text-lg font-black text-[#1b5e20] flex items-center justify-center gap-2">
+                                <span>{step.emoji}</span>
+                                <span>{step.title}</span>
+                            </h3>
+                            
+                            {/* Description */}
+                            <p className="text-slate-500 text-xs font-semibold leading-relaxed max-w-[240px]">
+                                {step.desc}
+                            </p>
                         </div>
                     ))}
                 </div>

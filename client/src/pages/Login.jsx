@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, LogIn, UserPlus, ShieldCheck, Sparkles, Chrome, ChevronRight, User } from 'lucide-react';
 import { loginUser, registerUser, signInWithGoogle } from '../services/firebase';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
 import { useEffect } from 'react';
@@ -11,12 +11,14 @@ const Login = () => {
     const { t } = useLanguage();
     const { user } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     useEffect(() => {
         if (user) {
-            navigate('/', { replace: true });
+            const dest = location.state?.redirectUrl || '/dashboard';
+            navigate(dest, { replace: true });
         }
-    }, [user, navigate]);
+    }, [user, navigate, location]);
 
     const [isLogin, setIsLogin] = useState(true);
     const [name, setName] = useState('');
@@ -79,7 +81,8 @@ const Login = () => {
                 await registerUser(authIdentifier, password, name);
             }
             localStorage.removeItem('local_crop_scans'); // Ensure fresh start
-            navigate('/dashboard');
+            const dest = location.state?.redirectUrl || '/dashboard';
+            navigate(dest);
         } catch (err) {
             console.error(err);
             setError(getFriendlyErrorMessage(err));
@@ -92,7 +95,8 @@ const Login = () => {
         try {
             await signInWithGoogle();
             localStorage.removeItem('local_crop_scans');
-            navigate('/dashboard');
+            const dest = location.state?.redirectUrl || '/dashboard';
+            navigate(dest);
         } catch (err) {
             console.error(err);
             setError(getFriendlyErrorMessage(err));

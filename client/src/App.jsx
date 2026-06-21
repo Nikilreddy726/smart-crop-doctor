@@ -23,15 +23,18 @@ function App() {
       <LanguageProvider>
         <Router>
           <Routes>
-            {/* Public Route */}
+            {/* Public Layout Routes */}
             <Route
               element={
-                <>
+                <div className="min-h-screen bg-slate-50">
                   <Navbar />
-                  <Outlet />
-                </>
+                  <main className="container mx-auto px-4 py-8 mt-24">
+                    <Outlet />
+                  </main>
+                </div>
               }
             >
+              <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
             </Route>
 
@@ -47,7 +50,6 @@ function App() {
                   </div>
                 }
               >
-                <Route path="/" element={<Home />} />
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/detect" element={<Detection />} />
                 <Route path="/weather" element={<Weather />} />

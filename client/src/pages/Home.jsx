@@ -275,31 +275,70 @@ const Home = () => {
                 </div>
             </div>
 
-            {/* 3. WORKFLOW STEP SECTION */}
-            <div className="bg-slate-100 rounded-[3rem] py-16 px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center mx-4">
-                <div className="lg:col-span-5 space-y-6 text-left">
+            {/* 3. AI WORKFLOW - How Our AI Technology Works */}
+            <div className="bg-slate-100 rounded-[3rem] py-16 px-6 md:px-12 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start mx-4">
+                <div className="lg:col-span-5 space-y-6 text-left lg:sticky lg:top-28">
                     <div className="inline-flex items-center gap-2 bg-emerald-100/60 text-emerald-800 px-4 py-1.5 rounded-full text-[10px] font-black tracking-wider uppercase border border-emerald-200">
-                        Diagnostics Flow
+                        ⚡ AI Technology Engine
                     </div>
                     <h2 className="text-3xl md:text-5xl font-black text-slate-900 tracking-tight leading-none">
-                        How AI Scanning Works 🧠
+                        How Our AI Technology Works 🧠
                     </h2>
-                    <p className="text-slate-500 text-sm font-semibold leading-relaxed">
-                        Identify plant issues in three simple steps. Our convolutional neural networks process leaf patterns to generate organic cures instantly.
-                    </p>
+                    <div className="space-y-4 text-slate-600 text-sm font-semibold leading-relaxed">
+                        <p>
+                            Smart Crop Doctor utilizes state-of-the-art Convolutional Neural Networks (CNN) to detect plant pathology directly from leaf images.
+                        </p>
+                        <p>
+                            By combining modern computer vision with an offline-capable green-pixel validation algorithm, we guarantee instant, robust, and scientifically-verified crop diagnostics.
+                        </p>
+                    </div>
+
+                    {/* Visual indicators */}
+                    <div className="grid grid-cols-2 gap-4 pt-4">
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm">
+                            <p className="text-2xl font-black text-emerald-600">5-Stage</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">CNN Pipeline</p>
+                        </div>
+                        <div className="bg-white p-4 rounded-2xl border border-slate-200/60 shadow-sm">
+                            <p className="text-2xl font-black text-emerald-600">&lt; 3 Sec</p>
+                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1">Analysis Speed</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-3 gap-6">
+                <div className="lg:col-span-7 space-y-4">
                     {[
-                        { step: "01", title: "Upload Photo 📸", desc: "Select or snap a clean image of your affected plant leaf." },
-                        { step: "02", title: "Analyze Pattern 🤖", desc: "The browser validation model evaluates green levels & scans features." },
-                        { step: "03", title: "Get Treatment 💊", desc: "Download detailed chemical and organic recovery advisories." }
+                        {
+                            step: "01",
+                            title: "Pre-processing & Canvas Verification 📸",
+                            desc: "The system runs a client-side canvas check to analyze pixel hue-saturation values. If the green-chlorophyll ratio is below 15%, it alerts the user to prevent non-plant uploads before processing."
+                        },
+                        {
+                            step: "02",
+                            title: "Deep Feature Extraction 🤖",
+                            desc: "Our model breaks down the leaf image into deep mathematical grids, tracking subtle anomalies such as border necrosis, circular lesions, leaf curling, and pigmentation changes."
+                        },
+                        {
+                            step: "03",
+                            title: "Neural Pattern Matching 🧬",
+                            desc: "Visual maps are compared against a trained dataset representing 40+ fungal, bacterial, viral, and pest-induced crop diseases, seeking high-accuracy morphological matches."
+                        },
+                        {
+                            step: "04",
+                            title: "Confidence & Risk Evaluation 📊",
+                            desc: "Calculates an exact severity index and confidence percentage by factoring in seasonal growth risks, local humidity variables, and photo clarity parameters."
+                        },
+                        {
+                            step: "05",
+                            title: "Scientific Advisory Compilation 💊",
+                            desc: "Correlates the matched disease code with a curated agricultural database to generate distinct organic cures and chemical treatment plans verified by pathologists."
+                        }
                     ].map((item, i) => (
-                        <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
-                            <p className="text-3xl font-black text-emerald-600/30">{item.step}</p>
-                            <div className="space-y-1">
-                                <h4 className="font-black text-slate-900 text-sm">{item.title}</h4>
-                                <p className="text-slate-400 text-[10px] font-semibold leading-relaxed">{item.desc}</p>
+                        <div key={i} className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm flex items-start gap-5 hover:border-emerald-200 hover:shadow-md transition-all group">
+                            <p className="text-3xl font-black text-emerald-600/30 group-hover:text-emerald-600 transition-colors">{item.step}</p>
+                            <div className="space-y-1.5 text-left">
+                                <h4 className="font-black text-slate-900 text-base">{item.title}</h4>
+                                <p className="text-slate-500 text-xs font-semibold leading-relaxed">{item.desc}</p>
                             </div>
                         </div>
                     ))}

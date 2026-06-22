@@ -134,10 +134,11 @@ const OtpInput = ({ value, onChange }) => {
 // Wrapper layout — defined OUTSIDE Login to prevent remount on every render
 const PageWrap = ({ children, mode }) => {
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-green-50 px-4 py-4">
+        <div className="min-h-[calc(100vh-180px)] flex items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-green-50 px-4 py-2">
             <div id="recaptcha-container" style={{ position: 'absolute' }}></div>
             
-            <div className="w-full max-w-4xl bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[500px] my-2">
+            <div className="w-full max-w-4xl bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[480px] md:h-[500px] my-1">
+
                 {/* Left Side: Decorative Agriculture Hero Section */}
                 <div className="md:col-span-5 relative bg-gradient-to-br from-emerald-800 to-green-700 p-6 flex flex-col justify-between overflow-hidden text-white min-h-[250px] md:min-h-auto">
                     {/* Background Tech Image */}
@@ -597,7 +598,8 @@ const Login = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleAuth} className={isLogin ? "space-y-3" : "space-y-2"}>
+            <form onSubmit={handleAuth} className={isLogin ? "space-y-2.5" : "space-y-1.5"}>
+
                 {!isLogin && (
                     <div className="space-y-0.5">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>

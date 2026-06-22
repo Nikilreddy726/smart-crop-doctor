@@ -12,7 +12,9 @@ import {
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { loginUser, registerUser, signInWithGoogle, resetPassword } from '../services/firebase';
+import { resetPasswordPhone } from '../services/api';
 import { useNavigate, useLocation } from 'react-router-dom';
+
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
 
@@ -43,7 +45,21 @@ const getFriendlyError = (error) => {
         return { type: 'warn', title: '⏳ OTP Expired', desc: 'The OTP has expired. Please request a new one.' };
     if (code === 'auth/credential-already-in-use')
         return { type: 'info', title: '📱 Phone Already Linked', desc: 'This phone number is already associated with another account.' };
-    return { type: 'error', title: '❌ Something Went Wrong', desc: 'An unexpected error occurred. Please try again.' };
+    // Phone Auth specific errors
+    if (code === 'auth/app-not-authorized' || code === 'auth/operation-not-allowed')
+        return { type: 'error', title: '🔧 Phone Auth Not Enabled', desc: 'Phone authentication is not enabled. Please go to Firebase Console → Authentication → Sign-in methods → Enable Phone.' };
+    if (code === 'auth/invalid-phone-number')
+        return { type: 'warn', title: '📱 Invalid Phone Number', desc: 'Please enter a valid 10-digit Indian mobile number (e.g. 9876543210).' };
+    if (code === 'auth/missing-phone-number')
+        return { type: 'warn', title: '📱 Phone Number Required', desc: 'Please enter your 10-digit mobile number.' };
+    if (code === 'auth/quota-exceeded')
+        return { type: 'warn', title: '📊 SMS Quota Exceeded', desc: 'Too many OTPs sent today. Please try again tomorrow or use email.' };
+    if (code === 'auth/captcha-check-failed')
+        return { type: 'warn', title: '🤖 Security Check Failed', desc: 'reCAPTCHA verification failed. Please refresh the page and try again.' };
+    if (code === 'auth/billing-not-enabled')
+        return { type: 'error', title: '💳 Firebase Billing Required', desc: 'Phone authentication requires Firebase Blaze plan. Please upgrade or use email login.' };
+    // Show actual error code in catch-all to help debug
+    return { type: 'error', title: '❌ Something Went Wrong', desc: `Error: ${code || msg}. Please try again or use email/Google to sign in.` };
 };
 
 const Banner = ({ msg, onClose }) => {
@@ -155,6 +171,8 @@ const Login = () => {
     const [pendingPhone, setPendingPhone] = useState('');
     const [pendingCreds, setPendingCreds] = useState(null);
     const [otpCountdown, setOtpCountdown] = useState(0);
+    const [tempPhoneToken, setTempPhoneToken] = useState('');
+
 
     useEffect(() => {
         if (otpCountdown <= 0) return;
@@ -170,13 +188,18 @@ const Login = () => {
     const setupRecaptcha = () => {
         try { if (window._rcv) { window._rcv.clear(); window._rcv = null; } } catch (_) {}
         window._rcv = new RecaptchaVerifier(auth, 'recaptcha-container', {
-            size: 'invisible', callback: () => {},
+            size: 'invisible',
+            callback: () => {},
+            'expired-callback': () => {
+                console.warn('reCAPTCHA expired');
+            }
         });
         return window._rcv;
     };
 
     const sendOTP = async (phone) => {
         const verifier = setupRecaptcha();
+        await verifier.render();
         const result = await signInWithPhoneNumber(auth, `+91${phone}`, verifier);
         setConfirmationResult(result);
         setOtpCountdown(60);
@@ -206,16 +229,11 @@ const Login = () => {
                 if (password !== confirmPassword) { setBanner({ type: 'warn', title: '🔑 Passwords Don\'t Match', desc: 'Both password fields must be identical.' }); return; }
                 if (password.length < 6) { setBanner({ type: 'warn', title: '⚠️ Weak Password', desc: 'Password must be at least 6 characters.' }); return; }
 
-                if (phoneMode) {
-                    setPendingCreds({ shadowEmail, password, name });
-                    await sendOTP(id);
-                    setMode('otp-register');
-                } else {
-                    await registerUser(shadowEmail, password, name);
-                    localStorage.removeItem('local_crop_scans');
-                    navigate(location.state?.redirectUrl || '/dashboard');
-                }
+                await registerUser(shadowEmail, password, name);
+                localStorage.removeItem('local_crop_scans');
+                navigate(location.state?.redirectUrl || '/dashboard');
             }
+
         } catch (err) {
             console.error('Auth error:', err);
             setBanner(getFriendlyError(err));
@@ -268,8 +286,14 @@ const Login = () => {
             const id = resetEmail.trim();
             if (!id) { setBanner({ type: 'warn', title: '⚠️ Required', desc: 'Enter your email or phone number.' }); return; }
             if (isPhone(id)) {
-                await sendOTP(id);
-                setMode('otp-reset');
+                try {
+                    await sendOTP(id);
+                    setMode('otp-reset');
+                } catch (otpErr) {
+                    if (otpErr?.code === 'auth/billing-not-enabled' || otpErr?.code === 'auth/operation-not-allowed') {
+                        setBanner({ type: 'warn', title: '💳 SMS Not Available', desc: 'Phone OTP requires Firebase Blaze plan upgrade. Please upgrade at console.firebase.google.com or use email login instead.' });
+                    } else { throw otpErr; }
+                }
             } else if (isEmail(id)) {
                 await resetPassword(id);
                 setBanner({ type: 'success', title: '✅ Reset Link Sent!', desc: `Check ${id} inbox and spam folder. Link expires in 1 hour.` });
@@ -293,7 +317,9 @@ const Login = () => {
         setBanner(null);
         setLoading(true);
         try {
-            await confirmationResult.confirm(otp.replace(/\s/g, ''));
+            const result = await confirmationResult.confirm(otp.replace(/\s/g, ''));
+            const token = await result.user.getIdToken(true);
+            setTempPhoneToken(token);
             setOtp('');
             setMode('new-password');
             setBanner({ type: 'success', title: '✅ Identity Verified!', desc: 'Now set your new password below.' });
@@ -312,7 +338,12 @@ const Login = () => {
         setBanner(null);
         setLoading(true);
         try {
-            await updatePassword(auth.currentUser, newPassword);
+            if (tempPhoneToken) {
+                await resetPasswordPhone(tempPhoneToken, pendingPhone, newPassword);
+                setTempPhoneToken('');
+            } else {
+                await updatePassword(auth.currentUser, newPassword);
+            }
             await signOut(auth);
             setMode('login');
             setNewPassword('');
@@ -324,6 +355,7 @@ const Login = () => {
             setLoading(false);
         }
     };
+
 
     const handleResendOTP = async () => {
         if (otpCountdown > 0) return;
@@ -481,7 +513,6 @@ const Login = () => {
                 <h1 className="text-2xl font-black text-slate-900">
                     {isLogin ? 'Welcome Back 👋' : 'Create Account 🌱'}
                 </h1>
-                {!isLogin && <p className="text-[10px] text-slate-400 font-semibold">Phone users will receive an OTP to verify their number</p>}
             </div>
 
             {/* Google */}
@@ -558,9 +589,10 @@ const Login = () => {
                 {banner && <Banner msg={banner} onClose={clearBanner} />}
 
                 <Btn color="emerald">
-                    {isPhone(email) && !isLogin ? <><Phone size={15} /> Send OTP to Verify</> : <><ChevronRight size={16} /> {isLogin ? 'Sign In' : 'Create Account'}</>}
+                    <><ChevronRight size={16} /> {isLogin ? 'Sign In' : 'Create Account'}</>
                 </Btn>
             </form>
+
 
             <div className="text-center">
                 <button type="button" onClick={() => { setMode(isLogin ? 'register' : 'login'); setBanner(null); }}

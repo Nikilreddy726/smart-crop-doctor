@@ -147,4 +147,10 @@ export const getSchemes = async () => {
     }
 };
 
+export const resetPasswordPhone = async (token, phone, newPassword) => {
+    const response = await api.post('/auth/reset-password-phone', { token, phone, newPassword });
+    return response.data;
+};
+
 export default api;
+

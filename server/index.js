@@ -634,4 +634,61 @@ app.get('/api/products', (req, res) => {
     ]);
 });
 
+app.post('/api/auth/reset-password-phone', async (req, res) => {
+
+    const { token, phone, newPassword } = req.body;
+    if (!firebaseInitialized) {
+        return res.status(500).json({ error: "Firebase Admin is not initialized on the server." });
+    }
+    if (!token || !phone || !newPassword) {
+        return res.status(400).json({ error: "Missing token, phone number, or new password." });
+    }
+
+    try {
+        // 1. Verify the ID token sent from the client
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        
+        // 2. Extract the phone number from the token
+        const tokenPhone = decodedToken.phone_number || '';
+        
+        // Normalize phone numbers to make sure they match
+        const cleanTokenPhone = tokenPhone.replace(/\D/g, '');
+        const cleanRequestedPhone = phone.replace(/\D/g, '');
+
+        if (!cleanTokenPhone.endsWith(cleanRequestedPhone)) {
+            return res.status(400).json({ error: "Verification token does not match the provided phone number." });
+        }
+
+        // 3. Find the user with the shadow email (phone@farmer.com)
+        const shadowEmail = `${cleanRequestedPhone}@farmer.com`;
+        let shadowUserRecord;
+        try {
+            shadowUserRecord = await admin.auth().getUserByEmail(shadowEmail);
+        } catch (err) {
+            if (err.code === 'auth/user-not-found') {
+                return res.status(404).json({ error: "No account found with this phone number." });
+            }
+            throw err;
+        }
+
+        // 4. Update the shadow user's password
+        await admin.auth().updateUser(shadowUserRecord.uid, { password: newPassword });
+
+        // 5. Clean up the temporary phone user created during OTP verification
+        if (decodedToken.uid !== shadowUserRecord.uid) {
+            try {
+                await admin.auth().deleteUser(decodedToken.uid);
+            } catch (cleanupErr) {
+                console.error("Warning: Temporary phone user cleanup failed:", cleanupErr.message);
+            }
+        }
+
+        return res.json({ success: true, message: "Password updated successfully." });
+    } catch (err) {
+        console.error("Server reset password error:", err);
+        return res.status(500).json({ error: err.message || "An error occurred during password reset." });
+    }
+});
+
 app.listen(port, () => console.log(`Server v1.4.0 running on ${port}`));
+

@@ -8,7 +8,12 @@ import {
     updateProfile,
     setPersistence,
     browserSessionPersistence,
-    sendPasswordResetEmail
+    sendPasswordResetEmail,
+    signInWithPhoneNumber,
+    RecaptchaVerifier,
+    linkWithEmailAndPassword,
+    updatePassword,
+    signOut
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";

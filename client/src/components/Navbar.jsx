@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Leaf, Menu, X, Globe } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
 
 const Navbar = () => {
+    const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const [showLanguage, setShowLanguage] = useState(false);
     const location = useLocation();
     const { setLang, t, lang } = useLanguage();
     const { user, logout } = useAuth();
+
+    const handleLogout = async () => {
+        try {
+            navigate('/');
+            setTimeout(async () => {
+                await logout();
+                setIsOpen(false);
+            }, 100);
+        } catch (error) {
+            console.error("Logout failed", error);
+        }
+    };
 
     useEffect(() => {
         const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -138,7 +151,7 @@ const Navbar = () => {
                                     <span className="text-[11px] font-bold text-slate-900">{user.displayName || user.email.split('@')[0]}</span>
                                 </div>
                                 <button
-                                    onClick={logout}
+                                    onClick={handleLogout}
                                     className="bg-slate-900 text-white px-5 py-2.5 rounded-xl hover:bg-red-600 transition-all font-bold text-[10px] uppercase tracking-widest shadow-lg shadow-slate-200"
                                 >
                                     {t('logout')}
@@ -204,7 +217,7 @@ const Navbar = () => {
                             </div>
                             {user ? (
                                 <button
-                                    onClick={() => { logout(); setIsOpen(false); }}
+                                    onClick={handleLogout}
                                     className="mt-4 bg-red-500 text-white p-4 rounded-2xl font-black text-xs uppercase tracking-widest text-center"
                                 >
                                     {t('logout')}

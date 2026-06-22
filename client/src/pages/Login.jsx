@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, LogIn, UserPlus, ShieldCheck, Sparkles, Chrome, ChevronRight, User } from 'lucide-react';
-import { loginUser, registerUser, signInWithGoogle } from '../services/firebase';
+import { Mail, Lock, LogIn, UserPlus, Sparkles, Chrome, ChevronRight, User, KeyRound, ArrowLeft, CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react';
+import { loginUser, registerUser, signInWithGoogle, resetPassword } from '../services/firebase';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../services/LanguageContext';
 import { useAuth } from '../services/AuthContext';
@@ -21,42 +21,99 @@ const Login = () => {
     }, [user, navigate, location]);
 
     const [isLogin, setIsLogin] = useState(true);
+    const [showForgotPassword, setShowForgotPassword] = useState(false);
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
+    const [resetEmail, setResetEmail] = useState('');
     const [error, setError] = useState('');
+    const [successMsg, setSuccessMsg] = useState('');
     const [loading, setLoading] = useState(false);
+    const [resetLoading, setResetLoading] = useState(false);
 
-    const getFriendlyErrorMessage = (error) => {
+    const getFriendlyError = (error) => {
+        const code = error.code || '';
         const msg = error.message || error.toString();
-        if (msg.includes('auth/invalid-credential') || error.code === 'auth/invalid-credential') {
-            return t('invalidCredential');
+
+        // Wrong password / invalid credentials
+        if (code === 'auth/invalid-credential' || msg.includes('auth/invalid-credential')) {
+            return {
+                icon: <XCircle size={16} className="text-red-500 shrink-0" />,
+                title: '🔒 Incorrect Email or Password',
+                desc: 'The email or password you entered doesn\'t match our records. Please double-check and try again, or create a new account.'
+            };
         }
-        if (msg.includes('auth/user-not-found') || error.code === 'auth/user-not-found') {
-            return t('userNotFound');
+        if (code === 'auth/user-not-found' || msg.includes('auth/user-not-found')) {
+            return {
+                icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                title: '👤 Account Not Found',
+                desc: 'We couldn\'t find an account with this email. Please check your email or register a new account.'
+            };
         }
-        if (msg.includes('auth/wrong-password') || error.code === 'auth/wrong-password') {
-            return t('wrongPassword');
+        if (code === 'auth/wrong-password' || msg.includes('auth/wrong-password')) {
+            return {
+                icon: <XCircle size={16} className="text-red-500 shrink-0" />,
+                title: '🔑 Wrong Password',
+                desc: 'The password you entered is incorrect. Try again or use "Forgot Password" to reset it.'
+            };
         }
-        if (msg.includes('auth/email-already-in-use') || error.code === 'auth/email-already-in-use') {
-            return t('emailInUse');
+        if (code === 'auth/email-already-in-use' || msg.includes('auth/email-already-in-use')) {
+            return {
+                icon: <Info size={16} className="text-blue-500 shrink-0" />,
+                title: '📧 Email Already Registered',
+                desc: 'This email is already associated with an account. Please login instead or use a different email.'
+            };
         }
-        if (msg.includes('auth/weak-password') || error.code === 'auth/weak-password') {
-            return t('weakPassword');
+        if (code === 'auth/weak-password' || msg.includes('auth/weak-password')) {
+            return {
+                icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                title: '⚠️ Weak Password',
+                desc: 'Password should be at least 6 characters long. Use a mix of letters, numbers, and symbols for better security.'
+            };
         }
-        if (msg.includes('auth/invalid-email') || error.code === 'auth/invalid-email') {
-            return t('invalidEmail');
+        if (code === 'auth/invalid-email' || msg.includes('auth/invalid-email')) {
+            return {
+                icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                title: '✉️ Invalid Email Format',
+                desc: 'Please enter a valid email address (e.g., farmer@email.com) or a 10-digit mobile number.'
+            };
         }
-        return t('genericError');
+        if (code === 'auth/too-many-requests' || msg.includes('auth/too-many-requests')) {
+            return {
+                icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                title: '⏳ Too Many Attempts',
+                desc: 'Access temporarily blocked due to too many failed login attempts. Please wait a few minutes and try again, or reset your password.'
+            };
+        }
+        if (code === 'auth/network-request-failed' || msg.includes('auth/network-request-failed')) {
+            return {
+                icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                title: '🌐 Network Error',
+                desc: 'Unable to connect. Please check your internet connection and try again.'
+            };
+        }
+        // Custom app errors (thrown by our validation)
+        if (msg === t('mobileMustBe10') || msg === t('validEmailOrPhone') || msg === t('passwordsDoNotMatch')) {
+            return {
+                icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                title: '⚠️ Validation Error',
+                desc: msg
+            };
+        }
+        return {
+            icon: <XCircle size={16} className="text-red-500 shrink-0" />,
+            title: '❌ Something Went Wrong',
+            desc: 'An unexpected error occurred. Please try again later.'
+        };
     };
 
     const handleAuth = async (e) => {
         e.preventDefault();
         setLoading(true);
         setError('');
+        setSuccessMsg('');
         try {
-            // Determine if input is Email or Phone
             let authIdentifier = email.trim();
             const containsOnlyDigits = /^\d+$/.test(authIdentifier);
             const phoneRegex = /^[0-9]{10}$/;
@@ -66,7 +123,6 @@ const Login = () => {
                 if (!phoneRegex.test(authIdentifier)) {
                     throw new Error(t('mobileMustBe10'));
                 }
-                // It's a valid phone number -> Convert to shadow email
                 authIdentifier = `${authIdentifier}@farmer.com`;
             } else if (!emailRegex.test(authIdentifier)) {
                 throw new Error(t('validEmailOrPhone'));
@@ -80,18 +136,20 @@ const Login = () => {
                 }
                 await registerUser(authIdentifier, password, name);
             }
-            localStorage.removeItem('local_crop_scans'); // Ensure fresh start
+            localStorage.removeItem('local_crop_scans');
             const dest = location.state?.redirectUrl || '/dashboard';
             navigate(dest);
         } catch (err) {
             console.error(err);
-            setError(getFriendlyErrorMessage(err));
+            setError(getFriendlyError(err));
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleSignIn = async () => {
+        setError('');
+        setSuccessMsg('');
         try {
             await signInWithGoogle();
             localStorage.removeItem('local_crop_scans');
@@ -99,10 +157,176 @@ const Login = () => {
             navigate(dest);
         } catch (err) {
             console.error(err);
-            setError(getFriendlyErrorMessage(err));
+            setError(getFriendlyError(err));
         }
     };
 
+    const handleForgotPassword = async (e) => {
+        e.preventDefault();
+        setResetLoading(true);
+        setError('');
+        setSuccessMsg('');
+
+        try {
+            let resetIdentifier = resetEmail.trim();
+            if (!resetIdentifier) {
+                throw { code: 'auth/invalid-email' };
+            }
+
+            // Convert phone to shadow email
+            const containsOnlyDigits = /^\d+$/.test(resetIdentifier);
+            if (containsOnlyDigits) {
+                const phoneRegex = /^[0-9]{10}$/;
+                if (!phoneRegex.test(resetIdentifier)) {
+                    throw new Error(t('mobileMustBe10'));
+                }
+                resetIdentifier = `${resetIdentifier}@farmer.com`;
+            }
+
+            await resetPassword(resetIdentifier);
+            setSuccessMsg('✅ Password reset email sent! Check your inbox (and spam folder) for a link to reset your password.');
+            setResetEmail('');
+        } catch (err) {
+            console.error(err);
+            if (err.code === 'auth/user-not-found') {
+                setError({
+                    icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                    title: '👤 Account Not Found',
+                    desc: 'No account exists with this email. Please check the email or register a new account.'
+                });
+            } else {
+                setError(getFriendlyError(err));
+            }
+        } finally {
+            setResetLoading(false);
+        }
+    };
+
+    // Forgot Password View
+    if (showForgotPassword) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-slate-50 overflow-y-auto">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="w-full max-w-sm"
+                >
+                    <div className="card-base p-6 md:p-8 space-y-6 relative overflow-hidden backdrop-blur-sm bg-white/90 shadow-2xl">
+                        {/* Header */}
+                        <div className="text-center space-y-3">
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="bg-amber-50 w-14 h-14 rounded-2xl flex items-center justify-center mx-auto text-amber-600"
+                            >
+                                <KeyRound size={24} />
+                            </motion.div>
+                            <h1 className="text-2xl font-black text-slate-900 tracking-tighter">
+                                Reset Password
+                            </h1>
+                            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                                Enter your registered email or phone number. We'll send you a link to reset your password.
+                            </p>
+                        </div>
+
+                        <form onSubmit={handleForgotPassword} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
+                                    Email / Phone
+                                </label>
+                                <div className="relative">
+                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                    <input
+                                        type="text"
+                                        required
+                                        autoFocus
+                                        placeholder="Enter your registered email or phone"
+                                        value={resetEmail}
+                                        onChange={(e) => {
+                                            const val = e.target.value;
+                                            if (/^\d+$/.test(val) && val.length > 10) return;
+                                            setResetEmail(val);
+                                        }}
+                                        className="w-full bg-slate-50 border border-slate-100 focus:border-amber-300 focus:bg-white rounded-xl py-3 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-xs"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Success Message */}
+                            <AnimatePresence>
+                                {successMsg && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl"
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                                            <p className="text-emerald-700 text-[11px] font-bold leading-relaxed">
+                                                {successMsg}
+                                            </p>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Error Message */}
+                            <AnimatePresence>
+                                {error && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="p-3 bg-red-50 border border-red-200 rounded-xl"
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            {error.icon}
+                                            <div>
+                                                <p className="text-red-700 text-[11px] font-black">{error.title}</p>
+                                                <p className="text-red-500 text-[10px] font-semibold mt-0.5 leading-relaxed">{error.desc}</p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            <button
+                                type="submit"
+                                disabled={resetLoading}
+                                className="w-full bg-amber-500 hover:bg-amber-600 text-white py-3 rounded-xl text-xs font-black shadow-lg shadow-amber-200 flex items-center justify-center gap-2 transition-all disabled:bg-slate-300"
+                            >
+                                {resetLoading ? (
+                                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <>
+                                        Send Reset Link
+                                        <ChevronRight size={16} />
+                                    </>
+                                )}
+                            </button>
+                        </form>
+
+                        <div className="text-center pt-1">
+                            <button
+                                onClick={() => {
+                                    setShowForgotPassword(false);
+                                    setError('');
+                                    setSuccessMsg('');
+                                }}
+                                className="text-[10px] font-black text-slate-400 hover:text-primary transition-colors tracking-tight uppercase flex items-center justify-center gap-1 mx-auto"
+                            >
+                                <ArrowLeft size={12} />
+                                Back to Login
+                            </button>
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
+
+    // Main Login / Register View
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 overflow-y-auto">
             <motion.div
@@ -177,7 +401,23 @@ const Login = () => {
                             </div>
 
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{t('password')}</label>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">{t('password')}</label>
+                                    {isLogin && (
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowForgotPassword(true);
+                                                setResetEmail(email);
+                                                setError('');
+                                                setSuccessMsg('');
+                                            }}
+                                            className="text-[10px] font-black text-primary hover:text-emerald-700 transition-colors tracking-tight"
+                                        >
+                                            Forgot Password?
+                                        </button>
+                                    )}
+                                </div>
                                 <div className="relative">
                                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
@@ -208,15 +448,41 @@ const Login = () => {
                                 </div>
                             )}
 
+                            {/* Rich Error Message */}
                             <AnimatePresence>
                                 {error && (
                                     <motion.div
                                         initial={{ opacity: 0, height: 0 }}
                                         animate={{ opacity: 1, height: 'auto' }}
                                         exit={{ opacity: 0, height: 0 }}
-                                        className="p-3 bg-red-50 rounded-xl text-red-600 text-[10px] font-black uppercase tracking-tight text-center"
+                                        className="p-3 bg-red-50 border border-red-200 rounded-xl"
                                     >
-                                        {error}
+                                        <div className="flex items-start gap-2">
+                                            {error.icon}
+                                            <div>
+                                                <p className="text-red-700 text-[11px] font-black">{error.title}</p>
+                                                <p className="text-red-500 text-[10px] font-semibold mt-0.5 leading-relaxed">{error.desc}</p>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+
+                            {/* Success Message (e.g. after password reset) */}
+                            <AnimatePresence>
+                                {successMsg && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl"
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
+                                            <p className="text-emerald-700 text-[11px] font-bold leading-relaxed">
+                                                {successMsg}
+                                            </p>
+                                        </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
@@ -240,7 +506,7 @@ const Login = () => {
 
                     <div className="text-center pt-1">
                         <button
-                            onClick={() => setIsLogin(!isLogin)}
+                            onClick={() => { setIsLogin(!isLogin); setError(''); setSuccessMsg(''); }}
                             className="text-[10px] font-black text-slate-400 hover:text-primary transition-colors tracking-tight uppercase"
                         >
                             {isLogin ? t('needAccount') : t('existingMember')}

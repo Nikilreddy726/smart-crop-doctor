@@ -7,7 +7,8 @@ import {
     signInWithPopup,
     updateProfile,
     setPersistence,
-    browserSessionPersistence
+    browserSessionPersistence,
+    sendPasswordResetEmail
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
@@ -53,6 +54,10 @@ export const registerUser = async (email, password, name) => {
 export const signInWithGoogle = async () => {
     await setPersistence(auth, browserSessionPersistence);
     return signInWithPopup(auth, googleProvider);
+};
+
+export const resetPassword = async (email) => {
+    return sendPasswordResetEmail(auth, email);
 };
 
 export default app;

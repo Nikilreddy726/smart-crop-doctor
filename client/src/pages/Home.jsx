@@ -183,9 +183,9 @@ const Home = () => {
                             {/* Leaf background image with moving scan laser line */}
                             <div className="absolute inset-0 flex items-center justify-center overflow-hidden">
                                 <img
-                                    src="https://images.unsplash.com/photo-1463936575829-25148e1db1b8?auto=format&fit=crop&q=80&w=400"
-                                    alt="Scanning leaf mockup"
-                                    className="w-full h-full object-cover opacity-60 group-hover:scale-105 transition-transform duration-1000"
+                                    src="https://images.unsplash.com/photo-1591857177580-dc82b9ac4e1e?auto=format&fit=crop&q=80&w=400"
+                                    alt="Scanning tomato leaf mockup"
+                                    className="w-full h-full object-cover opacity-70 group-hover:scale-105 transition-transform duration-1000"
                                 />
                                 {/* Laser line overlay */}
                                 <motion.div

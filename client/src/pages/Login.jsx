@@ -203,6 +203,23 @@ const Login = () => {
         if (user) navigate(location.state?.redirectUrl || '/dashboard', { replace: true });
     }, [user, navigate, location]);
 
+    useEffect(() => {
+        const handleScrollLock = () => {
+            if (window.innerWidth >= 768) {
+                document.body.style.overflow = 'hidden';
+            } else {
+                document.body.style.overflow = 'auto';
+            }
+        };
+        handleScrollLock();
+        window.addEventListener('resize', handleScrollLock);
+        return () => {
+            document.body.style.overflow = 'auto';
+            window.removeEventListener('resize', handleScrollLock);
+        };
+    }, []);
+
+
     const [mode, setMode] = useState('login');
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');

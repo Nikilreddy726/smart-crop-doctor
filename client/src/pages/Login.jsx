@@ -137,7 +137,8 @@ const PageWrap = ({ children, mode }) => {
         <div className="min-h-[calc(100vh-180px)] flex items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-green-50 px-4 py-2">
             <div id="recaptcha-container" style={{ position: 'absolute' }}></div>
             
-            <div className="w-full max-w-4xl bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[480px] md:h-[500px] my-1">
+            <div className="w-full max-w-4xl bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[480px] md:h-[510px] my-1">
+
 
                 {/* Left Side: Decorative Agriculture Hero Section */}
                 <div className="md:col-span-5 relative bg-gradient-to-br from-emerald-800 to-green-700 p-6 flex flex-col justify-between overflow-hidden text-white min-h-[250px] md:min-h-auto">
@@ -615,7 +616,7 @@ const Login = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleAuth} className={isLogin ? "space-y-2.5" : "space-y-1.5"}>
+            <form onSubmit={handleAuth} className={isLogin ? "space-y-2.5" : "space-y-1.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-3 md:gap-y-1.5"}>
 
                 {!isLogin && (
                     <div className="space-y-0.5">
@@ -679,15 +680,19 @@ const Login = () => {
                     </div>
                 )}
 
-                {banner && <Banner msg={banner} onClose={clearBanner} />}
+                {banner && (
+                    <div className={!isLogin ? "md:col-span-2" : ""}>
+                        <Banner msg={banner} onClose={clearBanner} />
+                    </div>
+                )}
 
-                <Btn color="emerald">
-                    <><ChevronRight size={16} /> {isLogin ? 'Sign In' : 'Create Account'}</>
-                </Btn>
+                <div className={!isLogin ? "md:col-span-2" : ""}>
+                    <Btn color="emerald">
+                        <><ChevronRight size={16} /> {isLogin ? 'Sign In' : 'Create Account'}</>
+                    </Btn>
+                </div>
             </form>
         </PageWrap>
-
-
     );
 };
 

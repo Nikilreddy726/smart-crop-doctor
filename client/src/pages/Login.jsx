@@ -173,26 +173,54 @@ const Login = () => {
                 throw { code: 'auth/invalid-email' };
             }
 
-            // Convert phone to shadow email
+            // Phone-registered accounts use a fake shadow email (@farmer.com)
+            // Firebase cannot send a reset email to that inbox since it doesn't exist.
+            // Show a clear message explaining this limitation.
             const containsOnlyDigits = /^\d+$/.test(resetIdentifier);
             if (containsOnlyDigits) {
                 const phoneRegex = /^[0-9]{10}$/;
                 if (!phoneRegex.test(resetIdentifier)) {
                     throw new Error(t('mobileMustBe10'));
                 }
-                resetIdentifier = `${resetIdentifier}@farmer.com`;
+                // Can't reset password for phone-registered accounts via email
+                setError({
+                    icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                    title: '📱 Phone Account — Cannot Reset via Email',
+                    desc: 'Your account was registered with a phone number. Password reset emails cannot be delivered to phone accounts. Please use "Continue with Google" to sign in, or contact support to recover your account.'
+                });
+                setResetLoading(false);
+                return;
+            }
+
+            // Validate it looks like a real email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(resetIdentifier)) {
+                throw { code: 'auth/invalid-email' };
             }
 
             await resetPassword(resetIdentifier);
-            setSuccessMsg('✅ Password reset email sent! Check your inbox (and spam folder) for a link to reset your password.');
+            setSuccessMsg('✅ Reset link sent! Check your inbox and spam/junk folder. The link expires in 1 hour.');
             setResetEmail('');
         } catch (err) {
-            console.error(err);
-            if (err.code === 'auth/user-not-found') {
+            console.error('Reset password error:', err);
+            const code = err.code || '';
+            if (code === 'auth/user-not-found') {
                 setError({
                     icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
-                    title: '👤 Account Not Found',
-                    desc: 'No account exists with this email. Please check the email or register a new account.'
+                    title: '👤 Email Not Registered',
+                    desc: 'No account found with this email address. Please check the spelling or sign up for a new account.'
+                });
+            } else if (code === 'auth/invalid-email') {
+                setError({
+                    icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                    title: '✉️ Invalid Email',
+                    desc: 'Please enter a valid email address (e.g., yourname@gmail.com).'
+                });
+            } else if (code === 'auth/too-many-requests') {
+                setError({
+                    icon: <AlertTriangle size={16} className="text-amber-500 shrink-0" />,
+                    title: '⏳ Too Many Attempts',
+                    desc: 'Too many reset attempts. Please wait a few minutes and try again.'
                 });
             } else {
                 setError(getFriendlyError(err));
@@ -225,31 +253,28 @@ const Login = () => {
                                 Reset Password
                             </h1>
                             <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                                Enter your registered email or phone number. We'll send you a link to reset your password.
+                                Enter your registered <span className="text-amber-600 font-black">email address</span> and we'll send a reset link. Password reset is only available for email-registered accounts.
                             </p>
                         </div>
 
                         <form onSubmit={handleForgotPassword} className="space-y-4">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-2">
-                                    Email / Phone
+                                    Registered Email Address
                                 </label>
                                 <div className="relative">
                                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                                     <input
-                                        type="text"
+                                        type="email"
                                         required
                                         autoFocus
-                                        placeholder="Enter your registered email or phone"
+                                        placeholder="e.g. yourname@gmail.com"
                                         value={resetEmail}
-                                        onChange={(e) => {
-                                            const val = e.target.value;
-                                            if (/^\d+$/.test(val) && val.length > 10) return;
-                                            setResetEmail(val);
-                                        }}
+                                        onChange={(e) => setResetEmail(e.target.value)}
                                         className="w-full bg-slate-50 border border-slate-100 focus:border-amber-300 focus:bg-white rounded-xl py-3 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-xs"
                                     />
                                 </div>
+                                <p className="text-[9px] text-slate-400 font-semibold ml-2 mt-1">⚠️ Phone number accounts cannot receive reset emails</p>
                             </div>
 
                             {/* Success Message */}

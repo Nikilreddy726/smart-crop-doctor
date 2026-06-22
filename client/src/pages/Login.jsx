@@ -141,17 +141,19 @@ const PageWrap = ({ children, mode }) => {
 
 
                 {/* Left Side: Decorative Agriculture Hero Section */}
-                <div className="md:col-span-5 relative bg-gradient-to-br from-emerald-800 to-green-700 p-6 flex flex-col justify-between overflow-hidden text-white min-h-[250px] md:min-h-auto">
+                <div className="md:col-span-5 relative overflow-hidden min-h-[160px] md:min-h-auto flex flex-col justify-between p-6 text-white bg-emerald-950">
                     {/* Background Tech Image */}
-                    <div className="absolute inset-0 opacity-20 mix-blend-overlay bg-cover bg-center" style={{ backgroundImage: "url('/agritech_hero_banner.png')" }}></div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-900/40 to-transparent"></div>
+                    <div className="absolute inset-0 bg-cover bg-center transition-all duration-500" style={{ backgroundImage: "url('/agritech_hero_banner.jpg')" }}></div>
                     
-                    {/* Floating Glow Effects */}
-                    <div className="absolute -top-10 -left-10 w-45 h-40 bg-emerald-400/20 rounded-full blur-3xl"></div>
-                    <div className="absolute -bottom-20 -right-20 w-55 h-55 bg-green-400/20 rounded-full blur-3xl"></div>
+                    {/* Shadow overlay only visible on desktop to ensure text readability */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-emerald-950/90 via-emerald-900/40 to-transparent hidden md:block"></div>
                     
-                    {/* Top Content: Brand */}
-                    <div className="relative z-10 space-y-1.5">
+                    {/* Floating Glow Effects - Desktop only */}
+                    <div className="absolute -top-10 -left-10 w-45 h-40 bg-emerald-400/20 rounded-full blur-3xl hidden md:block"></div>
+                    <div className="absolute -bottom-20 -right-20 w-55 h-55 bg-green-400/20 rounded-full blur-3xl hidden md:block"></div>
+                    
+                    {/* Top Content: Brand (Desktop only) */}
+                    <div className="relative z-10 space-y-1.5 hidden md:block">
                         <div className="inline-flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-0.5 rounded-full border border-white/20">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                             <span className="text-[9px] font-black uppercase tracking-wider">AI Crop Doctor Active</span>
@@ -160,8 +162,8 @@ const PageWrap = ({ children, mode }) => {
                         <p className="text-[10px] text-emerald-100 font-bold tracking-wide uppercase">AI-Powered Crop Health Monitoring</p>
                     </div>
 
-                    {/* Bottom Content: Info */}
-                    <div className="relative z-10 space-y-3">
+                    {/* Bottom Content: Info (Desktop only) */}
+                    <div className="relative z-10 space-y-3 hidden md:block">
                         <p className="text-xs font-medium leading-relaxed text-emerald-50 opacity-90">
                             Monitor crop health, detect diseases early, receive intelligent recommendations, and improve farm productivity using AI.
                         </p>

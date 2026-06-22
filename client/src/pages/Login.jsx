@@ -288,29 +288,19 @@ const Login = () => {
                 setBanner({ type: 'warn', title: '✉️ Invalid Format', desc: 'Enter a valid email or 10-digit phone number.' });
                 return;
             }
+            const shadowEmail = phoneMode ? shadow(id) : id;
 
-            if (phoneMode) {
-                if (mode === 'login') {
-                    await sendOTP(id);
-                    setMode('otp-login');
-                } else {
-                    setPendingCreds({ name, phone: id });
-                    await sendOTP(id);
-                    setMode('otp-register');
-                }
+            if (mode === 'login') {
+                await loginUser(shadowEmail, password);
+                localStorage.removeItem('local_crop_scans');
+                navigate(location.state?.redirectUrl || '/dashboard');
             } else {
-                if (mode === 'login') {
-                    await loginUser(id, password);
-                    localStorage.removeItem('local_crop_scans');
-                    navigate(location.state?.redirectUrl || '/dashboard');
-                } else {
-                    if (password !== confirmPassword) { setBanner({ type: 'warn', title: '🔑 Passwords Don\'t Match', desc: 'Both password fields must be identical.' }); return; }
-                    if (password.length < 6) { setBanner({ type: 'warn', title: '⚠️ Weak Password', desc: 'Password must be at least 6 characters.' }); return; }
+                if (password !== confirmPassword) { setBanner({ type: 'warn', title: '🔑 Passwords Don\'t Match', desc: 'Both password fields must be identical.' }); return; }
+                if (password.length < 6) { setBanner({ type: 'warn', title: '⚠️ Weak Password', desc: 'Password must be at least 6 characters.' }); return; }
 
-                    await registerUser(id, password, name);
-                    localStorage.removeItem('local_crop_scans');
-                    navigate(location.state?.redirectUrl || '/dashboard');
-                }
+                await registerUser(shadowEmail, password, name);
+                localStorage.removeItem('local_crop_scans');
+                navigate(location.state?.redirectUrl || '/dashboard');
             }
 
         } catch (err) {
@@ -330,32 +320,26 @@ const Login = () => {
         try {
             const result = await confirmationResult.confirm(otp.replace(/\s/g, ''));
             const phoneUser = result.user;
-            const { name } = pendingCreds;
-            if (name) {
-                await updateProfile(phoneUser, { displayName: name });
+            const { shadowEmail, password, name } = pendingCreds;
+            try {
+                const cred = EmailAuthProvider.credential(shadowEmail, password);
+                await linkWithCredential(phoneUser, cred);
+            } catch (linkErr) {
+                if (linkErr.code === 'auth/email-already-in-use') {
+                    await signOut(auth);
+                    await loginUser(shadowEmail, password);
+                    navigate(location.state?.redirectUrl || '/dashboard');
+                    return;
+                }
+                throw linkErr;
             }
+            if (name) await updateProfile(phoneUser, { displayName: name });
+            await signOut(auth);
+            await loginUser(shadowEmail, password);
             localStorage.removeItem('local_crop_scans');
             navigate(location.state?.redirectUrl || '/dashboard');
         } catch (err) {
             console.error('OTP register error:', err);
-            setBanner(getFriendlyError(err));
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // ── OTP → Login ───────────────────────────────────────────────────
-    const handleOTPLogin = async (e) => {
-        e.preventDefault();
-        if (otp.replace(/\s/g, '').length < 6) { setBanner({ type: 'warn', title: '⚠️ Incomplete OTP', desc: 'Enter all 6 digits.' }); return; }
-        setBanner(null);
-        setLoading(true);
-        try {
-            await confirmationResult.confirm(otp.replace(/\s/g, ''));
-            localStorage.removeItem('local_crop_scans');
-            navigate(location.state?.redirectUrl || '/dashboard');
-        } catch (err) {
-            console.error('OTP login error:', err);
             setBanner(getFriendlyError(err));
         } finally {
             setLoading(false);
@@ -505,22 +489,7 @@ const Login = () => {
         </PageWrap>
     );
 
-    // ── OTP VERIFY LOGIN ──────────────────────────────────────────────
-    if (mode === 'otp-login') return (
-        <PageWrap mode={mode}>
-            <div className="text-center space-y-2">
-                <div className="w-14 h-14 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto"><Phone size={24} className="text-emerald-600" /></div>
-                <h1 className="text-2xl font-black text-slate-900">Verify OTP</h1>
-                <p className="text-xs text-slate-500 font-semibold">OTP sent to <span className="text-emerald-600 font-black">+91 {pendingPhone}</span></p>
-            </div>
-            <form onSubmit={handleOTPLogin} className="space-y-4">
-                <OtpInput value={otp} onChange={setOtp} />
-                {banner && <Banner msg={banner} onClose={clearBanner} />}
-                <Btn color="emerald" disabled={otp.replace(/\s/g,'').length < 6}><Shield size={16} /> Verify & Sign In</Btn>
-                <OTPActions onBack={() => { setMode('login'); setBanner(null); }} backLabel="Back to Login" />
-            </form>
-        </PageWrap>
-    );
+
 
     // ── OTP VERIFY RESET ──────────────────────────────────────────────
     if (mode === 'otp-reset') return (
@@ -676,36 +645,32 @@ const Login = () => {
                     </div>
                 </div>
 
-                {!isPhone(email) && (
-                    <>
-                        <div className="space-y-0.5">
-                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                                <input type={showPass ? 'text' : 'password'} required={!isPhone(email)} value={password} onChange={e => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-400 focus:bg-white rounded-xl py-2 pl-10 pr-10 outline-none transition-all font-bold text-slate-900 text-sm" />
-                                <button type="button" onClick={() => setShowPass(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                                    {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
-                                </button>
-                            </div>
-                        </div>
+                <div className="space-y-0.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Password</label>
+                    <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                        <input type={showPass ? 'text' : 'password'} required value={password} onChange={e => setPassword(e.target.value)}
+                            placeholder="••••••••"
+                            className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-400 focus:bg-white rounded-xl py-2 pl-10 pr-10 outline-none transition-all font-bold text-slate-900 text-sm" />
+                        <button type="button" onClick={() => setShowPass(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                            {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                    </div>
+                </div>
 
-                        {!isLogin && (
-                            <div className="space-y-0.5">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
-                                <div className="relative">
-                                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
-                                    <input type="password" required={!isPhone(email) && !isLogin} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
-                                        placeholder="••••••••"
-                                        className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-400 focus:bg-white rounded-xl py-2 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-sm" />
-                                </div>
-                            </div>
-                        )}
-                    </>
+                {!isLogin && (
+                    <div className="space-y-0.5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Confirm Password</label>
+                        <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                            <input type="password" required value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+                                placeholder="••••••••"
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-400 focus:bg-white rounded-xl py-2 pl-10 pr-4 outline-none transition-all font-bold text-slate-900 text-sm" />
+                        </div>
+                    </div>
                 )}
 
-                {isLogin && !isPhone(email) && (
+                {isLogin && (
                     <div className="flex items-center justify-between px-1 pt-0.5">
                         <label className="flex items-center gap-2 cursor-pointer select-none">
                             <input type="checkbox" className="w-3.5 h-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600" />
@@ -727,7 +692,7 @@ const Login = () => {
 
                 <div className={!isLogin ? "md:col-span-2" : ""}>
                     <Btn color="emerald">
-                        <><ChevronRight size={16} /> {isLogin ? (isPhone(email) ? 'Send OTP' : 'Sign In') : (isPhone(email) ? 'Send OTP' : 'Create Account')}</>
+                        <><ChevronRight size={16} /> {isLogin ? 'Sign In' : 'Create Account'}</>
                     </Btn>
                 </div>
             </form>

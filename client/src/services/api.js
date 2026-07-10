@@ -152,5 +152,10 @@ export const resetPasswordPhone = async (token, phone, newPassword) => {
     return response.data;
 };
 
+export const forgotPasswordPhone = async (phone) => {
+    const response = await api.post('/auth/forgot-password-phone', { phone });
+    return response.data;
+};
+
 export default api;
 

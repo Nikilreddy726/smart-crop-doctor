@@ -690,5 +690,120 @@ app.post('/api/auth/reset-password-phone', async (req, res) => {
     }
 });
 
+// Helper to send SMS via Fast2SMS, Twilio, or console log fallback
+const sendResetLinkSMS = async (phone, link) => {
+    const formattedPhone = phone.startsWith('91') && phone.length === 12 ? `+${phone}` : phone.startsWith('+') ? phone : `+91${phone}`;
+    const cleanDigits = formattedPhone.replace(/\D/g, ''); // 919876543210
+    const raw10Digits = cleanDigits.slice(-10); // 9876543210
+    const message = `Smart Doctor Crop: Reset your password using this link: ${link}`;
+
+    console.log(`[SMS OUTBOX] Sending to ${formattedPhone}: ${message}`);
+
+    // Option 1: Fast2SMS
+    if (process.env.FAST2SMS_API_KEY) {
+        try {
+            const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
+                params: {
+                    authorization: process.env.FAST2SMS_API_KEY,
+                    message: `Reset your password: ${link}`,
+                    language: 'english',
+                    route: 'q',
+                    numbers: raw10Digits
+                },
+                timeout: 5000
+            });
+            console.log(`Fast2SMS Response:`, response.data);
+            return;
+        } catch (err) {
+            console.error("Fast2SMS sending failed:", err.message);
+        }
+    }
+
+    // Option 2: Twilio
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
+        try {
+            const authStr = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
+            const response = await axios.post(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, 
+                new URLSearchParams({
+                    To: formattedPhone,
+                    From: process.env.TWILIO_PHONE_NUMBER,
+                    Body: message
+                }),
+                {
+                    headers: {
+                        'Authorization': `Basic ${authStr}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    timeout: 5000
+                }
+            );
+            console.log(`Twilio Response Status:`, response.status);
+            return;
+        } catch (err) {
+            console.error("Twilio sending failed:", err.response?.data || err.message);
+        }
+    }
+
+    // Fallback: If no gateway configured, log to console
+    console.log(`\n======================================================`);
+    console.log(`⚠️ NO SMS GATEWAY CONFIGURED IN SERVER ENVIRONMENT.`);
+    console.log(`To send real SMS messages, configure Fast2SMS or Twilio credentials in your server .env.`);
+    console.log(`SMS Recipient: ${formattedPhone}`);
+    console.log(`SMS Message: ${message}`);
+    console.log(`======================================================\n`);
+};
+
+// Endpoint to generate and send password reset link via SMS
+app.post('/api/auth/forgot-password-phone', async (req, res) => {
+    const { phone } = req.body;
+    if (!firebaseInitialized) {
+        return res.status(500).json({ error: "Firebase Admin is not initialized on the server." });
+    }
+    if (!phone) {
+        return res.status(400).json({ error: "Phone number is required." });
+    }
+
+    try {
+        const cleanPhone = phone.replace(/\D/g, '');
+        if (cleanPhone.length !== 10) {
+            return res.status(400).json({ error: "Please enter a valid 10-digit phone number." });
+        }
+
+        const shadowEmail = `${cleanPhone}@farmer.com`;
+
+        // 1. Verify user exists
+        let userRecord;
+        try {
+            userRecord = await admin.auth().getUserByEmail(shadowEmail);
+        } catch (err) {
+            if (err.code === 'auth/user-not-found') {
+                return res.status(404).json({ error: "No account found with this phone number." });
+            }
+            throw err;
+        }
+
+        // 2. Generate password reset link
+        const resetLink = await admin.auth().generatePasswordResetLink(shadowEmail);
+
+        // 3. Send SMS containing the link
+        await sendResetLinkSMS(cleanPhone, resetLink);
+
+        // Return dev link if no SMS API is configured to assist testing
+        let devLink = null;
+        if (!process.env.FAST2SMS_API_KEY && (!process.env.TWILIO_ACCOUNT_SID || !process.env.TWILIO_AUTH_TOKEN)) {
+            devLink = resetLink;
+        }
+
+        return res.json({ 
+            success: true, 
+            message: "Reset link sent via SMS.",
+            devLink
+        });
+    } catch (err) {
+        console.error("Forgot password phone error:", err);
+        return res.status(500).json({ error: err.message || "An error occurred while sending reset SMS." });
+    }
+});
+
 app.listen(port, () => console.log(`Server v1.4.0 running on ${port}`));
 

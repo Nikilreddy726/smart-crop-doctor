@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '../services/firebase';
 import { loginUser, registerUser, signInWithGoogle, resetPassword } from '../services/firebase';
-import { resetPasswordPhone } from '../services/api';
+import { resetPasswordPhone, forgotPasswordPhone } from '../services/api';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 import { useLanguage } from '../services/LanguageContext';
@@ -21,6 +21,9 @@ import { useAuth } from '../services/AuthContext';
 // ─── These are defined OUTSIDE Login so React never remounts the form ─────────
 
 const getFriendlyError = (error) => {
+    if (error?.response?.data?.error) {
+        return { type: 'error', title: '❌ Error', desc: error.response.data.error };
+    }
     const code = error?.code || '';
     const msg = error?.message || String(error);
     if (code === 'auth/invalid-credential' || msg.includes('auth/invalid-credential'))
@@ -355,14 +358,23 @@ const Login = () => {
             const id = resetEmail.trim();
             if (!id) { setBanner({ type: 'warn', title: '⚠️ Required', desc: 'Enter your email or phone number.' }); return; }
             if (isPhone(id)) {
-                try {
-                    await sendOTP(id);
-                    setMode('otp-reset');
-                } catch (otpErr) {
-                    if (otpErr?.code === 'auth/billing-not-enabled' || otpErr?.code === 'auth/operation-not-allowed') {
-                        setBanner({ type: 'warn', title: '💳 SMS Not Available', desc: 'Phone OTP requires Firebase Blaze plan upgrade. Please upgrade at console.firebase.google.com or use email login instead.' });
-                    } else { throw otpErr; }
+                const cleanPhone = id.replace(/\D/g, '');
+                const res = await forgotPasswordPhone(cleanPhone);
+                if (res.devLink) {
+                    console.log(`[Dev Mode] Password Reset Link:`, res.devLink);
+                    setBanner({ 
+                        type: 'success', 
+                        title: '✅ Reset Link Sent via SMS!', 
+                        desc: `Password reset link sent to +91 ${cleanPhone}. (Dev Mode: Link logged to console)`
+                    });
+                } else {
+                    setBanner({ 
+                        type: 'success', 
+                        title: '✅ Reset Link Sent via SMS!', 
+                        desc: `A password reset link has been sent to +91 ${cleanPhone}. Link expires in 1 hour.` 
+                    });
                 }
+                setResetEmail('');
             } else if (isEmail(id)) {
                 await resetPassword(id);
                 setBanner({ type: 'success', title: '✅ Reset Link Sent!', desc: `Check ${id} inbox and spam folder. Link expires in 1 hour.` });

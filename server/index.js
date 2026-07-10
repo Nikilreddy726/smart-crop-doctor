@@ -700,7 +700,8 @@ const sendResetLinkSMS = async (phone, link) => {
     console.log(`[SMS OUTBOX] Sending to ${formattedPhone}: ${message}`);
 
     // Option 1: Fast2SMS
-    if (process.env.FAST2SMS_API_KEY) {
+    const hasFast2SMS = process.env.FAST2SMS_API_KEY && !process.env.FAST2SMS_API_KEY.includes('YOUR_');
+    if (hasFast2SMS) {
         try {
             const response = await axios.get('https://www.fast2sms.com/dev/bulkV2', {
                 params: {
@@ -720,7 +721,10 @@ const sendResetLinkSMS = async (phone, link) => {
     }
 
     // Option 2: Twilio
-    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN && process.env.TWILIO_PHONE_NUMBER) {
+    const hasTwilio = process.env.TWILIO_ACCOUNT_SID && !process.env.TWILIO_ACCOUNT_SID.includes('YOUR_') &&
+                      process.env.TWILIO_AUTH_TOKEN && !process.env.TWILIO_AUTH_TOKEN.includes('YOUR_') &&
+                      process.env.TWILIO_PHONE_NUMBER && !process.env.TWILIO_PHONE_NUMBER.includes('YOUR_');
+    if (hasTwilio) {
         try {
             const authStr = Buffer.from(`${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`).toString('base64');
             const response = await axios.post(`https://api.twilio.com/2010-04-01/Accounts/${process.env.TWILIO_ACCOUNT_SID}/Messages.json`, 

@@ -137,7 +137,7 @@ const PageWrap = ({ children, mode }) => {
         <div className="min-h-[calc(100vh-180px)] flex items-center justify-center bg-gradient-to-br from-emerald-50 via-slate-50 to-green-50 px-4 py-2">
             <div id="recaptcha-container" style={{ position: 'absolute' }}></div>
             
-            <div className="w-full max-w-4xl bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[480px] md:h-[510px] my-1">
+            <div className="w-full max-w-4xl bg-white/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 overflow-hidden grid grid-cols-1 md:grid-cols-12 min-h-[480px] md:h-[530px] my-1">
 
 
                 {/* Left Side: Decorative Agriculture Hero Section */}
@@ -183,8 +183,8 @@ const PageWrap = ({ children, mode }) => {
                 </div>
                 
                 {/* Right Side: Authentication Card */}
-                <div className="md:col-span-7 p-6 md:p-8 flex flex-col justify-center bg-white/40 backdrop-blur-lg border-l border-white/20">
-                    <div className="max-w-md w-full mx-auto space-y-4">
+                <div className="md:col-span-7 p-6 md:py-6 md:px-8 flex flex-col justify-center bg-white/40 backdrop-blur-lg border-l border-white/20">
+                    <div className="max-w-md w-full mx-auto space-y-3">
                         {children}
                     </div>
                 </div>
@@ -620,7 +620,7 @@ const Login = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleAuth} className={isLogin ? "space-y-2.5" : "space-y-1.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-3 md:gap-y-1.5"}>
+            <form onSubmit={handleAuth} className={isLogin ? "space-y-2" : "space-y-1.5 md:space-y-0 md:grid md:grid-cols-2 md:gap-x-3 md:gap-y-1"}>
 
                 {!isLogin && (
                     <div className="space-y-0.5">

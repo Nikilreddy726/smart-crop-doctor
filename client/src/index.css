@@ -95,17 +95,24 @@ h4 {
 }
 
 /* Hide Google Translate top banner frame & balloon frames */
-iframe.goog-te-banner-frame {
+iframe.goog-te-banner-frame,
+iframe.skiptranslate {
   display: none !important;
+  visibility: hidden !important;
 }
 .goog-te-banner-frame.skiptranslate,
 .goog-te-banner-frame,
 #goog-gt-tt,
 .goog-te-balloon-frame {
   display: none !important;
+  visibility: hidden !important;
+}
+html {
+  margin-top: 0px !important;
 }
 body {
   top: 0px !important;
+  position: static !important;
 }
 .goog-tooltip {
   display: none !important;

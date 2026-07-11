@@ -2928,9 +2928,21 @@ export const LanguageProvider = ({ children }) => {
     const savedLang = localStorage.getItem('language');
     const [lang, setLang] = useState(savedLang || 'en');
 
-    // Update localStorage when language changes
+    // Update localStorage and trigger Google Translate when language changes
     React.useEffect(() => {
         localStorage.setItem('language', lang);
+
+        const changeGoogleTranslate = () => {
+            const selectEl = document.querySelector('.goog-te-combo');
+            if (selectEl) {
+                selectEl.value = lang;
+                selectEl.dispatchEvent(new Event('change'));
+            } else {
+                // If Google Translate element is not fully initialized, retry shortly
+                setTimeout(changeGoogleTranslate, 250);
+            }
+        };
+        changeGoogleTranslate();
     }, [lang]);
 
     const translations = {
@@ -2942,31 +2954,16 @@ export const LanguageProvider = ({ children }) => {
         ml
     };
 
-        // Cache lowercase versions for case-insensitive matching
-    const lowerKeysCache = React.useMemo(() => {
-        const cache = {};
-        for (const [l, dictionary] of Object.entries(translations)) {
-            cache[l] = {};
-            for (const [key, value] of Object.entries(dictionary)) {
-                if (key && typeof key === 'string') {
-                    cache[l][key.toLowerCase().trim()] = value;
-                }
-            }
-        }
-        return cache;
-    }, [translations]);
-
     const t = (key) => {
         if (!key || typeof key !== 'string') return key;
 
-        // Try exact match first
+        // Try exact match first in active language dictionary
         if (translations[lang] && translations[lang][key]) return translations[lang][key];
-        if (translations['en'] && translations['en'][key]) return translations['en'][key];
 
-        // Try lowercase fallback
-        const lowerKey = key.toLowerCase().trim();
-        if (lowerKeysCache[lang] && lowerKeysCache[lang][lowerKey]) return lowerKeysCache[lang][lowerKey];
-        if (lowerKeysCache['en'] && lowerKeysCache['en'][lowerKey]) return lowerKeysCache['en'][lowerKey];
+        // Fall back to base English baseline
+        if (translations['en'] && translations['en'][key]) {
+            return translations['en'][key];
+        }
 
         return key;
     };

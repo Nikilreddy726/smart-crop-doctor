@@ -93,3 +93,28 @@ h4 {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Hide Google Translate top banner frame & balloon frames */
+iframe.goog-te-banner-frame {
+  display: none !important;
+}
+.goog-te-banner-frame.skiptranslate,
+.goog-te-banner-frame,
+#goog-gt-tt,
+.goog-te-balloon-frame {
+  display: none !important;
+}
+body {
+  top: 0px !important;
+}
+.goog-tooltip {
+  display: none !important;
+}
+.goog-tooltip:hover {
+  display: none !important;
+}
+.goog-text-highlight {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
